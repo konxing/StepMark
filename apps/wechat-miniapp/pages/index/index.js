@@ -2,7 +2,9 @@ const TOKEN_KEY="stepmark_mobile_access";
 const EXPIRES_KEY="stepmark_mobile_expires";
 Page({
   data:{modules:[],status:"正在连接…",loading:false,authenticated:false,
-    creating:false,title:"",action:"",cue:""},
+    creating:false,title:"",action:"",cue:"",selectedHabitId:"",progress:null,
+    reflectionEventId:"",feelingOptions:["非常抗拒","需要逼自己","有一点纠结","比较自然","几乎不用思考"],
+    feelIndex:-1,feedbackNote:"",aiConsent:false},
   onLoad(){this.bootstrap();},
   onShow(){if(this.data.authenticated)this.loadHabits();},
   api(path,method,data,authenticated=true){
@@ -78,14 +80,57 @@ Page({
     const date=new Date(), day=date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");
     this.setData({creating:true});
     try{
-      await this.api("/api/v1/observations","POST",{
+      const saved=await this.api("/api/v1/observations","POST",{
         habitId,opportunityKey:"daily:"+day,
         eligible:true,completed:true,occurredAt:new Date().toISOString()
       });
-      this.setData({status:"已记录一次行为（并非能力加分）"});
-      await this.loadHabits();
+      this.setData({status:"执行已保存，可以补充自己的感受（选填）。",
+        reflectionEventId:saved.event.id,selectedHabitId:habitId,feelIndex:-1,feedbackNote:"",aiConsent:false});
+      await this.loadHabits();await this.refreshProgress(habitId);
     }catch(e){this.setData({status:e.message||"记录失败"});}
     finally{this.setData({creating:false});}
+  },
+  async openProgress(e){
+    const id=e.currentTarget.dataset.id;
+    this.setData({selectedHabitId:id,reflectionEventId:"",feelIndex:-1,feedbackNote:"",aiConsent:false});
+    await this.refreshProgress(id);
+  },
+  async refreshProgress(id){
+    try{
+      const progress=await this.api("/api/v1/habits/"+id+"/progress","GET");
+      this.setData({selectedHabitId:id,progress});
+    }catch(e){this.setData({status:e.message||"读取进度失败"});}
+  },
+  chooseFeeling(e){this.setData({feelIndex:Number(e.detail.value)});},
+  updateFeelingNote(e){this.setData({feedbackNote:e.detail.value});},
+  setAiConsent(e){this.setData({aiConsent:e.detail.value});},
+  async saveReflection(){
+    if(this.data.creating)return;
+    const id=this.data.selectedHabitId;
+    const text=this.data.feedbackNote.trim();
+    if(!id || (!text && this.data.feelIndex<0))return;
+    const body={aiConsent:Boolean(this.data.aiConsent&&text)};
+    if(text)body.note=text;
+    if(this.data.feelIndex>=0)body.initiationLevel=this.data.feelIndex;
+    if(this.data.reflectionEventId)body.eventId=this.data.reflectionEventId;
+    this.setData({creating:true});
+    try {
+      const result=await this.api("/api/v1/habits/"+id+"/reflections","POST",body);
+      this.setData({status:result.reflection.aiStatus==="PENDING"?
+        "感受已保存。AI 将异步分析；无需重复提交。":"感受已保存，尚未向外部 AI 发送。",
+        feedbackNote:"",feelIndex:-1,aiConsent:false,reflectionEventId:""});
+      await this.refreshProgress(id);
+    }catch(e){this.setData({status:e.message||"保存感受失败"});}
+    finally{this.setData({creating:false});}
+  },
+  async toggleReview(e){
+    const habit=this.data.modules.find(h=>h.id===e.currentTarget.dataset.id);
+    if(!habit)return;
+    try{
+      await this.api("/api/v1/habits/"+habit.id+"/reviews","PATCH",{enabled:!habit.reviewEnabled});
+      await this.loadHabits();await this.refreshProgress(habit.id);
+      this.setData({status:habit.reviewEnabled?"复查提示已关闭":"复查提示已开启"});
+    }catch(e){this.setData({status:e.message||"修改设置失败"});}
   },
   async logout(){
     try{await this.api("/api/v1/auth/wechat/logout","POST",{});}

@@ -15,7 +15,30 @@
         <text wx:if="{{item.cue}}" class="meta">触发情境：{{item.cue}}</text>
         <text class="meta">已记录机会：{{item._count.events}}</text>
         <button class="primary" data-id="{{item.id}}" disabled="{{creating}}" bindtap="record">今天已执行</button>
+        <button class="progress-button" data-id="{{item.id}}" bindtap="openProgress">查看习惯进度</button>
       </view>
+    </view>
+    <view wx:if="{{selectedHabitId && progress}}" class="progress-card">
+      <view class="section-title">习惯形成进度</view>
+      <view class="progress-percentage">{{progress.progress}}%</view>
+      <view class="progress-track"><view class="progress-fill" style="width:{{progress.progress}}%;"></view></view>
+      <text class="meta">已执行 {{progress.completedRepetitions}} 次，感受证据 {{progress.evidenceCount}} 条</text>
+      <view wx:if="{{progress.reviewDue}}" class="review-note">该复查了：现在开始这个习惯仍然自然吗？</view>
+      <view class="small-note">百分比是实验性成长指标，不是习惯形成概率，也不直接增加能力分。</view>
+      <view class="section-title">记录开始行动的感受（选填）</view>
+      <picker range="{{feelingOptions}}" value="{{feelIndex < 0 ? 0 : feelIndex}}" bindchange="chooseFeeling">
+        <view class="picker-control">{{feelIndex < 0 ? '选择最接近的感受' : feelingOptions[feelIndex]}}</view>
+      </picker>
+      <textarea maxlength="600" class="feedback-note" value="{{feedbackNote}}" bindinput="updateFeelingNote"
+        placeholder="例如：这次看到提示就自然开始了，没有思考。"></textarea>
+      <view class="ai-consent-row">
+        <switch checked="{{aiConsent}}" disabled="{{!feedbackNote}}" bindchange="setAiConsent" color="#347856"/>
+        <text>同意将当前文字发送给 AI 服务商分析（默认关闭）</text>
+      </view>
+      <button class="primary" disabled="{{creating || (!feedbackNote && feelIndex < 0)}}" bindtap="saveReflection">保存感受</button>
+      <button class="progress-button" data-id="{{selectedHabitId}}" bindtap="toggleReview">
+        {{modules.length ? '切换当前习惯复查提示' : '复查提示'}}
+      </button>
     </view>
     <view class="section-title">新增习惯</view>
     <view class="form">
