@@ -5,7 +5,7 @@ import {ApiError,enforceRateLimit,errorResponse,principalFromRequest} from "@/se
 
 export const runtime="nodejs";
 /** Small owner-scoped pages prevent large JSON responses and avoid exposing secrets. */
-const kindSchema=z.enum(["habits","events","automaticity","assessments","estimates","judgements"]);
+const kindSchema=z.enum(["habits","events","reflections","automaticity","assessments","estimates","judgements"]);
 export async function GET(request:NextRequest){
   try{
     const principal=await principalFromRequest(request);
@@ -27,6 +27,11 @@ export async function GET(request:NextRequest){
       case "events":
         data=await db.habitEvent.findMany({where:{habit:{userId:principal.userId}},...paging,
           select:{id:true,habitId:true,opportunityKey:true,eligible:true,completed:true,occurredAt:true,createdAt:true}});break;
+      case "reflections":
+        data=await db.habitReflection.findMany({where:{habit:{userId:principal.userId}},...paging,
+          select:{id:true,habitId:true,eventId:true,note:true,initiationLevel:true,
+            aiConsent:true,aiStatus:true,aiLevel:true,aiConfidence:true,aiQuote:true,
+            aiModelId:true,aiPromptVersion:true,createdAt:true}});break;
       case "automaticity":
         data=await db.automaticityCheck.findMany({where:{habit:{userId:principal.userId}},...paging,
           select:{id:true,habitId:true,instrumentVersion:true,responses:true,indexScore:true,measuredAt:true}});break;

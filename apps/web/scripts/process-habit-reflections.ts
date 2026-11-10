@@ -12,6 +12,9 @@ if(!connectionString)throw new Error("DATABASE_URL required");
 if(!process.env.AI_HABIT_API_KEY || !process.env.AI_HABIT_MODEL)throw new Error("AI provider missing");
 const db=new PrismaClient({adapter:new PrismaPg({connectionString,max:2,connectionTimeoutMillis:3000})});
 async function main(){
+  // Recover interrupted worker claims, keeping a strictly bounded external-call lease.
+  await db.habitReflection.updateMany({where:{aiStatus:"PROCESSING",aiConsent:true,
+    reviewedAt:{lt:new Date(Date.now()-20*60*1000)}},data:{aiStatus:"PENDING"}});
   const pending=await db.habitReflection.findMany({
     where:{aiStatus:"PENDING",aiConsent:true,note:{not:null},habit:{user:{deletedAt:null}}},
     orderBy:{createdAt:"asc"},take:10,
@@ -21,7 +24,7 @@ async function main(){
   for(const row of pending){
     const claimed=await db.habitReflection.updateMany({
       where:{id:row.id,aiStatus:"PENDING",aiConsent:true},
-      data:{aiStatus:"PROCESSING"}
+      data:{aiStatus:"PROCESSING",reviewedAt:new Date()}
     });
     if(claimed.count!==1 || !row.note)continue;
     try{
