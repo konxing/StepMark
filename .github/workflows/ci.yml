@@ -41,7 +41,7 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
       - name: Prepare ephemeral test database
-        run: npm run db:push -- --accept-data-loss
+        run: npm run db:push --workspace @stepmark/web -- --accept-data-loss
       - name: Multiuser integration tests
         run: npm run test:integration --workspace @stepmark/web
       - name: Production build
