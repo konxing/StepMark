@@ -227,7 +227,10 @@ test("habit insights respect ownership and never fabricate a rate from zero oppo
 });
 
 test("private habit feelings, progress and review settings enforce user ownership",async()=>{
-  const a=await db.user.create({data:{},select:{id:true}});
+  const a=await db.user.create({data:{credential:{create:{
+    email:"reflection_"+randomUUID()+"@example.test",passwordHash:await hashPassword("verified-password-123456"),
+    verifiedAt:new Date()
+  }}},select:{id:true}});
   const b=await db.user.create({data:{},select:{id:true}});
   try{
     const ha=await db.habit.create({data:{userId:a.id,title:"A reflection habit",action:"Start naturally"}});

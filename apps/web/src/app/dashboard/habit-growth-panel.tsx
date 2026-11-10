@@ -11,6 +11,7 @@ export default function HabitGrowthPanel({habitId,eventId}:{habitId:string;event
   const [result,setResult]=useState<Progress|null>(null);
   const [level,setLevel]=useState<string>("");
   const [note,setNote]=useState("");
+  const [linkedEventId,setLinkedEventId]=useState(eventId??null);
   const [consent,setConsent]=useState(false);
   const [message,setMessage]=useState("");
   const [busy,setBusy]=useState(false);
@@ -19,7 +20,7 @@ export default function HabitGrowthPanel({habitId,eventId}:{habitId:string;event
     if(!response.ok)throw new Error("NO_PROGRESS");
     setResult(await response.json() as Progress);
   },[habitId]);
-  useEffect(()=>{void load().catch(()=>setMessage("进度暂时无法读取。"));},[load,eventId]);
+  useEffect(()=>{setLinkedEventId(eventId??null);void load().catch(()=>setMessage("进度暂时无法读取。"));},[load,eventId]);
   async function save(){
     if(busy||(!note.trim()&&!level))return;
     setBusy(true);setMessage("");
@@ -27,13 +28,13 @@ export default function HabitGrowthPanel({habitId,eventId}:{habitId:string;event
       const payload:Record<string,unknown>={aiConsent:consent};
       if(note.trim())payload.note=note.trim();
       if(level)payload.initiationLevel=Number(level);
-      if(eventId)payload.eventId=eventId;
+      if(linkedEventId)payload.eventId=linkedEventId;
       const res=await fetch("/api/v1/habits/"+habitId+"/reflections",{
         method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)
       });
       if(!res.ok)throw new Error(res.status===409?"这次感受已经保存。":"感受保存失败。");
       const response=await res.json() as {reflection:{aiStatus:string}};
-      setLevel("");setNote("");setConsent(false);
+      setLevel("");setNote("");setConsent(false);setLinkedEventId(null);
       await load();
       setMessage(response.reflection.aiStatus==="PENDING"?
         "已保存感受。AI 将由服务端任务异步分析；自评立即参与进度计算。":

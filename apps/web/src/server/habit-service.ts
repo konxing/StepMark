@@ -6,7 +6,7 @@ export async function listOwnHabits(userId:string) {
     where:{userId,archivedAt:null},
     orderBy:[{createdAt:"desc"},{id:"desc"}],
     take:50,
-    select:{id:true,title:true,cue:true,action:true,createdAt:true,
+    select:{id:true,title:true,cue:true,action:true,reviewEnabled:true,createdAt:true,
       _count:{select:{events:true,checks:true}}}
   });
 }
