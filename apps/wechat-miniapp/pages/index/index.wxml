@@ -1,0 +1,11 @@
+<view class="page">
+  <view class="heading">STEP<span>MARK.</span></view>
+  <view class="overline">PERSONAL GROWTH RESEARCH</view>
+  <view class="hero">让成长，<text>有迹可循。</text></view>
+  <view class="description">能力用表现证明，习惯用行为证明，成长用长期证据证明。</view>
+  <view class="note">当前为研究预览版本。登录、训练和提交接口尚未启用。</view>
+  <view class="section-title">初始能力维度</view>
+  <view class="cards">
+    <view wx:for="{{modules}}" wx:key="title" class="card"><text class="title">{{item.title}}</text><text class="meta">{{item.note}}</text></view>
+  </view>
+</view>

@@ -1,0 +1,1 @@
+App({globalData:{apiBase:""},onLaunch(){/* Do not store AppSecret or user tokens in client code. */}});
