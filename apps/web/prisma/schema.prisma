@@ -211,6 +211,7 @@ model HabitEvent {
   habit           Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
   @@unique([habitId, opportunityKey])
   @@index([habitId, occurredAt])
+  @@index([habitId, eligible, completed])
 }
 
 model AutomaticityCheck {

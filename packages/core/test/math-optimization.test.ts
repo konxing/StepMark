@@ -57,3 +57,23 @@ test("Kalman filter respects uncertainty, time gaps and scale comparability",()=
   assert.throws(()=>filterLongitudinal([{measuredAtMs:0,score:50,standardError:3,scaleVersion:"formB",comparable:true}],cfg));
   assert.equal(filterLongitudinal([],cfg),null);
 });
+
+test("one-pass expected variance reduction agrees with explicit conditional posterior calculation",()=>{
+  const c=item("probe",0.5,40);
+  const prior=estimateThetaEap([{item:item("previous",0),correct:true}],version);
+  const weights=prior.weights,grid=prior.grid;
+  const prob=grid.map(theta=>1/(1+Math.exp(-c.discrimination*(theta-c.difficulty))));
+  const success=weights.reduce((s,w,i)=>s+w*prob[i]!,0);
+  const correctWeights=weights.map((w,i)=>w*prob[i]!/success);
+  const wrongWeights=weights.map((w,i)=>w*(1-prob[i]!)/(1-success));
+  const mean=(ws:readonly number[])=>ws.reduce((s,w,i)=>s+w*grid[i]!,0);
+  const variance=(ws:readonly number[])=>{
+    const m=mean(ws);
+    return ws.reduce((s,w,i)=>s+w*(grid[i]!-m)**2,0);
+  };
+  const explicit=prior.variance-success*variance(correctWeights)-(1-success)*variance(wrongWeights);
+  const selected=selectNextCalibratedItem({answers:[{item:item("previous",0),correct:true}],
+    candidates:[c],calibrationVersion:version});
+  assert.ok(selected);
+  assert.ok(Math.abs(selected.expectedVarianceReduction-explicit)<1e-9);
+});

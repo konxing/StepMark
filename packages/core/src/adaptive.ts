@@ -71,16 +71,6 @@ export function estimateThetaEap(answers: readonly CalibratedAnswer[], calibrati
   return {status:"model_based",theta,variance,standardError:Math.sqrt(variance),
     evidenceCount:answers.length,calibrationVersion,grid,weights};
 }
-function conditionalVariance(posterior:AbilityPosterior, item:CalibratedItem, correct:boolean):number {
-  const post = posterior.grid.map((theta,i) => {
-    const p = irt2plProbability(theta,item.discrimination,item.difficulty);
-    return posterior.weights[i]! * (correct ? p : 1-p);
-  });
-  const mass = post.reduce((a,b)=>a+b,0);
-  if (mass < 1e-15) return posterior.variance;
-  const mean = post.reduce((a,v,i)=>a+v*posterior.grid[i]!,0)/mass;
-  return post.reduce((a,v,i)=>a+v*(posterior.grid[i]!-mean)**2,0)/mass;
-}
 /**
  * Expected reduction in posterior variance for next item divided by expected
  * response time (seconds). This is a prospective design, not a proven SLA.
@@ -132,11 +122,19 @@ export function selectNextCalibratedItem(input:{
   }
   let best:null|{itemId:string; expectedVarianceReduction:number; informationPerSecond:number; currentStandardError:number}=null;
   for(const item of allowed){
-    const p=posterior.grid.reduce((s,theta,i)=>s+posterior.weights[i]!*
-      irt2plProbability(theta,item.discrimination,item.difficulty),0);
-    const expectedRemaining = p*conditionalVariance(posterior,item,true) +
-      (1-p)*conditionalVariance(posterior,item,false);
-    const delta=Math.max(0,posterior.variance-expectedRemaining);
+    // Law of total variance for a binary response X:
+    // Var(theta)-E[Var(theta|X)] = Cov(theta,X)^2 / (p*(1-p)).
+    // Only one quadrature pass, without building two conditional posteriors.
+    let p=0, expectedThetaCorrect=0;
+    for (let j=0;j<posterior.grid.length;j++) {
+      const theta=posterior.grid[j]!, weight=posterior.weights[j]!;
+      const px=irt2plProbability(theta,item.discrimination,item.difficulty);
+      p+=weight*px;
+      expectedThetaCorrect+=weight*theta*px;
+    }
+    const covariance=expectedThetaCorrect-posterior.theta*p;
+    const delta=p>1e-12 && p<1-1e-12 ?
+      Math.min(posterior.variance,Math.max(0,covariance*covariance/(p*(1-p)))) : 0;
     const utility=delta/item.expectedSeconds;
     if(!best || utility > best.informationPerSecond + 1e-15 ||
       (Math.abs(utility-best.informationPerSecond)<1e-15 && item.id < best.itemId)){
