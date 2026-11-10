@@ -7,19 +7,20 @@ permissions:
 jobs:
   verification:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: Install dependencies
+        with: { node-version: '22' }
+      - name: Install
         run: npm install --ignore-scripts
-      - name: Test
+      - name: Generate Prisma client
+        run: npm run db:generate
+      - name: Unit tests
         run: npm run test
       - name: Typecheck
         run: npm run typecheck
-      - name: Build
+      - name: Production build
         run: npm run build
-      - name: Production dependency audit
+      - name: Security audit
         run: npm audit --omit=dev --audit-level=high

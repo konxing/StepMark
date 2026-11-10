@@ -11,3 +11,4 @@ npm-debug.log*
 *.tsbuildinfo
 .idea/
 .vscode/
+apps/web/src/generated/
