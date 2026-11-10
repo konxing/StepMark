@@ -114,7 +114,7 @@ Var(p\mid s,n)=\frac{(\alpha_0+s)(\beta_0+n-s)}
  {(\alpha_0+\beta_0+n)^2(\alpha_0+\beta_0+n+1)}.
 \]
 StepMark uses the explicitly chosen experimental uniform \(Beta(1,1)\) prior, returns **null at n=0**, preserves the raw completion fraction and Wilson interval alongside the posterior mean and SD. A rate of 100% after a single success is not evidence of perfect future adherence. Correlation between opportunities makes the Beta-Binomial calculation overconfident; do not interpret as a clinical/psychometric credible interval.
-**Implementation:** `packages/core/src/bayesian.ts`; owner-scoped aggregated API `GET /api/v1/habits/:id/insights`.
+**Implementation:** `packages/core/src/bayesian.ts`; owner-scoped aggregate API `GET /api/v1/habits/:id/insights`, backed by a `(habitId,eligible,completed)` database index.
 
 ### 10.2 Improved automaticity curve fit
 
@@ -142,6 +142,13 @@ For a candidate item \(j\) compute expected variance after observing its respons
 EV_j=P_j(1)Var(\theta\mid X_j=1)+P_j(0)Var(\theta\mid X_j=0)
 \]
 where the predictive probabilities integrate over the **current posterior**. Score candidate by \(U_j=(Var(\theta\mid\mathbf{x})-EV_j)/E[T_j]\) (estimated seconds).
+
+**Performance identity (exact under the binary posterior approximation):** by the law of total variance,
+\[
+\Delta V_j=Var(\theta\mid\mathbf{x})-EV_j
+=\frac{Cov(\theta,X_j\mid\mathbf{x})^2}{p_j(1-p_j)},
+\]
+with \(p_j=E[P_j(\theta)\mid\mathbf{x}]\). The implementation computes \(p_j\) and \(E[\theta P_j(\theta)\mid\mathbf{x}]\) in a **single grid pass**, avoiding separately constructing two hypothetical posteriors for every candidate. A numerical equivalence unit test compares the result with the explicit conditional-variance calculation. This reduces model-side computation, but has not yet been independently benchmarked under production item-bank sizes.
 Choose the highest valid utility after enforcing calibration version, item non-reuse, exposure cap and optional content balance. This may reduce burden by selecting informative shorter tests, but **requires real item calibration and empirical comparison before rollout**. No unvalidated item is accepted into this selector.
 
 This follows literature on EAP, Bayesian selection and information-per-response-time:
