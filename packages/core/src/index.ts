@@ -3,3 +3,6 @@ export * from "./habit.ts";
 export * from "./registry.ts";
 export * from "./ports.ts";
 export * from "./task-scoring.ts";
+export * from "./bayesian.ts";
+export * from "./adaptive.ts";
+export * from "./longitudinal.ts";
