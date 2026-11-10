@@ -42,6 +42,8 @@ jobs:
         run: npm run typecheck
       - name: Deploy committed database migrations to clean PostgreSQL
         run: npm run db:deploy --workspace @stepmark/web
+      - name: Seed original demonstration tasks
+        run: npm run db:seed --workspace @stepmark/web
       - name: Multiuser integration tests
         run: npm run test:integration --workspace @stepmark/web
       - name: Production build

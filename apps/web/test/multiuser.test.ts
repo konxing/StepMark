@@ -10,6 +10,8 @@ import {POST as eventPOST} from "../src/app/api/v1/observations/route";
 import {POST as logoutPOST} from "../src/app/api/v1/auth/logout/route";
 import {POST as loginPOST} from "../src/app/api/v1/auth/login/route";
 import {POST as mobilePOST} from "../src/app/api/v1/auth/wechat/route";
+import {GET as tasksGET} from "../src/app/api/v1/tasks/route";
+import {POST as assessPOST} from "../src/app/api/v1/assessments/route";
 
 const db=getDb();
 function req(path:string,method:string,body?:unknown,token?:string,kind:"WEB"|"WECHAT"="WEB",origin="http://localhost:3000"){
@@ -108,4 +110,32 @@ test("origin enforcement never trusts attacker-supplied Host",()=>{
   assert.throws(()=>requireSameOrigin(new Request("http://evil.example/",{
     method:"POST",headers:{origin:"https://evil.example"}
   })));
+});
+
+test("objective tasks are owner-isolated, answer-safe and one-shot",async()=>{
+  const a=await db.user.create({data:{},select:{id:true}});
+  const b=await db.user.create({data:{},select:{id:true}});
+  try{
+    const aToken=(await issueSession(a.id,"WECHAT")).token;
+    const bToken=(await issueSession(b.id,"WECHAT")).token;
+    const aRes=await tasksGET(req("/api/v1/tasks?construct=reasoning.logic","GET",undefined,aToken,"WECHAT"));
+    assert.equal(aRes.status,200);
+    const serialized=await aRes.text();
+    assert.equal(serialized.includes("correctKey"),false);
+    assert.equal(serialized.includes("explanation"),false);
+    const tasks=(JSON.parse(serialized) as {tasks:{id:string;options:{key:string}[]}[]}).tasks;
+    assert.ok(tasks.length>=2);
+    const first=tasks[0]!;
+    const selectedKey=first.options[0]!.key;
+    const accepted=await assessPOST(req("/api/v1/assessments","POST",{taskId:first.id,selectedKey},aToken,"WECHAT"));
+    assert.equal(accepted.status,201);
+    const duplicate=await assessPOST(req("/api/v1/assessments","POST",{taskId:first.id,selectedKey},aToken,"WECHAT"));
+    assert.equal(duplicate.status,409);
+    const aAgain=await tasksGET(req("/api/v1/tasks?construct=reasoning.logic","GET",undefined,aToken,"WECHAT"));
+    assert.equal((await aAgain.json() as {tasks:unknown[]}).tasks.length,tasks.length-1);
+    const bRes=await tasksGET(req("/api/v1/tasks?construct=reasoning.logic","GET",undefined,bToken,"WECHAT"));
+    assert.equal((await bRes.json() as {tasks:unknown[]}).tasks.length,tasks.length);
+  }finally{
+    await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});
+  }
 });

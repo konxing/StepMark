@@ -54,6 +54,7 @@ export default function DashboardClient({email}:{email:string}) {
       <div><span className="account-email">{email}</span> <button className="text-button" onClick={logout}>退出</button></div></header>
     <section className="dash-welcome"><span className="kicker">MY DEVELOPMENT</span><h1>今天，从一个小行动开始。</h1>
       <p>记录你的实际行为，不用一次分数定义自己。能力测量模块将在校准后加入。</p></section>
+    <p className="assessment-link"><a href="/assess">开始实验性逻辑推理测量 ↗</a></p>
     <section className="dashboard-grid">
       <article className="dashboard-panel"><h2>建立一个新习惯</h2>
         <form className="account-form" onSubmit={create}>
