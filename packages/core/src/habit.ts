@@ -38,39 +38,84 @@ export type HabitFit = {
   parameters: HabitCurveParameters;
   rmse: number;
   observations: number;
+  /** RMSE of constant automaticity baseline, for descriptive comparison. */
+  constantRmse: number;
+  /** AICc(constant model) - AICc(asymptotic model); positive favors curve. */
+  aiccAdvantage: number;
+  /** Descriptive guard only: never implies that a habit has formed. */
+  trendSupported: boolean;
+  modelVersion: "asymptote-constrained-ls-v2";
 };
 /**
- * Coarse deterministic grid search; outputs an exploratory estimate only.
- * Do not certify 'habit formed' from this fit. Uneven opportunity/missingness
- * require an explicit observation model and longitudinal calibration later.
+ * Constrained nonlinear least squares. For each candidate growth rate, fit
+ * the intercept and amplitude analytically and enforce 0<=baseline<=asymptote<=100.
+ * The first observation is NOT treated as the true baseline. x uses absolute
+ * effective repetitions since the behavior began, not index since first check.
+ *
+ * AICc compares an intercept-only reference (k=1) to a 3-parameter curve.
+ * AICc assumes independent comparable residuals; it is a heuristic here
+ * because repeated self-reports are often serially correlated.
  */
 export function fitHabitCurve(observations: readonly AutomaticityObservation[]): HabitFit | null {
-  const sorted = [...observations].sort((a, b) => a.effectiveRepetitions - b.effectiveRepetitions);
-  if (sorted.length < 6) return null;
+  if (observations.length < 6 || observations.length > 500) return null;
+  const sorted=[...observations].sort((a,b)=>a.effectiveRepetitions-b.effectiveRepetitions);
   if (sorted.some(o => !validNumber(o.effectiveRepetitions) || o.effectiveRepetitions < 0 ||
-      !validNumber(o.automaticity) || o.automaticity < 0 || o.automaticity > 100)) {
+    !validNumber(o.automaticity) || o.automaticity < 0 || o.automaticity > 100)) {
     throw new RangeError("invalid automaticity observation");
   }
-  if (sorted[sorted.length - 1]!.effectiveRepetitions - sorted[0]!.effectiveRepetitions < 12) return null;
-  const baseline = sorted[0]!.automaticity;
-  const maxObserved = Math.max(...sorted.map(o => o.automaticity));
-  if (maxObserved - baseline < 3) return null;
-  let best: HabitFit | null = null;
-  const minAsymptote = Math.min(100, Math.max(baseline, maxObserved));
-  for (let asymptote = minAsymptote; asymptote <= 100.001; asymptote += 2) {
-    const top = Math.min(asymptote, 100);
-    for (let j = 0; j <= 90; j++) {
-      const rate = Math.exp(Math.log(0.002) + j / 90 * Math.log(0.25 / 0.002));
-      const candidate = { baseline, asymptote: top, rate };
-      const error = sorted.reduce((sum, o) => {
-        const relativeN = o.effectiveRepetitions - sorted[0]!.effectiveRepetitions;
-        return sum + (habitCurve(relativeN, candidate) - o.automaticity) ** 2;
-      }, 0);
-      const rmse = Math.sqrt(error / sorted.length);
-      if (!best || rmse < best.rmse) {
-        best = { status: "exploratory", parameters: candidate, rmse, observations: sorted.length };
-      }
+  const n=sorted.length;
+  if (sorted[n-1]!.effectiveRepetitions - sorted[0]!.effectiveRepetitions < 12) return null;
+  const y=sorted.map(p=>p.automaticity), x=sorted.map(p=>p.effectiveRepetitions);
+  const avgY=y.reduce((a,b)=>a+b,0)/n;
+  const constantRSS=y.reduce((s,v)=>s+(v-avgY)**2,0);
+  if (constantRSS < 1e-8) return null;
+  let bestRSS=Infinity;
+  let bestParams:HabitCurveParameters|null=null;
+  // Log-spaced grid handles slow and fast automaticity trajectories.
+  for(let i=0;i<=120;i++){
+    const rate=Math.exp(Math.log(0.0005)+(i/120)*Math.log(0.35/0.0005));
+    const f=x.map(t=>-Math.expm1(-rate*t));
+    const avgF=f.reduce((a,b)=>a+b,0)/n;
+    let covariance=0,variance=0;
+    for(let j=0;j<n;j++){
+      covariance+=(f[j]!-avgF)*(y[j]!-avgY);
+      variance+=(f[j]!-avgF)**2;
     }
+    if(variance<1e-12)continue;
+    let delta=covariance/variance;
+    if(delta<=0)continue;
+    let baseline=avgY-delta*avgF;
+    if(baseline<0){
+      baseline=0;
+      delta=f.reduce((s,q,j)=>s+q*y[j]!,0)/f.reduce((s,q)=>s+q*q,0);
+    }
+    if(baseline>100)continue;
+    if(baseline+delta>100){
+      // Solve constrained maximum=100: y = 100*f + baseline*(1-f).
+      const weights=f.map(q=>1-q);
+      const denom=weights.reduce((s,q)=>s+q*q,0);
+      if(denom<1e-12)continue;
+      baseline=Math.max(0,Math.min(100,
+        weights.reduce((s,q,j)=>s+q*(y[j]!-100*f[j]!),0)/denom));
+      delta=100-baseline;
+    }
+    const params={baseline,asymptote:Math.min(100,baseline+delta),rate};
+    const rss=x.reduce((s,t,j)=>{
+      const diff=habitCurve(t,params)-y[j]!;
+      return s+diff*diff;
+    },0);
+    if(rss<bestRSS){bestRSS=rss;bestParams=params;}
   }
-  return best;
+  if(!bestParams)return null;
+  const aicc=(rss:number,k:number)=>{
+    const residual=Math.max(rss,1e-9);
+    return n*Math.log(residual/n)+2*k+(2*k*(k+1))/(n-k-1);
+  };
+  const aiccAdvantage=aicc(constantRSS,1)-aicc(bestRSS,3);
+  return {
+    status:"exploratory",parameters:bestParams,rmse:Math.sqrt(bestRSS/n),
+    constantRmse:Math.sqrt(constantRSS/n),aiccAdvantage,
+    trendSupported:aiccAdvantage>2 && bestParams.asymptote-bestParams.baseline>3,
+    observations:n,modelVersion:"asymptote-constrained-ls-v2"
+  };
 }

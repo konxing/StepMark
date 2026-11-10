@@ -30,3 +30,20 @@ test("exploratory fit approximates a known synthetic curve", () => {
   assert.equal(fit.status,"exploratory");
   assert.ok(fit.rmse < 1.5);
 });
+
+test("curve baseline is fitted rather than copied from noisy first check",()=>{
+  const p={baseline:12,asymptote:85,rate:0.05};
+  const xs=[10,14,18,22,28,34,41,50,60,78];
+  const points=xs.map((n,i)=>({effectiveRepetitions:n,
+    automaticity:habitCurve(n,p)+(i===0?12: i%2===0?0.5:-0.5)}));
+  const fit=fitHabitCurve(points)!;
+  assert.ok(fit);
+  assert.ok(fit.parameters.baseline!==points[0]!.automaticity);
+  assert.ok(fit.parameters.asymptote<=100);
+  assert.ok(fit.rmse<fit.constantRmse);
+  assert.equal(fit.modelVersion,"asymptote-constrained-ls-v2");
+});
+test("constant automaticity and invalid observations do not produce faux growth",()=>{
+  assert.equal(fitHabitCurve([0,5,10,15,20,30,50].map(n=>({effectiveRepetitions:n,automaticity:40}))),null);
+  assert.throws(()=>fitHabitCurve([0,5,10,15,20,30,50].map(n=>({effectiveRepetitions:n,automaticity:n===15?NaN:40}))));
+});
