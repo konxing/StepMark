@@ -1,76 +1,59 @@
-# Agent execution plan (implementation backlog)
+# StepMark — Agent 接续开发任务书（2026-11-10）
 
-## Mission
-Turn StepMark's research foundation into a secure web + WeChat mini-program product. Maintain rigorous separation of objective ability evidence, habit automaticity and AI-generated hypotheses. Work only in StepMark; do not modify AI Chat Web.
+## 当前完成状态（请务必先阅读仓库，不要重做已有功能）
 
-## Mandatory operating procedure
-1. Inspect current repository before editing. Read README, SECURITY, RESEARCH_AND_FORMULAS and package contracts.
-2. For each phase, write an ADR for significant decisions, implement a minimal end-to-end vertical slice, add tests and a migration plan.
-3. Never invent empirical validation, psychometric norms, habit-completion thresholds, or causality. Make research assumptions visible in UI and stored metadata.
-4. Never request a private token in chat, commit a secret, or turn on unauthenticated write endpoints.
-5. Run typecheck, core tests, build, dependency audit, and security tests in CI. If dependency installation is impossible, report unverified steps, do not claim a passing build.
-6. All AI-related features must have provider-independent interfaces and offline/deterministic fixtures in tests.
-7. User experience in Chinese, accessible keyboard/touch UI. Avoid burdensome daily survey demands; choose minimal measurements based on uncertainty reduction.
-8. At end of each phase, summarize code paths, tests, known limitations and remaining risks.
+StepMark 是 Web + 微信小程序的独立多用户 Alpha。代码已经有：
+- Next.js / Prisma 7 / PostgreSQL / npm workspaces，已提交 lockfile 和正式 SQL 初始迁移；
+- 邮箱注册/验证、登录退出、密码重置与验证邮件重发（需配置 Resend）；
+- 原生微信 wx.login -> 服务端 code2Session -> 独立用户身份及 bearer session；
+- 服务端用户隔离、行为记录幂等与频率限制、Web CSRF 校验、会话吊销；
+- 习惯列表、执行事件、试验性四题自动化指数；
+- 原创实验性逻辑推理题库、一次性提交、确定性评分（不是人群常模）；
+- 用户分页导出和网页端密码二次确认删除；
+- PostgreSQL 真实多用户集成测试和 CI 构建/审计；静态目录缓存、数据库索引及小型本地性能检测；
+- 文档 docs/research/RESEARCH_AND_FORMULAS.md、docs/architecture/SECURITY.md、ARCHITECTURE.md、DEPLOYMENT.md。
 
-## P0: deployment foundations and identity (required before private features)
-- Pin compatible patch releases of Next.js, React, Prisma; create npm lockfile; CI with install, test, typecheck, build, audit.
-- Add production-ready reverse-proxy settings, HTTPS, secure cookie sessions, CSRF protections, rate limiting, account lockout/abuse defenses and tracing without personal payloads.
-- Add database migrations, immutable audit trail, consent/retention, data export, delete-account flow.
-- Implement local email login with verified email OR secure OIDC identity provider. Never use insecure demo login on publicly reachable instances.
-- Implement WeChat official login code exchange on server with idempotency/replay protection; map provider subjects to canonical local user, do not put secret in clients.
-- Verify multiuser isolation in integration tests, concurrent writes, request limits, malformed JSON, xss, CSRF, unauthorized and revoked-token tests.
-Acceptance: anonymous user cannot read/write personal records; every access is ownership scoped; no secrets in client bundle; rate limit, CSRF, login replay and deletion tests pass.
+请在已有分支基础上继续，不要改动 AI Chat Web 仓库。任何改动必须复用已存在的用户身份、数据契约、测量证据和模型版本体系。
 
-## P1: ability assessment vertical slice
-- Define task specification format: immutable item ID+version, construct ID, difficulty metadata, duration/device constraints, rubric anchors, scoring function and source/license.
-- Create at least 2 independent logical reasoning task forms, and 2 anchored expression tasks; keep calibration claims disabled.
-- Persist attempts, raw objective correctness, task versions, response evidence and device metadata. Explicit invalid/excluded attempt handling.
-- Deterministic scoring service; UI displays task scores and attempt history, not population-normalized scores.
-- Use an independent retest form and quantify practice effects. Validate human agreement for expressions before enabling AI judge.
-Acceptance: repeatable scorer and API with authorization tests, reproducible scores and visible uncertainty/limits.
+## 下一阶段优先级（严格排序）
 
-## P2: habit evidence and individualized training
-- Full habit CRUD, context-linked opportunities (not daily streak assumptions), deduplication and user ownership.
-- Low-burden automaticity questionnaire with validated localized SRBAI-like instrument only if licensed/validated; otherwise label as experimental product measure.
-- Plot completion/eligible opportunity ratio independently from habit automaticity and skill.
-- Fit asymptotic curves only after sufficient observations with uncertainty; never display "100% habit formed" from count alone.
-- Personalized micro-habit plan connected to construct via evidence-grade hypothesis, including if-then cue and optional reminders.
-Acceptance: no eligible opportunity => missing value not zero; fit requires observations; user can revoke prompts; missing days handled separately.
+### P0 — 安全上线前的剩余硬门槛
+1. 正式 TLS/域名 + 边缘 WAF/限流，代理可信 IP 透传规则；目前缺完整部署范本与真机测试。
+2. CSP 取消当前的 unsafe-inline，结合 Next App Router 以 nonce/hash 方式实施，并验证不影响生产资源/性能。
+3. 邮件供应商上线与抗滥用：验证域名、重试策略、邮箱注册/密码重置 anti-enumeration、费用上限、异常监控。
+4. 测试密码重置并发重放、验证码重发、账户删除与数据导出跨租户隔离，增加失败/超时/数据库故障场景。
+5. 数据库运行账户只读/写入最小权限与迁移专用账户，考虑安全的 PostgreSQL RLS 作为 defense-in-depth，但不能以 RLS 替代服务端 ownership 检查。
+6. 隐私/用户同意/留存/第三方处理方/未成年人/微信审核合规。隐私页面目前仅为说明草案。
+7. 备份、恢复演练、密钥轮换、日常数据库过期记录清理脚本的部署调度；操作日志不能记录密码、token或未经授权的原始作答。
+8. 在生产硬件和目标用户并发下进行非破坏式压测：公开读/认证读/写各自 p50/p95/p99；制定并验证 SLO，监控 DB 连接耗尽与 AI 成本。
 
-## P3: AI judge and coach
-- `AIJudge` port implemented with vendor adapters (model, prompt/rubric versions, structured output schema, limited retries, quota, timeout, circuit breaker).
-- Offline gold corpus and >=2 independent human annotators, disagreement resolution. Calculate reliability, reproducibility, subgroup checks; define acceptance thresholds before live scoring.
-- Prompt-injection resistance: uploaded text never carries instructions to tools or auth. No model direct write to ability estimates.
-- AI recommends training; server applies policy, consent and cost limits; log provenance and allow score-review requests.
-Acceptance: judge output provisional until calibrated, errors bounded, replay fixtures deterministic, no score improvement fabricated by model.
+### P1 — 科学测量核心
+1. 增加原创任务的**独立题型与平行测验**，复测题不能重复计为独立进步。初始逻辑题未校准，不得包装为人群能力分。
+2. 建立明确量规（表达结构、清晰度、逻辑、例证等）与双人工标注 gold set；AI 评分输出 provisional + 版本+证据；必须报告信度与分歧。
+3. 量表信度、测量不变性、题目区分度；样本不足时不得启用 IRT 潜在能力声称。
+4. 能力趋势以可比较任务为基础，显示误差/样本量/证据来源；**行为完成不自动加能力分**。
 
-## P4: longitudinal models and user-specific effectiveness
-- Introduce calibrated IRT only when enough item-response data support stable item parameter estimation; otherwise defer.
-- Measurement invariance, form equating, holdouts, reliability, uncertainty and retest contamination analysis.
-- N-of-1 randomized or carefully balanced interventions when possible, exposure/outcome metadata and confounder tracking. No causal claims from correlation.
-- Measure near/far transfer on novel tasks and the retention of improvements.
-Acceptance: clearly distinguish task practice gains from generalized transfer.
+### P2 — 习惯自动化与最少操作的日常体验
+1. 现有 automaticity API 目前用 4 项试验性问卷，需增加可选、低频的前端体验（如每两周一次），不要每天强制填写；正式 SRBAI 中文版使用前验证授权与语言适配。
+2. 明确行为机会、触发线索、启动习惯 vs 执行习惯，允许用户纠错、补记，不能把缺失数据等同失败。
+3. 训练计划与任务难度由 AI 推荐，但 AI 无权直接改写统计结果；留下用户可追溯的版本与更改理由。
+4. 支持微信账号与邮箱账户经双方身份验证的**显式绑定**，禁止基于相同昵称/邮箱自动关联。
 
-## P5: future AI Chat Web interop (NO edits to AI Chat Web now)
-- Publish versioned `/api/v1/integration/capability-summary` contract with scoped OAuth/OIDC or trusted broker, user consent and restrictive read-only access.
-- Keep StepMark canonical user IDs; map external AICHAT subject in `ExternalIdentity`.
-- Integration tests with mock token issuer (audience, issuer, expiry, replay, revoked consent, identity mismatch).
-- Do not share raw cookies, APP_SECRET or MASTER_KEY.
-Acceptance: StepMark remains deployable independently; AI Chat Web never receives private task raw data without separate, explicit authorization.
+### P3 — AI 教练与解释性能力报告
+1. 使用 packages/core/src/ports.ts 中的 AIJudge/IdentityResolver 适配边界，提供供应商可切换的结构化输出模型。
+2. 人工样本校准、漂移测试、预算/配额、超时/降级、限流和提示词注入防护。
+3. 完成能力—习惯假设图谱与独立复测结果分析，不把相关系数称为因果。
+4. 建立可复核模型与结果解释页面，保留模型、量规、任务和提示词版本。
 
-## P6: launch hardening
-- Threat modeling and penetration test, dependency/license audit, privacy compliance, WeChat policy review, backup/restore and monitoring runbook.
-- No blanket claim that ability scores diagnose medical conditions or aptitude. Clearly provide reviewable evidence, estimates and uncertainty.
-- Production cutover only when P0 security checks are complete.
+### P4 — AI Chat Web 集成（此阶段**不得改动**旧项目）
+- 只准备用户同意、受限读取、短期签名身份令牌/OIDC 的接口契约与 mock 测试。
+- 未来共享能力摘要，不能共享原始 session cookie、密钥、数据库表或未经用户同意的详细私人记录。
+- StepMark 应始终可独立部署。
 
-## Suggested issue titles
-1. [P0] Build reproducible CI and production security gate
-2. [P0] Add authenticated user / ownership-scoped persistence
-3. [P0] Implement WeChat server-side login exchange
-4. [P1] Versioned assessment task registry and scoring API
-5. [P1] Independent reasoning and expression retest forms
-6. [P2] Context-linked habit tracking and automaticity checks
-7. [P3] Versioned AI scoring adapters and human-calibration dataset
-8. [P4] Longitudinal change and transfer validation
-9. [P5] AI Chat Web federation adapter and consented capability summary
+## Agent 工作方式与验收标准
+- 检查仓库与 GitHub Actions 最近一次成功的 CI；先修复红色 CI，再开展新需求。
+- 实施新功能须更新 README、API 契约和安全文档，并补充单元/真实 PostgreSQL 集成测试；多用户隔离是必须验证的前置条件。
+- 改动数据模型必须提交新的 Prisma SQL 迁移；不得使用 db push 修改生产数据库。
+- 运行 npm ci、npm run db:generate、npm run test、npm run typecheck、npm run db:deploy --workspace @stepmark/web、npm run db:seed --workspace @stepmark/web、npm run test:integration --workspace @stepmark/web、npm run build、npm run audit:prod。
+- 不把代码编译成功称为科学测量已验证，也不把本机 benchmark 称为生产性能已达到 SLA。
+- 小步提交 PR，记录哪些测试通过、哪些未运行，保留能回退的版本；不自行放宽默认安全门槛。
