@@ -46,7 +46,7 @@ export async function POST(request:NextRequest,ctx:Context){
       const count=await db.habitReflection.count({where:{habitId,eventId:null,createdAt:{gte:start}}});
       if(count>=2)throw new ApiError(429,"REVIEW_LIMIT");
     }
-    const status=body.aiConsent && body.note && process.env.AI_HABIT_API_KEY &&
+    const status=body.aiConsent && body.note && process.env.AI_HABIT_API_KEY && process.env.AI_HABIT_MODEL &&
       (process.env.AI_HABIT_PROVIDER==="openai"||process.env.AI_HABIT_PROVIDER==="openrouter")
       ?"PENDING":"DISABLED";
     let row;

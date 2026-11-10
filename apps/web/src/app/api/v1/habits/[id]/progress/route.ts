@@ -40,7 +40,7 @@ export async function GET(request:NextRequest,ctx:{params:Promise<{id:string}>})
       completedOpportunities:completed,eligibleOpportunities:eligible,observations,
       nowMs:Date.now(),lastCompletedAtMs:lastEvent?.occurredAt.getTime()??null,
       seed:habit.id,reviewEnabled:habit.reviewEnabled});
-    return NextResponse.json({habitId:id,...progress},
+    return NextResponse.json({habitId:id,reviewEnabled:habit.reviewEnabled,...progress},
       {headers:{"Cache-Control":"private, no-store"}});
   }catch(error){return errorResponse(error);}
 }

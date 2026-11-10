@@ -2,7 +2,7 @@
 import {useCallback,useEffect,useState} from "react";
 type Progress={progress:number;repetitionSignal:number;automaticitySignal:number|null;
   completedRepetitions:number;evidenceCount:number;reviewDue:boolean;nextReviewAt:string|null;
-  stage:string;policyVersion:string};
+  stage:string;policyVersion:string;reviewEnabled:boolean};
 const options=[
   ["0","非常抗拒"],["1","需要逼自己"],["2","有一点纠结"],
   ["3","比较自然"],["4","几乎不用思考"]
@@ -15,6 +15,19 @@ export default function HabitGrowthPanel({habitId,eventId}:{habitId:string;event
   const [consent,setConsent]=useState(false);
   const [message,setMessage]=useState("");
   const [busy,setBusy]=useState(false);
+  async function toggleReview(){
+    if(!result||busy)return;
+    setBusy(true);
+    try{
+      const response=await fetch("/api/v1/habits/"+habitId+"/reviews",{
+        method:"PATCH",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({enabled:!result.reviewEnabled})
+      });
+      if(!response.ok)throw new Error();
+      await load();
+      setMessage(result.reviewEnabled?"应用内复查提示已关闭。":"应用内复查提示已开启。");
+    }catch{setMessage("复查设置修改失败。");}finally{setBusy(false);}
+  }
   const load=useCallback(async()=>{
     const response=await fetch("/api/v1/habits/"+habitId+"/progress",{cache:"no-store"});
     if(!response.ok)throw new Error("NO_PROGRESS");
@@ -56,6 +69,7 @@ export default function HabitGrowthPanel({habitId,eventId}:{habitId:string;event
         · 感受反馈 {result.evidenceCount} 次</p>
       {result.reviewDue&&<p className="review-prompt">该做一次低负担复查了：现在开始行动，还是和之前一样自然吗？</p>}
       {result.nextReviewAt&&<small>预计下次应用内复查：{new Date(result.nextReviewAt).toLocaleDateString("zh-CN")}</small>}
+      <button type="button" className="text-button" disabled={busy} onClick={toggleReview}>{result.reviewEnabled?"关闭应用内复查":"开启应用内复查"}</button>
       <p className="progress-caveat">此百分比是产品成长指标，不是科学验证的“养成概率”；它不会直接改变任何能力分。</p>
     </>:<p>正在计算进度…</p>}
     <div className="growth-form">
