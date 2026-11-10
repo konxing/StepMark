@@ -9,6 +9,7 @@ import {GET as habitsGET,POST as habitsPOST} from "../src/app/api/v1/habits/rout
 import {POST as eventPOST} from "../src/app/api/v1/observations/route";
 import {POST as logoutPOST} from "../src/app/api/v1/auth/logout/route";
 import {POST as loginPOST} from "../src/app/api/v1/auth/login/route";
+import {GET as insightGET} from "../src/app/api/v1/habits/[id]/insights/route";
 import {POST as mobilePOST} from "../src/app/api/v1/auth/wechat/route";
 import {POST as resetPOST} from "../src/app/api/v1/auth/reset-password/route";
 import {POST as deletePOST} from "../src/app/api/v1/account/delete/route";
@@ -192,6 +193,32 @@ test("owner-scoped export and explicit deletion never touch another user",async(
     assert.notEqual(await db.user.findUnique({where:{id:b.id}}),null);
     assert.equal(await lookupSession(token,"WEB"),null);
   }finally{
+    await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});
+  }
+});
+
+test("habit insights respect ownership and never fabricate a rate from zero opportunities",async()=>{
+  const a=await db.user.create({data:{},select:{id:true}});
+  const b=await db.user.create({data:{},select:{id:true}});
+  try {
+    const ha=await db.habit.create({data:{userId:a.id,title:"A",action:"action A"}});
+    const hb=await db.habit.create({data:{userId:b.id,title:"B",action:"action B"}});
+    const token=(await issueSession(a.id,"WECHAT")).token;
+    const get=(id:string)=>insightGET(req(`/api/v1/habits/${id}/insights`,"GET",undefined,token,"WECHAT"),{
+      params:Promise.resolve({id})});
+    const denied=await get(hb.id);
+    assert.equal(denied.status,404);
+    const empty=await get(ha.id);
+    assert.equal(empty.status,200);
+    const output=await empty.json() as {posterior:unknown;observedRate:unknown};
+    assert.equal(output.posterior,null);
+    assert.equal(output.observedRate,null);
+    await db.habitEvent.create({data:{habitId:ha.id,opportunityKey:"t1",eligible:true,completed:true,occurredAt:new Date(),source:"test"}});
+    const filled=await get(ha.id);
+    const result=await filled.json() as {posterior:{posteriorMean:number};completions:number};
+    assert.equal(result.completions,1);
+    assert.ok(result.posterior.posteriorMean<1);
+  } finally {
     await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});
   }
 });

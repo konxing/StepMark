@@ -6,7 +6,10 @@ export default function DashboardClient({email}:{email:string}) {
   const [title,setTitle]=useState(""),[action,setAction]=useState(""),[cue,setCue]=useState("");
   const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
   const [selected,setSelected]=useState<string|null>(null);
-  const [events,setEvents]=useState<{eligible:boolean;completed:boolean}[]>([]);
+  const [insights,setInsights]=useState<null|{eligibleOpportunities:number;completions:number;
+    observedRate:number|null;wilsonInterval95:{low:number;high:number}|null;
+    posterior:{posteriorMean:number;posteriorSD:number}|null;
+    latestAutomaticity:{indexScore:number;measuredAt:string}|null}>(null);
   const load=useCallback(async()=>{
     const result=await fetch("/api/v1/habits",{cache:"no-store"});
     if(result.status===401){location.assign("/login");return;}
@@ -39,16 +42,15 @@ export default function DashboardClient({email}:{email:string}) {
   }
   async function detail(id:string){
     try{
-      const r=await fetch(`/api/v1/observations?habitId=${encodeURIComponent(id)}`,{cache:"no-store"});
+      const r=await fetch(`/api/v1/habits/${encodeURIComponent(id)}/insights`,{cache:"no-store"});
       if(!r.ok)throw new Error();
-      const d=await r.json() as {events:{eligible:boolean;completed:boolean}[]};
-      setSelected(id);setEvents(d.events);
+      const report=await r.json() as NonNullable<typeof insights>;
+      setSelected(id);setInsights(report);
     }catch{setMessage("无法读取记录。");}
   }
   async function logout(){
     await fetch("/api/v1/auth/logout",{method:"POST"});location.assign("/login");
   }
-  const eligible=events.filter(e=>e.eligible).length,done=events.filter(e=>e.eligible&&e.completed).length;
   return <main className="dashboard-shell">
     <header className="dashboard-header"><a className="wordmark" href="/">STEP<span>MARK</span><span className="brand-dot">.</span></a>
       <div><span className="account-email">{email}</span> <a href="/settings" className="text-button">账户与数据</a> <button className="text-button" onClick={logout}>退出</button></div></header>
@@ -76,8 +78,18 @@ export default function DashboardClient({email}:{email:string}) {
             <small>已记录机会：{h._count.events}（并非能力分）</small></div>)}</div>}
       </article>
     </section>
-    {selected&&<section className="dashboard-panel" aria-live="polite"><h2>执行情况</h2><p>最近 {events.length} 条记录中，符合执行条件的机会有 {eligible} 次，完成 {done} 次。</p>
-      <p>观察完成率：{eligible>0?`${Math.round(done/eligible*100)}%`:"暂无有效观察"}。自动化程度需要独立测量。</p></section>}
+    {selected&&insights&&<section className="dashboard-panel" aria-live="polite">
+      <h2>习惯执行情况 · 统计解释</h2>
+      <p>有资格的机会 {insights.eligibleOpportunities} 次，完成 {insights.completions} 次。</p>
+      <p>实际观察完成率：{insights.observedRate===null?"数据不足":(insights.observedRate*100).toFixed(1)+"%"}。</p>
+      {insights.posterior&&<p>贝叶斯平滑预测：{(insights.posterior.posteriorMean*100).toFixed(1)}%（标准差 {(insights.posterior.posteriorSD*100).toFixed(1)} 个百分点）。
+      采用 Beta(1,1) 先验，只是对后续类似执行机会的描述性预测。</p>}
+      {insights.wilsonInterval95&&<p>观察比例粗略 95% 区间：
+        {(insights.wilsonInterval95.low*100).toFixed(1)}%—{(insights.wilsonInterval95.high*100).toFixed(1)}%。
+        重复行为可能相关，因此此区间不应当被当作严格保证。</p>}
+      {insights.latestAutomaticity?<p>最近一次试验性自动化指数：{insights.latestAutomaticity.indexScore.toFixed(1)}/100（不是已验证量表或能力值）。</p>:
+        <p>还没有自动化程度的独立测量。完成次数不能证明习惯已经形成。</p>}
+    </section>}
     <p className="notice" role="status" aria-live="polite">{message}</p>
   </main>;
 }
