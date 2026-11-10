@@ -13,7 +13,8 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx --tsconfig tsconfig.json prisma/seed.ts",
-    "db:prune": "tsx --tsconfig tsconfig.json scripts/prune-expired.ts"
+    "db:prune": "tsx --tsconfig tsconfig.json scripts/prune-expired.ts",
+    "habits:analyze": "tsx --tsconfig tsconfig.json scripts/process-habit-reflections.ts"
   },
   "dependencies": {
     "@prisma/client": "7.10.1",
