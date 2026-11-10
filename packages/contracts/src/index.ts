@@ -27,3 +27,15 @@ export const assessmentSubmissionSchema = z.object({
 export type ObservationInput = z.infer<typeof observationSchema>;
 export type AutomaticityCheckInput = z.infer<typeof automaticityCheckSchema>;
 export type AssessmentSubmission = z.infer<typeof assessmentSubmissionSchema>;
+
+export const singleChoiceContentSchema = z.object({
+  kind: z.literal("single_choice_v1"),
+  prompt: z.string().min(10).max(2000),
+  options: z.array(z.object({key:z.string().min(1).max(20),label:z.string().min(1).max(350)}).strict()).min(2).max(6),
+  correctKey: z.string().min(1).max(20),
+  explanation: z.string().min(1).max(1500)
+}).strict();
+export const choiceSubmissionSchema = z.object({
+  taskId:z.uuid(),
+  selectedKey:z.string().min(1).max(20)
+}).strict();

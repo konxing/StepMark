@@ -151,6 +151,7 @@ model AssessmentAttempt {
   task         Task @relation(fields: [taskId], references: [id])
   judgements   AIJudgement[]
   @@index([userId, createdAt])
+  @@unique([userId, taskId])
   @@index([taskId, createdAt])
 }
 
