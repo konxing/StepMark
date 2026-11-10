@@ -10,6 +10,10 @@ import {POST as eventPOST} from "../src/app/api/v1/observations/route";
 import {POST as logoutPOST} from "../src/app/api/v1/auth/logout/route";
 import {POST as loginPOST} from "../src/app/api/v1/auth/login/route";
 import {POST as mobilePOST} from "../src/app/api/v1/auth/wechat/route";
+import {POST as resetPOST} from "../src/app/api/v1/auth/reset-password/route";
+import {POST as deletePOST} from "../src/app/api/v1/account/delete/route";
+import {GET as exportGET} from "../src/app/api/v1/account/export/route";
+import {hashToken} from "../src/server/security";
 import {GET as tasksGET} from "../src/app/api/v1/tasks/route";
 import {POST as assessPOST} from "../src/app/api/v1/assessments/route";
 
@@ -135,6 +139,58 @@ test("objective tasks are owner-isolated, answer-safe and one-shot",async()=>{
     assert.equal((await aAgain.json() as {tasks:unknown[]}).tasks.length,tasks.length-1);
     const bRes=await tasksGET(req("/api/v1/tasks?construct=reasoning.logic","GET",undefined,bToken,"WECHAT"));
     assert.equal((await bRes.json() as {tasks:unknown[]}).tasks.length,tasks.length);
+  }finally{
+    await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});
+  }
+});
+
+
+test("password-reset token is single use and immediately revokes old sessions",async()=>{
+  const email="recover_"+randomUUID()+"@example.test";
+  const a=await db.user.create({data:{credential:{create:{
+    email,passwordHash:await hashPassword("original-password-123456"),
+    verifiedAt:new Date()
+  }}},select:{id:true}});
+  try{
+    const token=randomUUID()+randomUUID();
+    const c=await db.credential.findUniqueOrThrow({where:{userId:a.id}});
+    await db.verificationToken.create({data:{credentialId:c.id,purpose:"RESET",tokenHash:hashToken(token),expiresAt:new Date(Date.now()+100000)}});
+    const session=(await issueSession(a.id,"WEB")).token;
+    const response=await resetPOST(req("/api/v1/auth/reset-password","POST",{token,newPassword:"new-recovery-password-1234"}));
+    assert.equal(response.status,200);
+    assert.equal(await lookupSession(session,"WEB"),null);
+    const replay=await resetPOST(req("/api/v1/auth/reset-password","POST",{token,newPassword:"another-password-123456"}));
+    assert.equal(replay.status,400);
+    const login=await loginPOST(req("/api/v1/auth/login","POST",{email,password:"new-recovery-password-1234"}));
+    assert.equal(login.status,200);
+  }finally{
+    await db.user.deleteMany({where:{id:a.id}});
+  }
+});
+
+test("owner-scoped export and explicit deletion never touch another user",async()=>{
+  const email="delete_"+randomUUID()+"@example.test",password="permanent-delete-test-1234";
+  const a=await db.user.create({data:{credential:{create:{
+    email,passwordHash:await hashPassword(password),verifiedAt:new Date()
+  }}},select:{id:true}});
+  const b=await db.user.create({data:{},select:{id:true}});
+  try{
+    await db.habit.create({data:{userId:a.id,title:"My habit",action:"only mine"}});
+    await db.habit.create({data:{userId:b.id,title:"Secret B habit",action:"private"}});
+    const token=(await issueSession(a.id,"WEB")).token;
+    const read=await exportGET(req("/api/v1/account/export?kind=habits&offset=0","GET",undefined,token));
+    assert.equal(read.status,200);
+    const exportText=await read.text();
+    assert.ok(exportText.includes("My habit"));
+    assert.equal(exportText.includes("Secret B habit"),false);
+    const wrongPassword=await deletePOST(req("/api/v1/account/delete","POST",
+      {password:"wrong-password",confirmation:"DELETE"},token));
+    assert.equal(wrongPassword.status,403);
+    const deleted=await deletePOST(req("/api/v1/account/delete","POST",{password,confirmation:"DELETE"},token));
+    assert.equal(deleted.status,200);
+    assert.equal(await db.user.findUnique({where:{id:a.id}}),null);
+    assert.notEqual(await db.user.findUnique({where:{id:b.id}}),null);
+    assert.equal(await lookupSession(token,"WEB"),null);
   }finally{
     await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});
   }
