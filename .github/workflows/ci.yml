@@ -7,12 +7,32 @@ permissions:
 jobs:
   verification:
     runs-on: ubuntu-latest
-    timeout-minutes: 18
+    timeout-minutes: 22
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: stepmark_test
+          POSTGRES_PASSWORD: stepmark_test
+          POSTGRES_DB: stepmark_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U stepmark_test"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgresql://stepmark_test:stepmark_test@localhost:5432/stepmark_test
+      APP_ORIGIN: http://localhost:3000
+      RATE_LIMIT_SECRET: ci-test-secret-never-use-in-production-1234
+      WECHAT_APP_ID: ci_test_appid
+      WECHAT_APP_SECRET: ci_test_secret
+      NEXT_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '22' }
-      - name: Install
+        with: {node-version: '22'}
+      - name: Install dependencies
         run: npm install --ignore-scripts
       - name: Generate Prisma client
         run: npm run db:generate
@@ -20,7 +40,11 @@ jobs:
         run: npm run test
       - name: Typecheck
         run: npm run typecheck
+      - name: Prepare ephemeral test database
+        run: npm run db:push -- --accept-data-loss
+      - name: Multiuser integration tests
+        run: npm run test:integration --workspace @stepmark/web
       - name: Production build
         run: npm run build
-      - name: Security audit
+      - name: Security dependency audit
         run: npm audit --omit=dev --audit-level=high
