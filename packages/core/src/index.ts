@@ -6,3 +6,4 @@ export * from "./task-scoring.ts";
 export * from "./bayesian.ts";
 export * from "./adaptive.ts";
 export * from "./longitudinal.ts";
+export * from "./habit-progress.ts";
