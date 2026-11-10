@@ -7,7 +7,7 @@ permissions:
   contents: write
 jobs:
   snapshot:
-    if: github.repository == 'konxing/StepMark' && github.actor == 'konxing' && github.event.head_commit.message == 'chore: run one-time snapshot'
+    if: "github.repository == 'konxing/StepMark' && github.actor == 'konxing' && github.event.head_commit.message == 'chore: run one-time snapshot'"
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
