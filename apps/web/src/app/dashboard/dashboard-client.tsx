@@ -51,7 +51,7 @@ export default function DashboardClient({email}:{email:string}) {
   const eligible=events.filter(e=>e.eligible).length,done=events.filter(e=>e.eligible&&e.completed).length;
   return <main className="dashboard-shell">
     <header className="dashboard-header"><a className="wordmark" href="/">STEP<span>MARK</span><span className="brand-dot">.</span></a>
-      <div><span className="account-email">{email}</span> <button className="text-button" onClick={logout}>退出</button></div></header>
+      <div><span className="account-email">{email}</span> <a href="/settings" className="text-button">账户与数据</a> <button className="text-button" onClick={logout}>退出</button></div></header>
     <section className="dash-welcome"><span className="kicker">MY DEVELOPMENT</span><h1>今天，从一个小行动开始。</h1>
       <p>记录你的实际行为，不用一次分数定义自己。能力测量模块将在校准后加入。</p></section>
     <p className="assessment-link"><a href="/assess">开始实验性逻辑推理测量 ↗</a></p>

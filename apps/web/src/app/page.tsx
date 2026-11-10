@@ -8,7 +8,7 @@ const features = [
 export default function Home() {
   return <main className="shell">
     <header className="topbar"><a className="wordmark" href="/">STEP<span>MARK</span><span className="brand-dot">.</span></a>
-      <span className="nav-tag">RESEARCH PREVIEW · v0.1</span></header>
+      <nav className="top-links"><a href="/login">登录</a><a href="/register">创建账户</a></nav></header>
     <section className="hero">
       <div className="eyebrow"><span className="pulse" /> YOUR CAPACITY. YOUR EVIDENCE.</div>
       <h1>让成长<br/><span>有迹可循。</span></h1>
