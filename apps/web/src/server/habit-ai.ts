@@ -24,7 +24,7 @@ export function validateHabitAnnotation(raw:unknown,note:string,modelId:string):
   // has priority over this provisional linguistic interpretation.
   const usable=initiationLevel!==null && confidence>=0.65 &&
     quote.trim().length>=3 && note.includes(quote.trim());
-  return {level:usable?initiationLevel:null,confidence,quote:usable?quote.trim():null,
+  return {level:usable?(initiationLevel as 0|1|2|3|4):null,confidence,quote:usable?quote.trim():null,
     modelId,promptVersion:"habit-note-coding-v1"};
 }
 function providerConfig(){
