@@ -56,7 +56,7 @@ export function calculateHabitProgress(input:HabitProgressInput):HabitProgress {
       completedOpportunities<0 || completedOpportunities>eligibleOpportunities ||
       completedRepetitions!==completedOpportunities || !Number.isFinite(nowMs) ||
       input.observations.length>500 ||
-      (input.lastCompletedAtMs!=null && (!Number.isFinite(input.lastCompletedAtMs) || input.lastCompletedAtMs>nowMs))) {
+      (input.lastCompletedAtMs!=null && (!Number.isFinite(input.lastCompletedAtMs) || input.lastCompletedAtMs>nowMs+5*60*1000))) {
     throw new RangeError("invalid habit progress inputs");
   }
   // Curated event-level subjective observations, at most one per calendar day.

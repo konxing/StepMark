@@ -1,5 +1,5 @@
-import HabitGrowthPanel from "./habit-growth-panel";
 "use client";
+import HabitGrowthPanel from "./habit-growth-panel";
 import {useCallback,useEffect,useState} from "react";
 type Habit={id:string;title:string;cue:string|null;action:string;createdAt:string;_count:{events:number;checks:number}};
 export default function DashboardClient({email}:{email:string}) {
