@@ -10,6 +10,9 @@ import {POST as eventPOST} from "../src/app/api/v1/observations/route";
 import {POST as logoutPOST} from "../src/app/api/v1/auth/logout/route";
 import {POST as loginPOST} from "../src/app/api/v1/auth/login/route";
 import {GET as insightGET} from "../src/app/api/v1/habits/[id]/insights/route";
+import {GET as habitProgressGET} from "../src/app/api/v1/habits/[id]/progress/route";
+import {POST as reflectionPOST, GET as reflectionGET} from "../src/app/api/v1/habits/[id]/reflections/route";
+import {PATCH as reviewPATCH} from "../src/app/api/v1/habits/[id]/reviews/route";
 import {POST as mobilePOST} from "../src/app/api/v1/auth/wechat/route";
 import {POST as resetPOST} from "../src/app/api/v1/auth/reset-password/route";
 import {POST as deletePOST} from "../src/app/api/v1/account/delete/route";
@@ -219,6 +222,55 @@ test("habit insights respect ownership and never fabricate a rate from zero oppo
     assert.equal(result.completions,1);
     assert.ok(result.posterior.posteriorMean<1);
   } finally {
+    await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});
+  }
+});
+
+test("private habit feelings, progress and review settings enforce user ownership",async()=>{
+  const a=await db.user.create({data:{},select:{id:true}});
+  const b=await db.user.create({data:{},select:{id:true}});
+  try{
+    const ha=await db.habit.create({data:{userId:a.id,title:"A reflection habit",action:"Start naturally"}});
+    const hb=await db.habit.create({data:{userId:b.id,title:"B secret habit",action:"Never leak"}});
+    const event=await db.habitEvent.create({data:{habitId:ha.id,opportunityKey:"one",eligible:true,
+      completed:true,occurredAt:new Date(),source:"test"}});
+    const token=(await issueSession(a.id,"WEB")).token;
+    const context=(id:string)=>({params:Promise.resolve({id})});
+    const foreign=await reflectionPOST(req("/api/v1/habits/"+hb.id+"/reflections","POST",
+      {note:"private text",initiationLevel:3,aiConsent:false},token),context(hb.id));
+    assert.equal(foreign.status,404);
+    const unauthorized=await habitProgressGET(req("/api/v1/habits/"+hb.id+"/progress","GET",undefined,token),context(hb.id));
+    assert.equal(unauthorized.status,404);
+    const wrongEvent=await reflectionPOST(req("/api/v1/habits/"+ha.id+"/reflections","POST",
+      {eventId:randomUUID(),initiationLevel:3},token),context(ha.id));
+    assert.equal(wrongEvent.status,404);
+    const outside=await reflectionPOST(req("/api/v1/habits/"+ha.id+"/reflections","POST",
+      {eventId:event.id,note:"我开始前有一点小纠结",initiationLevel:2,aiConsent:false},token,"WEB","https://attacker.test"),context(ha.id));
+    assert.equal(outside.status,403);
+    const own=await reflectionPOST(req("/api/v1/habits/"+ha.id+"/reflections","POST",
+      {eventId:event.id,note:"我开始前有一点小纠结",initiationLevel:2,aiConsent:false},token),context(ha.id));
+    assert.equal(own.status,201);
+    const body=await own.json() as {reflection:{aiStatus:string}};
+    assert.equal(body.reflection.aiStatus,"DISABLED");
+    const replay=await reflectionPOST(req("/api/v1/habits/"+ha.id+"/reflections","POST",
+      {eventId:event.id,initiationLevel:4},token),context(ha.id));
+    assert.equal(replay.status,409);
+    const details=await reflectionGET(req("/api/v1/habits/"+ha.id+"/reflections","GET",undefined,token),context(ha.id));
+    assert.equal(details.status,200);
+    assert.ok((await details.text()).includes("一点小纠结"));
+    const progress=await habitProgressGET(req("/api/v1/habits/"+ha.id+"/progress","GET",undefined,token),context(ha.id));
+    assert.equal(progress.status,200);
+    const status=await progress.json() as {progress:number;completedRepetitions:number;evidenceCount:number};
+    assert.equal(status.completedRepetitions,1);
+    assert.equal(status.evidenceCount,1);
+    assert.ok(status.progress<65);
+    const off=await reviewPATCH(req("/api/v1/habits/"+ha.id+"/reviews","PATCH",{enabled:false},token),context(ha.id));
+    assert.equal(off.status,200);
+    const again=await habitProgressGET(req("/api/v1/habits/"+ha.id+"/progress","GET",undefined,token),context(ha.id));
+    assert.equal((await again.json() as {nextReviewAt:string|null}).nextReviewAt,null);
+    const foreignOff=await reviewPATCH(req("/api/v1/habits/"+hb.id+"/reviews","PATCH",{enabled:false},token),context(hb.id));
+    assert.equal(foreignOff.status,404);
+  }finally{
     await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});
   }
 });
