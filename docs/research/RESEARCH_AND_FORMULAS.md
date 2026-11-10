@@ -205,3 +205,64 @@ References:
 - Japan Meteorological Agency, *NWP Guide: A.3.2 Brier Skill Score*: https://www.jma.go.jp/jma/jma-eng/jma-center/nwp/outline2022-nwp/pdf/outline2022_all.pdf
 - ECMWF, *Verification of Ensembles*: https://www.ecmwf.int/sites/default/files/elibrary/2007/15489-verification-probability-forecasts.pdf
 - Bradley et al. (2008), *Sampling Uncertainty and Confidence Intervals for the Brier Score and Brier Skill Score*: https://doi.org/10.1175/2007WAF2007049.1
+
+## 11. Habit growth indicator, user reflection and maintenance (experimental policy v1)
+
+This section describes an **engineering visualization**, not a scientifically validated estimate of "probability a habit has formed". Lally et al. observed individualized asymptotic trajectories, NOT a universal fixed number of repetitions. Gardner et al. distinguish automatic initiation (cue triggers starting) from fluent execution. StepMark's progress indicator must never be added directly to a person's latent ability score.
+
+### 11.1 Observed evidence
+- N = distinct successfully completed eligible opportunities. A failed opportunity and an unavailable opportunity are distinct.
+- User may provide one low-burden 0–4 response about initiation (not task fluency) and/or an optional diary sentence after executing.
+- Without opt-in, diary text remains first-party. With explicit opt-in, only the single diary text is queued for server-side classification; no account history, other user data or raw tokens are sent.
+- Optional AI output is a **provisional coding**: 0..4 level, 0..1 confidence, and a verbatim evidence quote. Evidence quote must be a substring of the note and confidence >= .65. Unclear text yields null. A user's explicit response always takes precedence over AI coding.
+- Repeated same-day diary entries count only once for the confidence measure. Prefer longitudinal evidence from distinct days.
+
+### 11.2 Visual progress formula
+
+Repetition indicator:
+\[
+R(N)=100(1-e^{-N/55}).
+\]
+The denominator 55 is a **v1 interface shaping parameter**, NOT an empirical average or biological threshold. It must be adjusted or removed if validation finds poor predictions.
+
+Ordinal initiation observations are displayed with the following **illustrative** coding:
+0 = 0, 1 = 15, 2 (mild hesitation) = 35, 3 (mostly natural) = 70, 4 (no deliberation) = 100.
+
+Let \(A_t\) be the weighted average of up to 12 daily initiation reports in the past 90 days, using weights \(w_i=2^{-\Delta days_i/35}\). AI-only readings are downweighted by declared confidence and must be supported by an exact quote.
+The displayed score is
+\[
+P_t=\min\left(C(E_t),\;0.45R(N_t)+0.55A_t\right).
+\]
+If no valid initiation evidence, use \(A=0\); the repetition-only score is capped at 45.
+Evidence-dependent caps: 0 reports max 45, 1 max 65, 2 max 80, 3+ reports within 14 days max 85, 3+ spanning >=14 days max 96. These cap choices and weights are unvalidated **product heuristics** designed to prevent apparent certainty based on a single diary entry.
+
+**Two non-normative illustrations:** N=20 and one mild-hesitation report: R=30.5; P≈33.0%. N=90 and three spaced, recent, spontaneous starts: R≈80.5; P≈91.2%. These values do NOT establish what a real person's "habit maturity" actually is.
+
+### 11.3 Maintenance state and follow-up
+
+Product policy (not a universal definition): when P>=80, N>=20, three initiation reports spanning at least 14 days, and most recent initiation level >=3, label "relatively stable — monitoring maintenance", **not** "verified habit formed".
+When further reports show difficulty, the progress indicator may fall. Missing reports alone don't prove loss: mark the evidence as stale and ask for a light review instead of forcing the score down. A missed day must not automatically reset progress.
+
+After the latest rating or completion, propose in-app reflection after approximately:
+- 7 days with sparse evidence,
+- 14 days with moderate evidence,
+- 28±2 days for stable cases.
+
+The ±2 day offset is a deterministic per-habit jitter, NOT a predictive AI-derived schedule. Once the due date arrives, the app offers a one-tap review during a visit. **No push message or background notification has been implemented**, and in-app prompts can be switched off. Messaging outside the app requires separate permission and future work.
+
+### 11.4 AI architecture and privacy
+
+The HTTP request writes the user's action/optional notes quickly; it does not wait for an LLM. A separately scheduled, quota-limited backend worker can classify opted-in notes using an explicitly configured, fixed-host provider. No model output can write ability estimates, modify account data or choose arbitrary tools. Store model and prompt versions, raw submitted rating separately, consent state, and status. Account export and delete include reflections.
+
+LLM coding must be calibrated against blinded human annotations before showing it as scientifically reliable. Validate dialect/language robustness, calibration error and over-attribution. User's description remains the primary first-person evidence, and AI silence/uncertainty must never be interpreted as low automaticity.
+
+### 11.5 Core sources
+- Lally et al. (2010), *How are habits formed?* https://doi.org/10.1002/ejsp.674
+- Gardner et al. (2012), automaticity subscale SRBAI: https://pmc.ncbi.nlm.nih.gov/articles/PMC3552971/
+- Gardner, Phillips & Judah (2016), *Habitual instigation and habitual execution*: https://pubmed.ncbi.nlm.nih.gov/26991427/
+- Wood & Rünger (2016), *Psychology of Habit*: https://doi.org/10.1146/annurev-psych-122414-033417
+- Edgren et al. (2024), longitudinal heterogeneity in habit decay: https://scispace.com/papers/the-temporal-trajectories-of-habit-decay-in-daily-life-an-3ijhfgngncbv
+
+### 11.6 Scientific validation gates
+Conduct repeated-measure reliability and predictive comparisons with simple count and automaticity-only baselines; measure correlations between practice and genuinely independent skill outcomes. Do not merge voluntary diaries with validated SRBAI scores or directly infer ability gains. Score precision (0.1) is UI formatting, not measurement accuracy.
+

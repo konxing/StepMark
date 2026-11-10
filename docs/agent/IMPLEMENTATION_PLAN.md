@@ -65,3 +65,15 @@ StepMark 是 Web + 微信小程序的独立多用户 Alpha。代码已经有：
 - 下一步 2：建立至少数十个经许可的原创逻辑题库与标定采样流程；在足够样本、项目参数稳定、量尺链接之后才启用 EAP 自适应模块；记录曝光控制与内容平衡的统计。
 - 下一步 3：用独立平行题目获得可比较能力量尺与测量 SE 后，再为纵向滤波设计 UI。对比简单基线，做时间序列验证、误差与公平性检验。
 - 下一步 4：如果要以最低负担引导训练，比较测量信息收益/用户成本，但须设置最小观测数、用户知情、退出权和非歧视性控制。
+
+## Habit growth / reflection / maintenance implementation (2026-11-11)
+
+**Implemented:** structured optional user initiation rating 0..4, personal note with explicit AI consent, private multi-tenant storage, AI asynchronous coding interface and worker, visual experiment progress (v1), evidence gating, reduced polling and app-entry review due dates, user opt-out, data export and account deletion, cross-user/CSRF tests. Web and WeChat mini-program surfaces now expose the progress and feedback UI.
+
+**Incomplete — do not claim implemented:**
+1. Real scheduled deployment of the AI processing worker and retries/queue monitoring with provider billing quotas; configure secrets only at deployment.
+2. Calibration of the natural-language coder against diverse human-rated diaries, translation of an authorized automaticity instrument, validity/uncertainty of heuristic 0–100 progress and comparison with simpler baselines.
+3. Official WeChat subscribed-message or web-push review reminders; current review is only shown when users open the application. Need explicit notification opt-in and user-configured frequency.
+4. Causal evidence of improvement in linked skills: perform independent baseline/retests and intervention controls. **Never increase a capability score from habit progress alone.**
+5. Production privacy law review, raw diary retention/deletion policies and third-party agreements; official Mini Program developer tool/test device UI validation.
+6. If users object to self-report burden, allow one-tap default and only request free text when prediction uncertainty benefits from it.

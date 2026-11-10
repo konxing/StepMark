@@ -42,3 +42,14 @@ https://owasp.org/www-project-application-security-verification-standard/
 https://owasp.org/API-Security/
 https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html
 https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html
+
+## Habit diary, external AI and review privacy (2026-11-11)
+
+- Personal feelings notes are optional and stored in a separate user-owned `HabitReflection` table with bounded 600-character input; never log their contents. Server returns only owner-scoped records.
+- Sending a note to the AI service requires explicit per-entry consent and configured provider. Server addresses are a hard-coded allowlist (OpenAI/OpenRouter); secrets and upstream responses never enter client bundles or logs.
+- AI work is deferred to a bounded, separately scheduled backend worker (<=10 pending notes per run, 8s request timeout), not part of the latency-sensitive HTTP write. Limited output JSON and exact quotation checks reject unsupported scores.
+- AI output cannot change ability scores, user identity, self-rating, or activity history. It is provisional, versioned and ignored if confidence <0.65 or quotation absent.
+- Habit progress is heuristic and unvalidated, deliberately bounded with insufficient subjective evidence. Prevent chart-driven coercion; allow users to skip notes and opt out of in-app review prompts.
+- **Before production:** verify explicit third-party provider consent text, privacy policy/legal transfer notices, age and data retention limits, retry budget, stale worker job recovery, consent revocation and deletion of previously transmitted content per vendor contract. The draft privacy page is not final.
+- No push notifications implemented; external reminders must use official permission and opt-in.
+
