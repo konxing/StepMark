@@ -1,0 +1,17 @@
+{
+  "name": "stepmark",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["apps/web", "packages/*"],
+  "engines": { "node": ">=22.0.0" },
+  "scripts": {
+    "dev": "npm run dev --workspace @stepmark/web",
+    "build": "npm run build --workspace @stepmark/web",
+    "typecheck": "npm run typecheck --workspace @stepmark/core && npm run typecheck --workspace @stepmark/contracts && npm run typecheck --workspace @stepmark/web",
+    "test": "npm run test --workspace @stepmark/core",
+    "db:generate": "npm run db:generate --workspace @stepmark/web",
+    "db:migrate": "npm run db:migrate --workspace @stepmark/web",
+    "audit:prod": "npm audit --omit=dev --audit-level=high"
+  },
+  "devDependencies": { "tsx": "^4.20.0", "typescript": "^5.9.0" }
+}
