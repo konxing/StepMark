@@ -15,7 +15,7 @@ Github 的 `main` 仍保留旧状态；开发工作通过 `feat/research-backed-
 - PostgreSQL + Prisma 7、正式初始化 SQL 迁移、连接池、复合索引、静态目录缓存、记录上限。
 - CSRF 来源校验、HttpOnly/Secure 生产 Cookie、登录和写入限流、密码 scrypt 哈希、令牌哈希存储、重放与跨用户访问测试。
 - CI 使用 npm lockfile、PostgreSQL、迁移、种子、集成测试、类型检查、Next.js 构建和 npm audit。
-- 数学 v0.2：Beta-Binomial 习惯执行概率、误差区间、修正后的习惯曲线拟合，以及仅供校准数据使用的 EAP 自适应选题与纵向滤波。
+- 数学 v0.2：Beta-Binomial 习惯执行概率、误差区间、修正后的习惯曲线拟合、预测的事前基准 Brier Skill Score，以及仅供校准数据使用的 EAP 自适应选题与纵向滤波。
 - 控制台“查看记录”改为读取服务端聚合统计（只返回必要计数和不确定性，不传整批原始行为日志）。
 
 ## 目录

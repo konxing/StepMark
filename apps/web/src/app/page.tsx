@@ -22,7 +22,7 @@ export default function Home() {
       <div className="domains">
       {initialConstructs.map((domain, index) => <article className="domain" key={domain.code}>
         <span className="domain-index">0{index+1} / CONSTRUCT</span>
-        <div className="domain-mark" aria-hidden="true">{["◇","◈","✳"][index]}</div>
+        <div className="domain-mark" aria-hidden="true">{["◇","◈","✳","◎"][index]}</div>
         <h3>{domain.title}</h3><p>{domain.description}</p>
         <div className="domain-bottom"><span>代码：{domain.code}</span><span className="tag">待校准</span></div>
       </article>)}

@@ -188,3 +188,20 @@ Larger error means less weight on a test; a long gap allows more latent uncertai
 5. Audit sampling bias, demographic/device fairness, population representativeness, and privacy consent before any shared norms.
 
 **Explicit product distinction:** observed completion is a raw behavioral fact, Bayesian completion propensity is a conditional prediction, self-reported automaticity is an experimental index, and latent ability is a separate psychometric construct.
+
+### 10.7 Forecast skill relative to a **precommitted** reference
+
+Absolute Brier loss depends on the underlying event frequency and mix; a low Brier score alone does not prove a person is an unusually good forecaster. For resolved binary events with forecast probability \(p_i\), outcome \(y_i\), and **independently specified, pre-resolution** baseline probability \(q_i\):
+\[
+ BS_{user} = \frac1N\sum_i(p_i-y_i)^2,\quad
+ BS_{ref} = \frac1N\sum_i(q_i-y_i)^2,\quad
+ BSS=1-\frac{BS_{user}}{BS_{ref}}.
+\]
+\(BSS>0\) means better than the stated reference on the evaluated events; \(BSS=0\) equals the reference; negative scores mean worse. If \(BS_{ref}=0\), the skill score is undefined and returns null. **Do not clip negative values**. The reference must be recorded before the user makes the forecast and before outcome resolution. Predictions on the same issue can be dependent; small samples cause large uncertainty, so do not convert BSS directly to a 0–100 human ability score.
+
+Implementation: `packages/core/src/measurement.ts::brierSkillAgainstReference`, with mandatory reference policy version and validated timestamps. A research-only `prediction.calibration` construct has been added. A dedicated durable forecast journal, result adjudication, and reference-policy rules are required before making this user-facing.
+
+References:
+- Japan Meteorological Agency, *NWP Guide: A.3.2 Brier Skill Score*: https://www.jma.go.jp/jma/jma-eng/jma-center/nwp/outline2022-nwp/pdf/outline2022_all.pdf
+- ECMWF, *Verification of Ensembles*: https://www.ecmwf.int/sites/default/files/elibrary/2007/15489-verification-probability-forecasts.pdf
+- Bradley et al. (2008), *Sampling Uncertainty and Confidence Intervals for the Brier Score and Brier Skill Score*: https://doi.org/10.1175/2007WAF2007049.1
