@@ -32,6 +32,7 @@ export default function AccountForm({mode}:{mode:Mode}) {
       <button type="submit" disabled={loading}>{loading?"提交中…":mode==="register"?"注册":"登录"}</button>
       <p role="status" aria-live="polite">{message}</p>
     </form>
+    {mode==="login"&&<p><a href="/forgot-password">忘记密码？</a></p>}
     <p>{mode==="register"?<>已有账户？<a href="/login">登录</a></>:<>没有账户？<a href="/register">注册</a></>}</p>
   </main>;
 }

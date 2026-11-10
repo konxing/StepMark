@@ -26,7 +26,7 @@ export async function POST(request:NextRequest) {
       try {
         await db.user.create({data:{credential:{create:{
           email,passwordHash,verifications:{create:{
-            tokenHash:hashToken(token),
+            tokenHash:hashToken(token),purpose:"VERIFY",
             expiresAt:new Date(Date.now()+24*60*60*1000)
           }}
         }}}});

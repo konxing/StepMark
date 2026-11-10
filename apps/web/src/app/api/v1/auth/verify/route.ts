@@ -12,9 +12,9 @@ export async function POST(request:NextRequest) {
     await enforceRateLimit("verify-ip",sourceKey(request),20,60*60*1000);
     const db = getDb(), now = new Date(), hashed = hashToken(token);
     const verification = await db.verificationToken.findUnique({
-      where:{tokenHash:hashed}, select:{id:true,credentialId:true,expiresAt:true,consumedAt:true}
+      where:{tokenHash:hashed}, select:{id:true,credentialId:true,purpose:true,expiresAt:true,consumedAt:true}
     });
-    if (!verification || verification.consumedAt || verification.expiresAt <= now) {
+    if (!verification || verification.purpose!=="VERIFY" || verification.consumedAt || verification.expiresAt <= now) {
       throw new ApiError(400,"INVALID_OR_EXPIRED_TOKEN");
     }
     await db.$transaction(async(tx)=>{
