@@ -26,8 +26,8 @@
       <view wx:if="{{progress.reviewDue}}" class="review-note">该复查了：现在开始这个习惯仍然自然吗？</view>
       <view class="small-note">百分比是实验性成长指标，不是习惯形成概率，也不直接增加能力分。</view>
       <view class="section-title">记录开始行动的感受（选填）</view>
-      <picker range="{{feelingOptions}}" value="{{feelIndex < 0 ? 0 : feelIndex}}" bindchange="chooseFeeling">
-        <view class="picker-control">{{feelIndex < 0 ? '选择最接近的感受' : feelingOptions[feelIndex]}}</view>
+      <picker range="{{feelingOptions}}" value="{{feelIndex == -1 ? 0 : feelIndex}}" bindchange="chooseFeeling">
+        <view class="picker-control">{{feelIndex == -1 ? '选择最接近的感受' : feelingOptions[feelIndex]}}</view>
       </picker>
       <textarea maxlength="600" class="feedback-note" value="{{feedbackNote}}" bindinput="updateFeelingNote"
         placeholder="例如：这次看到提示就自然开始了，没有思考。"></textarea>
@@ -35,7 +35,7 @@
         <switch checked="{{aiConsent}}" disabled="{{!feedbackNote}}" bindchange="setAiConsent" color="#347856"/>
         <text>同意将当前文字发送给 AI 服务商分析（默认关闭）</text>
       </view>
-      <button class="primary" disabled="{{creating || (!feedbackNote && feelIndex < 0)}}" bindtap="saveReflection">保存感受</button>
+      <button class="primary" disabled="{{creating || (!feedbackNote && feelIndex == -1)}}" bindtap="saveReflection">保存感受</button>
       <button class="progress-button" data-id="{{selectedHabitId}}" bindtap="toggleReview">
         {{modules.length ? '切换当前习惯复查提示' : '复查提示'}}
       </button>
