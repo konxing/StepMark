@@ -25,7 +25,7 @@ export async function POST(request:NextRequest){
     const count=await getDb().habit.count({where:{userId:principal.userId,archivedAt:null}});
     if(count>=100)throw new ApiError(409,"HABIT_QUOTA_EXCEEDED");
     const habit=await getDb().habit.create({
-      data:{userId:principal.userId,...input},
+      data:{userId:principal.userId,title:input.title,action:input.action,cue:input.cue ?? null},
       select:{id:true,title:true,cue:true,action:true,createdAt:true}
     });
     return NextResponse.json({habit},{status:201,headers:{"Cache-Control":"no-store"}});
