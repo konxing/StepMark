@@ -1,11 +1,9 @@
 import { createHash, createHmac, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
-import { promisify } from "node:util";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import type { z } from "zod";
 import { getDb } from "./db";
 
-const scrypt = promisify(scryptCallback);
 export const SESSION_COOKIE = "sm_session";
 const WEB_SESSION_MS = 14 * 24 * 60 * 60 * 1000;
 const MOBILE_SESSION_MS = 24 * 60 * 60 * 1000;
@@ -97,7 +95,12 @@ export function errorResponse(error: unknown): NextResponse {
 
 const SCRYPT_PARAMS = {N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024};
 async function derive(password: string, salt: Uint8Array): Promise<Buffer> {
-  return await scrypt(password, salt, 32, SCRYPT_PARAMS) as Buffer;
+  return await new Promise<Buffer>((resolve, reject) => {
+    scryptCallback(password, salt, 32, SCRYPT_PARAMS, (error, derived) => {
+      if (error) reject(error);
+      else resolve(derived as Buffer);
+    });
+  });
 }
 export async function hashPassword(password: string): Promise<string> {
   if (password.length < 12 || password.length > 128) throw new ApiError(400, "INVALID_PASSWORD");
