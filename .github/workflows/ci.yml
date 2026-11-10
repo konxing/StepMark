@@ -31,27 +31,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: {node-version: '22'}
-      - name: Install dependencies
-        run: npm install --ignore-scripts
+        with: {node-version: '22', cache: npm}
+      - name: Install pinned dependencies
+        run: npm ci --ignore-scripts
       - name: Generate Prisma client
         run: npm run db:generate
       - name: Unit tests
         run: npm run test
       - name: Typecheck
         run: npm run typecheck
-      - name: Generate initial SQL migration from empty database
-        run: npm run db:migrate --workspace @stepmark/web -- --name init --create-only
-      - name: Apply generated SQL migration to test database
+      - name: Deploy committed database migrations to clean PostgreSQL
         run: npm run db:deploy --workspace @stepmark/web
-      - name: Upload reproducibility artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: stepmark-lock-and-initial-migration
-          path: |
-            package-lock.json
-            apps/web/prisma/migrations/
-          retention-days: 3
       - name: Multiuser integration tests
         run: npm run test:integration --workspace @stepmark/web
       - name: Production build
