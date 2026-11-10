@@ -2,10 +2,28 @@
   <view class="heading">STEP<span>MARK.</span></view>
   <view class="overline">PERSONAL GROWTH RESEARCH</view>
   <view class="hero">让成长，<text>有迹可循。</text></view>
-  <view class="description">能力用表现证明，习惯用行为证明，成长用长期证据证明。</view>
-  <view class="note">当前为研究预览版本。登录、训练和提交接口尚未启用。</view>
-  <view class="section-title">初始能力维度</view>
-  <view class="cards">
-    <view wx:for="{{modules}}" wx:key="title" class="card"><text class="title">{{item.title}}</text><text class="meta">{{item.note}}</text></view>
-  </view>
+  <view class="description">习惯和能力分开测量。今天的执行记录，不代表能力自动增加。</view>
+  <view class="note" aria-live="polite">{{status}}</view>
+  <button wx:if="{{!authenticated}}" disabled="{{loading}}" bindtap="bootstrap" class="primary">连接我的账户</button>
+  <block wx:if="{{authenticated}}">
+    <view class="section-title">我的习惯</view>
+    <view wx:if="{{modules.length===0}}" class="empty">还没有习惯，创建一个可观察的微型行动吧。</view>
+    <view class="cards">
+      <view wx:for="{{modules}}" wx:key="id" class="card">
+        <text class="title">{{item.title}}</text>
+        <text class="meta">{{item.action}}</text>
+        <text wx:if="{{item.cue}}" class="meta">触发情境：{{item.cue}}</text>
+        <text class="meta">已记录机会：{{item._count.events}}</text>
+        <button class="primary" data-id="{{item.id}}" disabled="{{creating}}" bindtap="record">今天已执行</button>
+      </view>
+    </view>
+    <view class="section-title">新增习惯</view>
+    <view class="form">
+      <input maxlength="180" value="{{title}}" bindinput="updateTitle" placeholder="习惯名称"/>
+      <textarea maxlength="500" value="{{action}}" bindinput="updateAction" placeholder="具体行动"/>
+      <input maxlength="250" value="{{cue}}" bindinput="updateCue" placeholder="触发情境（选填）"/>
+      <button class="primary" disabled="{{creating}}" bindtap="createHabit">保存习惯</button>
+    </view>
+    <button class="logout" bindtap="logout">退出登录</button>
+  </block>
 </view>
