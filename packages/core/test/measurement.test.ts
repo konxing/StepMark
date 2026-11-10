@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { brierScore, irt2plInformation, irt2plProbability, rubricTaskScore, wilsonInterval } from "../src/index.ts";
+import { brierScore, brierSkillAgainstReference, irt2plInformation, irt2plProbability, rubricTaskScore, wilsonInterval } from "../src/index.ts";
 
 test("2PL midpoint, monotonicity and information", () => {
   assert.equal(irt2plProbability(0, 1, 0), 0.5);
@@ -21,4 +21,19 @@ test("Wilson interval never invents evidence for zero observations", () => {
   assert.equal(wilsonInterval(0,0), null);
   const ci = wilsonInterval(8,10)!;
   assert.ok(ci.low < .8 && ci.high > .8);
+});
+
+test("Brier skill score uses frozen pre-event reference and may be negative",()=>{
+  const create=(p:number,ref:number,outcome:0|1)=>({
+    probability:p,referenceProbability:ref,outcome,issuedAtMs:1000,referenceRecordedAtMs:800,resolvedAtMs:2000
+  });
+  const improved=brierSkillAgainstReference([create(0.8,0.5,1),create(0.2,0.5,0)],"historical-v1");
+  assert.ok(Math.abs(improved.forecastBrier-0.04)<1e-12);
+  assert.ok(Math.abs(improved.referenceBrier-0.25)<1e-12);
+  assert.ok(Math.abs(improved.skillScore!-0.84)<1e-12);
+  const worse=brierSkillAgainstReference([create(0,0.5,1)],"historical-v1");
+  assert.ok(worse.skillScore!<0);
+  const perfectReference=brierSkillAgainstReference([create(1,1,1)],"historical-v1");
+  assert.equal(perfectReference.skillScore,null);
+  assert.throws(()=>brierSkillAgainstReference([{...create(0.6,0.5,1),referenceRecordedAtMs:1500}],"ref-v1"));
 });

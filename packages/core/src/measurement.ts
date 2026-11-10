@@ -62,3 +62,40 @@ export function wilsonInterval(successes: number, trials: number, z = 1.96): { l
   const half = z * Math.sqrt((p * (1 - p) + zz / (4 * trials)) / trials) / denominator;
   return { low: Math.max(0, center - half), high: Math.min(1, center + half) };
 }
+
+/**
+ * Benchmark-relative probabilistic forecast quality: a Brier skill score.
+ * The reference forecast must be fixed before outcome resolution (prevent
+ * hindsight leakage). Negative values mean worse than reference; no lower bound.
+ * This is NOT a general person-level prediction ability score.
+ */
+export interface ResolvedBenchmarkForecast {
+  probability:number;
+  referenceProbability:number;
+  outcome:0|1;
+  issuedAtMs:number;
+  referenceRecordedAtMs:number;
+  resolvedAtMs:number;
+}
+export function brierSkillAgainstReference(
+  forecasts:readonly ResolvedBenchmarkForecast[],
+  referencePolicyVersion:string
+): {status:"descriptive";sampleSize:number;forecastBrier:number;referenceBrier:number;skillScore:number|null;referencePolicyVersion:string} {
+  if (!referencePolicyVersion.trim() || referencePolicyVersion.length>100 ||
+      !forecasts.length || forecasts.length>100000) throw new RangeError("invalid reference policy or sample");
+  let loss=0,refLoss=0;
+  for(const f of forecasts){
+    unit(f.probability,"forecast probability");
+    unit(f.referenceProbability,"reference probability");
+    if((f.outcome!==0 && f.outcome!==1) ||
+       ![f.issuedAtMs,f.referenceRecordedAtMs,f.resolvedAtMs].every(Number.isFinite) ||
+       f.referenceRecordedAtMs>f.issuedAtMs || f.issuedAtMs>=f.resolvedAtMs){
+      throw new RangeError("invalid outcome timing; reference must precede forecast and resolution");
+    }
+    loss+=(f.probability-f.outcome)**2;
+    refLoss+=(f.referenceProbability-f.outcome)**2;
+  }
+  const forecastBrier=loss/forecasts.length,referenceBrier=refLoss/forecasts.length;
+  return {status:"descriptive",sampleSize:forecasts.length,forecastBrier,referenceBrier,
+    skillScore:referenceBrier>0?1-forecastBrier/referenceBrier:null,referencePolicyVersion};
+}
