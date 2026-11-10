@@ -19,7 +19,7 @@ Research:
 
 - Adherence `C = sum(eligible_i * completed_i) / sum(eligible_i)`. Return **null** if there are no eligible opportunities, not zero. Record whether an opportunity was eligible; deduplicate by (habitId, opportunityKey). 
 - Automaticity index: compute `S = 100 * (mean(q1..q4) - 1) / 6` for 4 Likert 1..7 responses. **This normalization is a product display transformation** and does not establish interval measurement, equivalent items, or validity. The current code deliberately does not reproduce a copyrighted or licensed translation. Only use a properly sourced and validated SRBAI translation before naming measured results "SRBAI".
-- Exploratory asymptotic progression curve `H(n)=H0+(Hmax-H0)*(1-exp(-k*n))` with `0<=H0<=Hmax<=100, 0<k<=1`. `n` = context-linked effective repetitions. Fit to repeated automaticity observations, not inferred from repetition counts. The code uses a deterministic coarse grid over rates and asymptotes; it returns `exploratory` and RMSE. This **is our engineering approximation** reflecting Lally et al.'s asymptotic observations, not a population-calibrated universal law. No automatic "habit complete" threshold.
+- Exploratory asymptotic progression curve `H(n)=H0+(Hmax-H0)*(1-exp(-k*n))` with `0<=H0<=Hmax<=100, 0<k<=1`. `n` = context-linked effective repetitions. Fit to repeated automaticity observations, not inferred from repetition counts. The v2 code fits the intercept rather than anchoring the first observation, uses a deterministic rate grid and compares against a constant model with AICc; it returns an `exploratory` estimate and diagnostics. This **is our engineering approximation** reflecting Lally et al.'s asymptotic observations, not a population-calibrated universal law. No automatic "habit complete" threshold.
 - Distinguish habit *instigation* (starting after a cue) versus *execution* (automatic performance of steps); v0.1 only measures an undifferentiated self-reported proxy. Add distinct observations in phase 2.
 - For individual fit validity require enough repeated observations across time/behavior, missingness analysis, sensitivity to alternative models, posterior/bootstrapped uncertainty and holdout prediction; six samples in code are solely a guard against nonsensical fits.
 
@@ -95,3 +95,89 @@ Check LICENSE, upstream security, third-party assets, test content copyright, mo
 - Robert F. DeVellis & Carolyn T. Thorpe, *Scale Development*: validation, reliability, and construct structure.
 - Furr, *Psychometrics: An Introduction*: foundations for measurement models.
 - James Clear, *Atomic Habits*: product-design inspiration only, not a source of validated psychometric thresholds.
+
+
+## 10. Math upgrade v0.2 — Bayesian estimates, adaptive design and time-aware monitoring
+
+**Scope:** deterministic core primitives with tests, plus an authorized habit-insights API. These are *candidate statistical models*, not product-valid normative psychological metrics.
+
+### 10.1 Beta-Binomial smoothing for observed adherence
+
+Let eligible opportunities be \(n\), completed opportunities \(s\), completion propensity \(p\), prior \(p\sim Beta(\alpha_0,\beta_0)\).
+If opportunities are conditionally independent and exchangeable, the posterior is
+\[
+p\mid s,n \sim Beta(\alpha_0+s,\beta_0+n-s).
+\]
+Posterior mean \(E[p\mid s,n]=(\alpha_0+s)/(\alpha_0+\beta_0+n)\), posterior variance
+\[
+Var(p\mid s,n)=\frac{(\alpha_0+s)(\beta_0+n-s)}
+ {(\alpha_0+\beta_0+n)^2(\alpha_0+\beta_0+n+1)}.
+\]
+StepMark uses the explicitly chosen experimental uniform \(Beta(1,1)\) prior, returns **null at n=0**, preserves the raw completion fraction and Wilson interval alongside the posterior mean and SD. A rate of 100% after a single success is not evidence of perfect future adherence. Correlation between opportunities makes the Beta-Binomial calculation overconfident; do not interpret as a clinical/psychometric credible interval.
+**Implementation:** `packages/core/src/bayesian.ts`; owner-scoped aggregated API `GET /api/v1/habits/:id/insights`.
+
+### 10.2 Improved automaticity curve fit
+
+The original curve incorrectly anchored its intercept at the first observation; the first self-report has noise and often occurs after many repetitions.
+For observations \(y_i\) at actual effective repetition counts \(n_i\), fit
+\[
+\widehat y_i = b+(M-b)(1-e^{-kn_i}), \quad 0\le b\le M\le 100, k>0,
+\]
+minimizing \(\sum_i (y_i-\widehat y_i)^2\).
+The v2 algorithm searches log-spaced \(k\) and solves bounded least-squares intercept/amplitude, without copying the first data point. It compares with constant automaticity via small-sample corrected AIC:
+\[
+AIC_c = n\log(RSS/n)+2K+\frac{2K(K+1)}{n-K-1}.
+\]
+The resulting `aiccAdvantage` and `trendSupported` are **exploratory descriptive fit diagnostics only**. Independent normal residual and sufficient repeated observations assumptions are not proven; held-out forecasting and patient-specific uncertainty are future work. No threshold implies a habit has formed.
+**Implementation:** `packages/core/src/habit.ts` (model version `asymptote-constrained-ls-v2`).
+
+### 10.3 Calibrated adaptive item selection: minimize variance per unit of time
+
+After psychometrically validated 2PL item calibration, model \(P(X_i=1\mid\theta)\), combine binary answer likelihoods with a standard normal prior \(\theta\sim N(0,1)\), and compute posterior mean/variance by finite quadrature:
+\[
+p(\theta\mid\mathbf{x})\propto \phi(\theta)\prod_i P_i(\theta)^{x_i}(1-P_i(\theta))^{1-x_i}.
+\]
+For a candidate item \(j\) compute expected variance after observing its response
+\[
+EV_j=P_j(1)Var(\theta\mid X_j=1)+P_j(0)Var(\theta\mid X_j=0)
+\]
+where the predictive probabilities integrate over the **current posterior**. Score candidate by \(U_j=(Var(\theta\mid\mathbf{x})-EV_j)/E[T_j]\) (estimated seconds).
+Choose the highest valid utility after enforcing calibration version, item non-reuse, exposure cap and optional content balance. This may reduce burden by selecting informative shorter tests, but **requires real item calibration and empirical comparison before rollout**. No unvalidated item is accepted into this selector.
+
+This follows literature on EAP, Bayesian selection and information-per-response-time:
+- Bock & Mislevy (1982), *Adaptive EAP Estimation of Ability*: https://scispace.com/papers/adaptive-eap-estimation-of-ability-in-a-microcomputer-3bkw35snyd
+- van der Linden (1998), *Bayesian item selection criteria*: https://scispace.com/papers/bayesian-item-selection-criteria-for-adaptive-testing-46nyyjq3s7
+- Kyung (2018), *Components of the item selection algorithm*: https://pmc.ncbi.nlm.nih.gov/articles/PMC5968224/
+- Choe et al. (2017), *Optimizing the Use of Response Times*: https://doi.org/10.3102/1076998617723642
+- Ertuna et al. (2026), *A Comparison of Item Selection Methods and Parameter Estimation Approaches for Online Calibration*: https://doi.org/10.1177/00131644261478843
+**Implementation:** `packages/core/src/adaptive.ts` — used only as a research API; existing four demo items remain uncalibrated and are **not** used with this module.
+
+### 10.4 Online local-level state-space filter for linked retests
+
+When scores have the **same calibrated scale**, tasks are comparably difficult, and their measurement standard errors are known, a local-level Gaussian filter may summarize repeated assessments without overreacting to one noisy observation. Assume
+\[
+\theta_t=\theta_{t-1}+\eta_t,\quad Var(\eta_t)=q\Delta t,\qquad
+y_t=\theta_t+\epsilon_t,\quad Var(\epsilon_t)=r_t.
+\]
+Predict uncertainty \(V_t^-=V_{t-1}+q\Delta t\), Kalman gain \(K_t=V_t^-/(V_t^-+r_t)\), and update
+\(m_t=m_{t-1}+K_t(y_t-m_{t-1})\), \(V_t=(1-K_t)V_t^-\).
+Larger error means less weight on a test; a long gap allows more latent uncertainty. The returned ±1.96 SD band is conditional on the model assumptions, **not a proven human-development confidence band**. Never use uncalibrated question percentages in this filter.
+- McArdle (2009), *Latent Variable Modeling of Differences and Changes with Longitudinal Data*: https://scispace.com/papers/latent-variable-modeling-of-differences-and-changes-with-qjfanm5ekd
+- Schuurman & Hamaker (2019), *Measurement error and person-specific reliability*: https://scispace.com/papers/measurement-error-and-person-specific-reliability-in-4nsr8wh2u1
+- Ferrer & McArdle (2010), *Longitudinal Modeling of Developmental Changes*: https://scispace.com/papers/longitudinal-modeling-of-developmental-changes-in-rvxud64uya
+**Implementation:** `packages/core/src/longitudinal.ts` (not yet enabled on user ability screens).
+
+### 10.5 Research warning: a good retrospective fit does not imply good future predictions
+
+2025 evidence comparing multiple knowledge tracing models using time-based cross-validation reports failures to capture spacing and forgetting despite acceptable retrospective fit. We therefore require chronological holdouts and an explicit naive baseline before adding adaptive skill recommendations.
+- Schuetze et al. (2025), *Capturing Session-to-Session Dynamics of Learning and Forgetting*: https://doi.org/10.1007/s40593-025-00508-3
+
+### 10.6 Release gates for math models
+
+1. Mathematical unit tests / stable numerics on edge cases.
+2. Simulations under realistic missing data, dependence, device drift and item calibration uncertainty.
+3. Time-split cross-validation, prospective scoring and calibration plots against simple baselines.
+4. Only then use inferred ability values or automaticity trajectories in user-facing claims.
+5. Audit sampling bias, demographic/device fairness, population representativeness, and privacy consent before any shared norms.
+
+**Explicit product distinction:** observed completion is a raw behavioral fact, Bayesian completion propensity is a conditional prediction, self-reported automaticity is an experimental index, and latent ability is a separate psychometric construct.

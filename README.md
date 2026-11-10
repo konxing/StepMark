@@ -15,6 +15,8 @@ Github 的 `main` 仍保留旧状态；开发工作通过 `feat/research-backed-
 - PostgreSQL + Prisma 7、正式初始化 SQL 迁移、连接池、复合索引、静态目录缓存、记录上限。
 - CSRF 来源校验、HttpOnly/Secure 生产 Cookie、登录和写入限流、密码 scrypt 哈希、令牌哈希存储、重放与跨用户访问测试。
 - CI 使用 npm lockfile、PostgreSQL、迁移、种子、集成测试、类型检查、Next.js 构建和 npm audit。
+- 数学 v0.2：Beta-Binomial 习惯执行概率、误差区间、修正后的习惯曲线拟合，以及仅供校准数据使用的 EAP 自适应选题与纵向滤波。
+- 控制台“查看记录”改为读取服务端聚合统计（只返回必要计数和不确定性，不传整批原始行为日志）。
 
 ## 目录
 
@@ -78,3 +80,9 @@ node apps/web/scripts/perf-http.mjs                   # 需要先启动本机服
 保留 `ExternalIdentity` 用户映射及独立身份边界；将通过授权的 OIDC / 后端互信令牌读取有用户同意的能力摘要。**尚未改动 AI Chat Web。**
 
 License: Apache-2.0. 引入任何第三方认知测验或量表前另行确认许可。
+
+## 数学模型 v0.2
+
+习惯洞察：`GET /api/v1/habits/:id/insights` 只返回用户本人的完成率、Wilson 区间、先验公开的 Beta(1,1) 平滑预测以及最近的实验自动化指数。请勿将“完成率 / 平滑预测 / 自动化程度 / 能力值”混为一个分数。
+
+研究模块：`packages/core/src/adaptive.ts` 和 `longitudinal.ts` 实现贝叶斯 EAP、自适应选题和考虑时间/测量误差的状态空间滤波；现有四道演示题未经校准，**不会**启动这些算法。全部假设、公式和文献见研究文档第 10 节。

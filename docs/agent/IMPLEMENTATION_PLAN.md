@@ -57,3 +57,11 @@ StepMark 是 Web + 微信小程序的独立多用户 Alpha。代码已经有：
 - 运行 npm ci、npm run db:generate、npm run test、npm run typecheck、npm run db:deploy --workspace @stepmark/web、npm run db:seed --workspace @stepmark/web、npm run test:integration --workspace @stepmark/web、npm run build、npm run audit:prod。
 - 不把代码编译成功称为科学测量已验证，也不把本机 benchmark 称为生产性能已达到 SLA。
 - 小步提交 PR，记录哪些测试通过、哪些未运行，保留能回退的版本；不自行放宽默认安全门槛。
+
+## 数学 v0.2 接续任务（本次已完成基础计算与洞察 API）
+
+- 已实现：后验 Beta-Binomial 习惯完成概率（不等同自动化）、数学修正的曲线最小二乘拟合与 AICc、EAP 和信息/时间选题接口、纵向卡尔曼滤波、按用户聚合的习惯统计 API、相关单元/隔离测试。
+- 下一步 1：验证中文自动化量表的条目质量及授权，建立 8–12 周重复测量，并以时间留出法比较习惯拟合与常数基线；不得根据 AICc 单独宣布习惯形成。
+- 下一步 2：建立至少数十个经许可的原创逻辑题库与标定采样流程；在足够样本、项目参数稳定、量尺链接之后才启用 EAP 自适应模块；记录曝光控制与内容平衡的统计。
+- 下一步 3：用独立平行题目获得可比较能力量尺与测量 SE 后，再为纵向滤波设计 UI。对比简单基线，做时间序列验证、误差与公平性检验。
+- 下一步 4：如果要以最低负担引导训练，比较测量信息收益/用户成本，但须设置最小观测数、用户知情、退出权和非歧视性控制。
