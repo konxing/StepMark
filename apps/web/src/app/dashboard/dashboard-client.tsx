@@ -1,3 +1,4 @@
+import HabitGrowthPanel from "./habit-growth-panel";
 "use client";
 import {useCallback,useEffect,useState} from "react";
 type Habit={id:string;title:string;cue:string|null;action:string;createdAt:string;_count:{events:number;checks:number}};
@@ -6,6 +7,7 @@ export default function DashboardClient({email}:{email:string}) {
   const [title,setTitle]=useState(""),[action,setAction]=useState(""),[cue,setCue]=useState("");
   const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
   const [selected,setSelected]=useState<string|null>(null);
+  const [reflectionEventId,setReflectionEventId]=useState<string|null>(null);
   const [insights,setInsights]=useState<null|{eligibleOpportunities:number;completions:number;
     observedRate:number|null;wilsonInterval95:{low:number;high:number}|null;
     posterior:{posteriorMean:number;posteriorSD:number}|null;
@@ -37,15 +39,17 @@ export default function DashboardClient({email}:{email:string}) {
         body:JSON.stringify({habitId,opportunityKey:`daily:${today}`,eligible:true,
           completed:true,occurredAt:new Date().toISOString()})});
       if(!res.ok && res.status!==409)throw new Error("SAVE_FAILED");
-      await load();setMessage(res.status===409?"今天已有记录。":"已记录一次执行；这不会直接增加能力分。");
+      const parsed= res.ok ? await res.json() as {event:{id:string}} : null;
+      await load();await detail(habitId,parsed?.event.id??null);
+      setMessage(res.status===409?"今天已有记录，仍可以另行复查。":"执行已保存，可以补充一次感受（选填）。");
     }catch{setMessage("记录失败，请重试。");}finally{setBusy(false);}
   }
-  async function detail(id:string){
+  async function detail(id:string,eventId:string|null=null){
     try{
       const r=await fetch(`/api/v1/habits/${encodeURIComponent(id)}/insights`,{cache:"no-store"});
       if(!r.ok)throw new Error();
       const report=await r.json() as NonNullable<typeof insights>;
-      setSelected(id);setInsights(report);
+      setSelected(id);setReflectionEventId(eventId);setInsights(report);
     }catch{setMessage("无法读取记录。");}
   }
   async function logout(){
@@ -90,6 +94,7 @@ export default function DashboardClient({email}:{email:string}) {
       {insights.latestAutomaticity?<p>最近一次试验性自动化指数：{insights.latestAutomaticity.indexScore.toFixed(1)}/100（不是已验证量表或能力值）。</p>:
         <p>还没有自动化程度的独立测量。完成次数不能证明习惯已经形成。</p>}
     </section>}
+    {selected&&<HabitGrowthPanel key={selected} habitId={selected} eventId={reflectionEventId}/>}
     <p className="notice" role="status" aria-live="polite">{message}</p>
   </main>;
 }
