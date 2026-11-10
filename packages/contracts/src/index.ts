@@ -39,3 +39,17 @@ export const choiceSubmissionSchema = z.object({
   taskId:z.uuid(),
   selectedKey:z.string().min(1).max(20)
 }).strict();
+
+/** Free text is optional; sending it to an AI provider always needs opt-in. */
+export const habitReflectionSchema = z.object({
+  eventId: z.uuid().optional(),
+  note: z.string().trim().max(600).optional(),
+  initiationLevel: z.number().int().min(0).max(4).optional(),
+  aiConsent: z.boolean().default(false)
+}).strict().superRefine((value,context)=>{
+  if(value.initiationLevel===undefined && !value.note?.length)
+    context.addIssue({code:"custom",message:"rating or reflection note required"});
+  if(value.aiConsent && !value.note?.length)
+    context.addIssue({code:"custom",message:"AI analysis requires a note"});
+});
+export type HabitReflectionInput = z.infer<typeof habitReflectionSchema>;

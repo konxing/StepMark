@@ -31,6 +31,14 @@ enum EmailTokenPurpose {
   RESET
 }
 
+enum HabitAIStatus {
+  DISABLED
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 enum SessionKind {
   WEB
   WECHAT
@@ -192,9 +200,11 @@ model Habit {
   action      String @db.VarChar(500)
   createdAt   DateTime @default(now())
   archivedAt  DateTime?
+  reviewEnabled Boolean @default(true)
   user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
   events      HabitEvent[]
   checks      AutomaticityCheck[]
+  reflections HabitReflection[]
   associations HabitAssociation[]
   @@index([userId, archivedAt, createdAt])
 }
@@ -209,9 +219,31 @@ model HabitEvent {
   source          String @db.VarChar(30)
   createdAt       DateTime @default(now())
   habit           Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  reflection HabitReflection?
   @@unique([habitId, opportunityKey])
   @@index([habitId, occurredAt])
   @@index([habitId, eligible, completed])
+}
+
+model HabitReflection {
+  id              String @id @default(uuid()) @db.Uuid
+  habitId         String @db.Uuid
+  eventId         String? @unique @db.Uuid
+  note            String? @db.VarChar(600)
+  initiationLevel Int?
+  aiConsent       Boolean @default(false)
+  aiStatus        HabitAIStatus @default(DISABLED)
+  aiLevel         Int?
+  aiConfidence    Float?
+  aiQuote         String? @db.VarChar(180)
+  aiModelId       String? @db.VarChar(100)
+  aiPromptVersion String? @db.VarChar(60)
+  reviewedAt      DateTime?
+  createdAt       DateTime @default(now())
+  habit           Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  event           HabitEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  @@index([habitId, createdAt])
+  @@index([aiStatus, createdAt])
 }
 
 model AutomaticityCheck {
