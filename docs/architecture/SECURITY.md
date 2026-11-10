@@ -1,40 +1,44 @@
-# Security baseline and production launch checklist
+# StepMark security gates and threat model
 
-**Do not interpret this scaffold as ready for exposure to real users.** Public preview has no login, no private data and no active writes. POST submission handlers fail closed with HTTP 501.
+**Status: implemented multiuser security core, but NOT production cleared.**
+This document distinguishes controls verified by tests from controls still required at deployment. Last updated 2026-11-10.
 
-## P0 blockers before public beta (all mandatory)
-- [ ] Update and pin vetted dependency versions; commit a lockfile; review npm audit and relevant upstream advisories; run CI dependency scans.
-- [ ] Enforce HTTPS/TLS through trusted reverse proxy; HSTS once TLS is correct; secure deployment secrets; no secret in Git, JS bundle, wx mini-program or logs.
-- [ ] Implement authenticated sessions: server-side signed/hashed opaque tokens in HttpOnly Secure SameSite cookies for web; CSRF origin + token checks for state-changing cookie-auth requests.
-- [ ] WeChat `wx.login` code must be exchanged server-to-server via official code2Session; never treat a client-submitted OpenID as authentic. AppSecret stays server-side. Limit replay and verify AppID.
-- [ ] Subject binding and authorization per operation, with ownership checks at database query level; include tests: user A cannot read/write user B's data; IDOR prevention for UUIDs too.
-- [ ] Per-user + per-IP rate limits and abuse controls at the trusted edge and application; avoid trusting spoofed X-Forwarded-For.
-- [ ] Strict request size/content type validation, Zod schema, HTML sanitization for any rich text, parameterized ORM queries. Never execute task/AI output as JS or SQL.
-- [ ] AI tool access disabled by default. Isolate prompts from untrusted content, reject tool calls not permitted by a scope policy, schema-validate outputs, enforce budget/token/timeouts and user quotas.
-- [ ] Safe CORS allowlist for explicitly cross-origin clients if needed; no wildcard credentialed origins. Mini-program requests must use registered legal HTTPS domains.
-- [ ] Per-user data export and deletion, consent and age-appropriate privacy policy; retention periods for voice, task responses, analytics and AI provider processing; separate consent for identifiable recordings.
-- [ ] Logs: record actor/action/timestamp/correlation ID, NOT raw passwords, tokens, chat text, audio or full task answers.
-- [ ] Automated backups, encrypted at rest and in transit, recovery rehearsal, key rotation and rollback plan.
-- [ ] Follow OWASP ASVS 5.0 and API Security Top 10; perform threat model, SAST, dependency scanning, pen testing before launch.
-- [ ] Prevent accidental publishing of Prisma Studio/database admin, metrics, debug endpoints and internal services.
-- [ ] Public research-preview disclaimer remains visible until user flows are verified; do not expose unpublished questions via public catalog.
+## Implemented, tested on ephemeral PostgreSQL
 
-## Current implemented controls
-- Only health and static catalog exposed without authorization.
-- Authenticated observation and assessment write handlers return HTTP 501.
-- No AppSecret, AI token, DB URL or private user data checked into repository.
-- Next.js uses security response headers; CSP currently contains `unsafe-inline` to preserve Next.js compatibility in development. **Tighten to a tested nonce/hash-based CSP before P0 launch**.
-- Zod strict, bounded schemas prepared for future authenticated handlers. They are **not** wired into an active write endpoint yet.
+- Email register -> verification -> password session; server-side scrypt hash with per-account random salt, generic login failures, one-hour and 15-minute DB-backed limits, email verification and reset (Resend provider must be configured).
+- Web sessions: random opaque token, SHA-256 hash stored in database, HttpOnly/SameSite=Lax/production Secure cookies, 14-day expiry, revocation. Session revocation tested.
+- WeChat: official code2Session exchanged against a fixed HTTPS upstream on the server, app secret server-only, consumed code hashes prevent reuse, OpenID maps to canonical local identity. 24-hour random bearer token, hashed in DB. **Do not claim this links existing email and WeChat accounts**.
+- API-owned habit/attempt queries use authenticated server principal and userId. PostgreSQL integration tests show A cannot access B's habits or event records. URLs and UUIDs are not authorization.
+- Mutation CSRF origin check and Fetch Metadata check on web-cookie endpoints; bearer tokens use Authorization headers. Strict bounded JSON, schema validation, size limits, restricted task forms.
+- Owner-scoped paginated export and explicit password reauthentication for destructive web account deletion; reset invalidates sessions.
+- Single-use task submissions per user+task (DB unique constraint) and idempotent habit opportunity events (DB unique constraint), avoiding race-based duplicates.
+- Rate-limiting persisted in indexed database buckets (atomic upserts); cleanup CLI is provided.
+- Public catalog cached without private fields; private responses no-store. AI judgment cannot directly alter latent ability.
+- Dependency lockfile, committed SQL migrations, CI tests/build/audit and actual PostgreSQL integration tests.
 
-## Operational deployment
-- Put app behind a managed reverse proxy/WAF, secure DNS and HTTPS; expose only 443.
-- Do not run Prisma migrations automatically on request, nor use the database superuser for the app connection.
-- Restrict private database access to backend network only, separate DB roles for migrations/runtime.
-- Configure alerts for auth anomalies, sudden AI usage and 5xx, but minimize personal data in telemetry.
-- Evaluate China-region privacy/security and WeChat review requirements with current official documentation before publication.
+## Production release blockers (all must be resolved)
+- [ ] Deploy HTTPS with controlled reverse proxy and verified `APP_ORIGIN`, ensure HSTS only after TLS validated; configure domain-specific access logging without personal payloads.
+- [ ] Harden CSP to a vetted nonce/hash-based policy (current Next.js header still allows `unsafe-inline` for script/style) and run browser regression tests.
+- [ ] Review registration abuse/bot defense under real traffic, apply WAF and trusted-edge IP control; never trust unstripped `x-real-ip` or `cf-connecting-ip`.
+- [ ] Verify Resend sender identity, delivery failure recovery and anti-enumeration tests; limit mail provider cost and abuse. Check password reset UX.
+- [ ] Complete production-accurate WeChat mini-program compliance, official domain verification, token storage/rotation threat review and API quota protection.
+- [ ] Review retention, encryption at rest/backups, deletion and user data export with real policy/processor documentation; privacy page currently a **draft**.
+- [ ] Adopt minimum-privilege DB role, distinguish migration vs runtime permissions. Consider PostgreSQL RLS as defense-in-depth after thoroughly testing per-user security context, rather than weakening existing server ownership checks.
+- [ ] Perform independent threat modeling, SAST/dependency scans, manual pentest and tests for SSRF, reflected/stored XSS, SQL injection, cross-user data access, parameter pollution and credential abuse.
+- [ ] Tighten operational observability: performance/error dashboards, least-privilege logging, backups/restore rehearsal, key rotation, session limits and storage alarms.
+- [ ] Test concurrent traffic and p95 latency in staging on target hardware; current benchmark is local only and **does not establish public-service response time**.
+- [ ] For AI modules, enforce explicit user consent, vendor DPA, short retentions, prompt-injection isolation, output schema, budgets, no arbitrary tool execution.
 
-References:
-- https://owasp.org/www-project-application-security-verification-standard/
-- https://owasp.org/API-Security/
-- https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html
-- https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html
+## Configuration rules
+- `APP_ORIGIN`: exact browser origin, HTTPS in production; never infer it from attacker-controlled Host/X-Forwarded headers.
+- `RATE_LIMIT_SECRET`: long independent random key shared across app replicas; never use CI example in production.
+- `TRUSTED_CLIENT_IP_HEADER`: set only when a trusted proxy overwrites the chosen header; otherwise a shared fallback bucket limits abuse but can impede users.
+- `DATABASE_URL`: not public; use server runtime role, pool limit and network firewall.
+- `WECHAT_APP_SECRET` and `RESEND_API_KEY`: server-only secrets with periodic rotation.
+- Raw mobile bearer tokens must not appear in logs; client should clear them on logout/expiry. Never expose session or password hashes via export.
+
+## References
+https://owasp.org/www-project-application-security-verification-standard/
+https://owasp.org/API-Security/
+https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html
+https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html

@@ -5,9 +5,11 @@ import { PrismaPg } from "@prisma/adapter-pg";
 function createClient() {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL is required to access private data");
+  const configuredPool = Number(process.env.DB_POOL_MAX ?? 6);
+  const poolSize = Number.isInteger(configuredPool) ? Math.max(1,Math.min(12,configuredPool)) : 6;
   const adapter = new PrismaPg({
     connectionString,
-    max: Number(process.env.DB_POOL_MAX ?? 6),
+    max: poolSize,
     connectionTimeoutMillis: 3000,
     idleTimeoutMillis: 20000,
     maxUses: 10000
