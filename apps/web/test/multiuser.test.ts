@@ -13,8 +13,8 @@ import {GET as insightGET} from "../src/app/api/v1/habits/[id]/insights/route";
 import {GET as habitProgressGET} from "../src/app/api/v1/habits/[id]/progress/route";
 import {GET as dueReviewsGET} from "../src/app/api/v1/habits/due/route";
 import {POST as reflectionPOST, GET as reflectionGET} from "../src/app/api/v1/habits/[id]/reflections/route";
-import {PATCH as reviewPATCH} from "../src/app/api/v1/habits/[id]/reviews/route";
-import {PATCH as revokeAI, DELETE as deleteReflection} from "../src/app/api/v1/habits/[id]/reflections/[reflectionId]/route";
+import {PATCH as reviewPATCH, PUT as reviewPUT} from "../src/app/api/v1/habits/[id]/reviews/route";
+import {PATCH as revokeAI, PUT as revokeAIPUT, DELETE as deleteReflection} from "../src/app/api/v1/habits/[id]/reflections/[reflectionId]/route";
 import {POST as mobilePOST} from "../src/app/api/v1/auth/wechat/route";
 import {POST as resetPOST} from "../src/app/api/v1/auth/reset-password/route";
 import {POST as deletePOST} from "../src/app/api/v1/account/delete/route";
@@ -375,5 +375,28 @@ test("batched due-review endpoint only exposes own opted-in habits",async()=>{
     assert.equal(result.due[0]!.habitId,dueA.id);
     assert.equal(JSON.stringify(result).includes("Secret B"),false);
     assert.equal(JSON.stringify(result).includes("Hidden A"),false);
+  }finally{await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});}
+});
+
+test("WeChat-supported PUT performs secure consent and review changes without PATCH",async()=>{
+  const a=await db.user.create({data:{},select:{id:true}});
+  const b=await db.user.create({data:{},select:{id:true}});
+  try{
+    const h=await db.habit.create({data:{userId:a.id,title:"mobile habit",action:"Do it"}});
+    const hb=await db.habit.create({data:{userId:b.id,title:"foreign mobile habit",action:"Secret"}});
+    const own=await db.habitReflection.create({data:{habitId:h.id,aiConsent:true,aiStatus:"PENDING",note:"my private note"}});
+    const mobile=(await issueSession(a.id,"WECHAT")).token;
+    const ctx=(id:string)=>({params:Promise.resolve({id})});
+    const revCtx=(id:string,reflectionId:string)=>({params:Promise.resolve({id,reflectionId})});
+    const userRevoke=await revokeAIPUT(req("/api/v1/habits/"+h.id+"/reflections/"+own.id,
+      "PUT",undefined,mobile,"WECHAT"),revCtx(h.id,own.id));
+    assert.equal(userRevoke.status,200);
+    const stored=await db.habitReflection.findUniqueOrThrow({where:{id:own.id}});
+    assert.equal(stored.aiConsent,false);
+    const foreign=await revokeAIPUT(req("/api/v1/habits/"+hb.id+"/reflections/"+own.id,
+      "PUT",undefined,mobile,"WECHAT"),revCtx(hb.id,own.id));
+    assert.equal(foreign.status,404);
+    assert.equal((await reviewPUT(req("/api/v1/habits/"+h.id+"/reviews","PUT",{enabled:false},mobile,"WECHAT"),ctx(h.id))).status,200);
+    assert.equal((await reviewPUT(req("/api/v1/habits/"+hb.id+"/reviews","PUT",{enabled:false},mobile,"WECHAT"),ctx(hb.id))).status,404);
   }finally{await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});}
 });
