@@ -1,11 +1,11 @@
 # StepMark deployment and verification
 
 ## Current state
-Multiuser Alpha. Development branch contains working authenticated account/WeChat endpoints, owner-scoped habits, experimental reasoning tasks, and PostgreSQL integration tests. **Not production cleared**. No modification to AI Chat Web.
+Multiuser Alpha. The maintained `main` branch contains working authenticated account/WeChat endpoints, owner-scoped habits, experimental reasoning tasks, audited opportunity correction and PostgreSQL integration tests. **Not production cleared**. No modification to AI Chat Web.
 
 ## Windows + PostgreSQL local setup
 1. Install Node.js 22+, PostgreSQL 16+ and Git. Create a database and least-privilege test user.
-2. Check out `feat/research-backed-foundation`.
+2. Check out `main` (`git switch main`); pull the latest commits (`git pull --ff-only`).
 3. Run `npm ci`, then copy `apps/web/.env.example` to `apps/web/.env`.
 4. Set `DATABASE_URL`, `APP_ORIGIN=http://localhost:3000`, a new `RATE_LIMIT_SECRET`. To enable email account sign-up, configure an authenticated Resend sender with `RESEND_API_KEY` and `AUTH_FROM_EMAIL`.
 5. Run `npm run db:generate`, `npm run db:deploy --workspace @stepmark/web`, `npm run db:seed --workspace @stepmark/web`.
