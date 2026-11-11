@@ -106,3 +106,16 @@ License: Apache-2.0. 引入任何第三方认知测验或量表前另行确认�
 - 最近感受现可查看、删除；允许对单条感受撤回**后续** AI 分析授权。撤回时丢弃平台内由 AI 派生的标注，同时保留用户自己的评分和文字；删除则移除整条感受。处理已经开始时会明确返回 409，而不是错误宣称阻止已经在路上的 AI 请求。此前外传的数据不能通过 StepMark 自动从供应商处收回。
 - 微信 `wx.request` 不支持标准 `PATCH`；复查设置和 AI 授权撤回在小程序使用 `PUT`，网页仍可使用 `PATCH`。两个方法都使用相同的多用户所有权检查。
 - 新增相应 PostgreSQL 集成测试：三态分母统计、跨用户复查列表、感受权限与撤回、处理中不可取消、微信 PUT 兼容。请以最新 GitHub Actions 结果判断当前分支是否通过。
+
+## 研究数据集验证（2026-11-11）
+
+已新增**可复现的真实公开研究数据基准**，与正式用户数据库完全隔离。
+
+- **已运行的外部数据：** HabitApp 研究的 `core_table.csv`，GitHub commit 与 blob SHA 固定；自动核验文件完整性、133 位参与者的 1,056 条实验条件记录，并进行参与者内条件配对比较。查看 [研究数据目录与校验协议](docs/research/DATASETS_AND_VALIDATION.md)。
+- `node packages/core/scripts/validate-habitapp.mjs`：在可信研究环境按固定版本下载约 59 KB CSV，检查来源并只输出聚合指标；不把原始参与者数据放入项目或生产数据库。
+- 独立 GitHub Actions `research-data.yml`：实际运行公开数据校验，**与主应用构建 CI 分离**，避免公共研究服务器临时不可用影响用户功能。
+- `packages/core/src/validation.ts`：长期自动化指数的时间前推检验，对每个参与者用前 70% 观测拟合、后 30% 测试，比较常数/最近观察/渐近曲线的真实预测误差、缺失率和个体覆盖率。
+- `node --import tsx packages/core/scripts/evaluate-longitudinal.mjs --input /private/data.csv --manifest /private/rights.json`：本地离线数据适配器；要求真实的独立自动化指标、许可和来源确认、SHA256 匹配，不对外上传参与者原始数据。**它尚未对 OSF 纵向样本运行实证验证**，因为本环境未取得该研究的数据文件。
+
+注意：**真实行为次数配对分析已经完成，但它不能校准 StepMark 的 0–100 习惯进度。** 正式调节该进度的参数，需要独立的长期习惯自动化数据，不能用没有对应量表的健身或实验次数去拟合。
+

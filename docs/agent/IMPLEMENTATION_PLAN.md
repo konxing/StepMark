@@ -83,3 +83,18 @@ StepMark 是 Web + 微信小程序的独立多用户 Alpha。代码已经有：
 **Implemented now:** daily opportunity states (done / eligible missed / cue absent), progress not penalizing no-cue days, batch due-review endpoint, proactive in-app due-review surface on web and WeChat, early review after a sharp drop in initiation ease, explicit revocation of per-entry AI consent, first-party diary deletion, model output removal, processing-in-flight conflict, cross-user/CSRF integration tests, and a mini-program-compatible PUT route.
 
 **Next improvements:** authenticated daily record correction UX (currently conflicting overwrite is rejected), review cadence controls, dedicated privacy history, state machine with true retention/expiration, safe deletion request integration with AI providers, production platform validation and notification consent. Continue validity testing; the visual percentage and intervals are provisional settings rather than confirmed psychological scales.
+
+## 研究数据集与纵向校验进展（2026-11-11）
+
+**完成：**
+- 找到与习惯研究相关的 Edgren 2025 OSF 纵向数据、Buyalskaya 2023 行为数据、openESM 2026 长期体验采样数据目录；另有 Gera/Barak/Schonberg HabitApp 2024 原始实验 CSV。
+- 实际运行 Gera HabitApp 的固定校验基准：133 参与者、1,056 条条件/阶段记录，按参与者配对的 post-valued 与 post-devalued 行为对比，hash 与 schema 校验。此结果只描述实验任务，不是习惯量表效度证据。
+- 实现带源版本固定、许可记录和缺失值/重复值检查的独立研究工具；外部源不可达不会让用户应用 CI 失败。
+- 实现可重复运行的逐人时间顺序留出验证程序，比较渐近习惯曲线与个人恒定/最近值基准，使用每人等权 RMSE/MAE；不混淆个体内训练拟合与未来预测误差。
+
+**接下来：**
+1. 取得并审核 Edgren 数据的真正表结构、逐项自动化量表、缺失情况及许可；当前 OSF API/网站在本研究环境返回 403，**未得到这份原始纵向数据**，不得声称验证通过。
+2. 将真实研究表按官方 codebook 映射到 `participant_id,day,effective_repetitions,automaticity_0_100`。对习惯**减弱**数据应建立合理衰减模型，不能强迫使用单调增加模型。
+3. 对每一种独立人群分别进行时间前推比较，优先验证用户日常复查是否优于固定 7/14/28 天提醒，记录漏报与反馈负担，不得从事后调参直接宣称“预测准确”。
+4. 若数据样本数量足够，拟定预注册的模型评估指标/阈值、bootstrap 个体级 CI 和跨情境迁移测试；未超越简单基准的模型不得启用为自动决策。
+5. 后续以用户自愿授权的真实 StepMark 数据建立长期效度队列，不得直接把公开研究对象的数据导入生产租户。
