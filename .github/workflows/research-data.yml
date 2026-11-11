@@ -4,6 +4,8 @@ on:
     paths:
       - "packages/core/scripts/validate-habitapp.mjs"
       - "packages/core/scripts/validate-habitapp.test.mjs"
+      - "packages/core/scripts/evaluate-reasoning.mjs"
+      - "packages/core/scripts/evaluate-reasoning.test.mjs"
       - ".github/workflows/research-data.yml"
   workflow_dispatch:
 permissions:
@@ -18,5 +20,7 @@ jobs:
         with: {node-version: '22'}
       - name: Verify parser, ownership-free source validation and tamper detection
         run: node --test packages/core/scripts/validate-habitapp.test.mjs
+      - name: Verify cross-construct evidence gates for reasoning forms
+        run: node --test packages/core/scripts/evaluate-reasoning.test.mjs
       - name: Download pinned public research CSV, verify Git blob checksum and output aggregated contrasts only
         run: node packages/core/scripts/validate-habitapp.mjs

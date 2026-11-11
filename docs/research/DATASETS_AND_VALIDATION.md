@@ -100,3 +100,38 @@ A model only advances from illustrative to evidence-supported after:
 7. Long-run StepMark user consent and genuinely independent assessment of **ability** if testing skill improvement.
 
 Do not publish raw personal records from third-party experiments or StepMark users, do not place any research dataset in a production database, and do not convert correlation or a retrospective curve into causal conclusions.
+
+## 8. Reuse the research benchmark correctly for reasoning retests (2026-11-12)
+
+The prior HabitApp benchmark is **actual verified public experimental response-count data** (133 participants, 1,056 condition/phase records), but contains **no scored logic task answers**. It can validate behavioral CSV ingestion, integrity checks and within-subject contrasts, **not** cognitive ability or StepMark A/B item difficulty. This incompatibility is now an explicit automated negative-control test.
+
+OECD PISA 2022 publishes cognitive item response files and codebooks:
+https://www.oecd.org/en/data/datasets/pisa-2022-database.html
+PIAAC publishes public-use cognitive and process files:
+https://www.oecd.org/en/data/datasets/piaac-1st-cycle-database.html
+
+Neither dataset has been downloaded, inspected at item level, score-mapped or authorized for incorporation into StepMark here. OECD test takers did not answer StepMark's original A/B items. Such files may inform **separate psychometric methods research after codebook/rights review**, but **cannot serve as ground truth for these specific A/B form scores**. Public-use access is not blanket permission to redistribute or republish test items.
+
+### Offline consented StepMark item-response audit (new)
+
+`packages/core/scripts/evaluate-reasoning.mjs` reuses the previous research pipeline's *methods* rather than misusing its behavioral records. It never connects to a production DB or external server; it requires a locally supplied **explicitly consented, pseudonymous**, SHA256-pinned StepMark A/B item-response file and verified rights manifest. Do not export other users' responses to this format without lawful basis and their explicit research consent.
+
+Exact CSV fields:
+
+```csv
+participant_id,form_code,task_order,skill_code,correct,study_day
+```
+
+- Participant IDs must be pseudonymous `p_`-prefixed tokens, not emails/usernames; `study_day` is an integer day relative to a common, non-identifying study origin. Six scored binary responses per form, with the published 2+2+2 domain blueprint.
+- Require at least **10 distinct fully matched people** who completed B at least seven days after A. Exclude partial forms and too-early retests, reporting exclusions. No result should be interpreted as population inference with 10 participants.
+- Inspect rights manifest properties `datasetKind`, `purpose`, `participantIdsPseudonymous`, `explicitResearchConsentConfirmed`, `rightsReviewed`, `citation`, `sourceUrl`, `sourceVersion`, `sha256`. Missing or mismatched claims abort.
+- Report **descriptive** paired raw score differences overall and by domain; never estimate ability, fit IRT, claim form equivalence, infer causality or modify a real user's score. No subject-level rows printed.
+- Tests use synthetic respondent records, including an intentionally easier follow-up form, and an actual HabitApp *schema* fixture as a negative control. CI tests do **not** contain real StepMark personal data or claim the A/B forms are empirically calibrated.
+
+Run a permitted dataset **only when it actually exists**:
+
+```bash
+node packages/core/scripts/evaluate-reasoning.mjs --input /private/consented-responses.csv --manifest /private/verified-rights.json
+```
+
+**Remaining scientific blocker:** StepMark has no independently consented, sufficiently broad response cohort or linked anchor items; OECD files have not been mapped. A/B raw rates remain exploratory. 

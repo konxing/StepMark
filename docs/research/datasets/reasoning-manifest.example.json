@@ -1,0 +1,12 @@
+{
+  "datasetKind": "stepmark-consented-item-responses",
+  "purpose": "descriptive-independent-form-audit",
+  "participantIdsPseudonymous": false,
+  "explicitResearchConsentConfirmed": false,
+  "rightsReviewed": false,
+  "sourceVersion": "UNVERIFIED_EXAMPLE",
+  "citation": "Synthetic example only, not a source of empirical evidence",
+  "sourceUrl": "https://example.invalid/research-rights-required",
+  "sha256": "NOT_A_REAL_HASH",
+  "notes": "Must be replaced with independently authorized, pseudonymous, consented research export and an actual SHA256. This example intentionally fails verification."
+}
