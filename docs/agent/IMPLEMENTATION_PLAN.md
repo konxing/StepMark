@@ -82,7 +82,7 @@ StepMark 是 Web + 微信小程序的独立多用户 Alpha。代码已经有：
 
 **Implemented now:** daily opportunity states (done / eligible missed / cue absent), progress not penalizing no-cue days, batch due-review endpoint, proactive in-app due-review surface on web and WeChat, early review after a sharp drop in initiation ease, explicit revocation of per-entry AI consent, first-party diary deletion, model output removal, processing-in-flight conflict, cross-user/CSRF integration tests, and a mini-program-compatible PUT route.
 
-**Next improvements:** authenticated daily record correction UX (currently conflicting overwrite is rejected), review cadence controls, dedicated privacy history, state machine with true retention/expiration, safe deletion request integration with AI providers, production platform validation and notification consent. Continue validity testing; the visual percentage and intervals are provisional settings rather than confirmed psychological scales.
+**Next improvements:** audit-trail explainability and data export now implemented; remaining review cadence controls, dedicated privacy history, state machine with true retention/expiration, safe deletion request integration with AI providers, production platform validation and notification consent. Continue validity testing; the visual percentage and intervals are provisional settings rather than confirmed psychological scales.
 
 ## 研究数据集与纵向校验进展（2026-11-11）
 

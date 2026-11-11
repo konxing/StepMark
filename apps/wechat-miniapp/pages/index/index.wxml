@@ -45,6 +45,18 @@
           <button data-id="{{item.id}}" data-kind="missed" disabled="{{correcting}}" bindtap="correctOpportunity">改为未执行</button>
           <button data-id="{{item.id}}" data-kind="no_cue" disabled="{{correcting}}" bindtap="correctOpportunity">改为无机会</button>
         </view>
+        <button wx:if="{{item.revision > 0}}" class="progress-button"
+          data-id="{{item.id}}" disabled="{{auditLoading}}" bindtap="toggleAuditHistory">
+          {{auditEventId == item.id ? '收起更正历史' : '查看更正历史'}}
+        </button>
+        <view wx:if="{{auditEventId == item.id}}" class="recent-reflections">
+          <view wx:for="{{auditRows}}" wx:for-item="correction" wx:key="id" class="reflection-item">
+            <text class="meta">版本 {{correction.revision}} · {{correction.dateLabel}}</text>
+            <text class="meta">{{correction.beforeLabel}} → {{correction.afterLabel}}</text>
+          </view>
+          <button wx:if="{{auditNextOffset != null}}" class="progress-button"
+            disabled="{{auditLoading}}" bindtap="loadMoreAudit">加载更多历史</button>
+        </view>
       </view>
       <text class="meta">更正将留下历史；关联感受的执行记录需要先处理感受记录。</text>
       <view class="section-title">记录开始行动的感受（选填）</view>

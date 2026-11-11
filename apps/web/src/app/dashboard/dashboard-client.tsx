@@ -2,6 +2,11 @@
 import HabitGrowthPanel from "./habit-growth-panel";
 import {useCallback,useEffect,useState} from "react";
 type Habit={id:string;title:string;cue:string|null;action:string;createdAt:string;_count:{events:number;checks:number}};
+type Correction={id:string;revision:number;previousEligible:boolean;previousCompleted:boolean;
+  updatedEligible:boolean;updatedCompleted:boolean;source:string;correctedAt:string};
+function stateLabel(eligible:boolean,completed:boolean){
+  return !eligible?"没有触发机会":completed?"已执行":"有机会但未执行";
+}
 export default function DashboardClient({email}:{email:string}) {
   const [habits,setHabits]=useState<Habit[]>([]);
   const [dueReviews,setDueReviews]=useState<{habitId:string;title:string;progress:number;reviewReason:string}[]>([]);
@@ -11,6 +16,10 @@ export default function DashboardClient({email}:{email:string}) {
   const [reflectionEventId,setReflectionEventId]=useState<string|null>(null);
   const [events,setEvents]=useState<{id:string;opportunityKey:string;eligible:boolean;completed:boolean;occurredAt:string;revision:number}[]>([]);
   const [correcting,setCorrecting]=useState<string|null>(null);
+  const [historyEventId,setHistoryEventId]=useState<string|null>(null);
+  const [historyRows,setHistoryRows]=useState<Correction[]>([]);
+  const [historyNextOffset,setHistoryNextOffset]=useState<number|null>(null);
+  const [historyBusy,setHistoryBusy]=useState(false);
   const [insights,setInsights]=useState<null|{eligibleOpportunities:number;completions:number;
     observedRate:number|null;wilsonInterval95:{low:number;high:number}|null;
     posterior:{posteriorMean:number;posteriorSD:number}|null;
@@ -63,6 +72,20 @@ export default function DashboardClient({email}:{email:string}) {
     const body=await response.json() as {events:typeof events};
     setEvents(body.events);
   }
+  async function showCorrectionHistory(eventId:string,offset=0){
+    if(historyBusy)return;
+    setHistoryBusy(true);
+    try{
+      const response=await fetch("/api/v1/observations/"+encodeURIComponent(eventId)+
+        "?offset="+offset,{cache:"no-store"});
+      if(!response.ok)throw new Error("HISTORY_FAILED");
+      const body=await response.json() as {corrections:Correction[];nextOffset:number|null};
+      setHistoryEventId(eventId);
+      setHistoryRows(old=>offset===0?body.corrections:[...old,...body.corrections]);
+      setHistoryNextOffset(body.nextOffset);
+    }catch{setMessage("更正历史读取失败，请稍后重试。");}
+    finally{setHistoryBusy(false);}
+  }
   async function correctOpportunity(event:typeof events[number],kind:"done"|"missed"|"no_cue"){
     if(!selected||correcting)return;
     const eligible=kind!=="no_cue",completed=kind==="done";
@@ -85,7 +108,7 @@ export default function DashboardClient({email}:{email:string}) {
       }
       await Promise.all([refreshEvents(selected),load()]);
       await detail(selected);
-      setMessage("更正已保存，并保留了修改历史。");
+      setMessage("更正已保存，可点击“更正历史”核对每次修改。");
     }catch{setMessage("网络错误，更正未确认。");}
     finally{setCorrecting(null);}
   }
@@ -95,6 +118,7 @@ export default function DashboardClient({email}:{email:string}) {
       if(!r.ok)throw new Error();
       const report=await r.json() as NonNullable<typeof insights>;
       setSelected(id);setReflectionEventId(eventId);setInsights(report);
+      setHistoryEventId(null);setHistoryRows([]);setHistoryNextOffset(null);
       await refreshEvents(id);
     }catch{setMessage("无法读取记录。");}
   }
@@ -159,14 +183,31 @@ export default function DashboardClient({email}:{email:string}) {
       <h2>最近记录 · 更正状态</h2>
       <p>误选“已执行 / 没执行 / 没机会”时，可在这里更正。每次更正会保留审计历史，不会重复增加次数。</p>
       {events.length===0?<p>暂无记录。</p>:events.slice(0,14).map(event=><div className="habit-row" key={event.id}>
-        <p>{new Date(event.occurredAt).toLocaleDateString("zh-CN")} · 当前：{!event.eligible?"没有触发机会":event.completed?"已执行":"有机会但未执行"} · 版本 {event.revision}</p>
+        <p>{new Date(event.occurredAt).toLocaleDateString("zh-CN")} · 当前：{stateLabel(event.eligible,event.completed)} · 版本 {event.revision}</p>
         <div className="habit-actions">
           {(["done","missed","no_cue"] as const).map(kind=><button key={kind} type="button"
             disabled={correcting!==null || (event.eligible===(kind!=="no_cue")&&event.completed===(kind==="done"))}
             className="text-button" onClick={()=>correctOpportunity(event,kind)}>
             {kind==="done"?"改为已执行":kind==="missed"?"改为未执行":"改为无机会"}
           </button>)}
+          {event.revision>0&&<button type="button" className="text-button" disabled={historyBusy}
+            onClick={()=>{if(historyEventId===event.id){
+              setHistoryEventId(null);setHistoryRows([]);setHistoryNextOffset(null);
+            }else{void showCorrectionHistory(event.id);}}}>
+            {historyEventId===event.id?"收起更正历史":"查看更正历史"}
+          </button>}
         </div>
+        {historyEventId===event.id&&<div className="growth-history" aria-live="polite">
+          <h3>这条记录的修改过程</h3>
+          {historyRows.map(entry=><p key={entry.id}>
+            版本 {entry.revision} · {new Date(entry.correctedAt).toLocaleString("zh-CN")} ·
+            {stateLabel(entry.previousEligible,entry.previousCompleted)} → {stateLabel(entry.updatedEligible,entry.updatedCompleted)}
+          </p>)}
+          {historyNextOffset!==null&&<button type="button" className="text-button"
+            disabled={historyBusy} onClick={()=>void showCorrectionHistory(event.id,historyNextOffset)}>
+            {historyBusy?"读取中…":"加载更多历史"}
+          </button>}
+        </div>}
       </div>)}
     </section>}
     {selected&&<HabitGrowthPanel key={selected} habitId={selected} eventId={reflectionEventId}/>}

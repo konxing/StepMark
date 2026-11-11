@@ -1,6 +1,6 @@
 "use client";
 import {useState} from "react";
-const types=["habits","events","reflections","automaticity","assessments","estimates","judgements"] as const;
+const types=["habits","events","corrections","reflections","automaticity","assessments","estimates","judgements"] as const;
 export default function SettingsClient({email}:{email:string}){
   const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
   const [password,setPassword]=useState(""),[confirmation,setConfirmation]=useState("");
@@ -45,7 +45,7 @@ export default function SettingsClient({email}:{email:string}){
     <div className="assess-top"><a href="/dashboard">← 返回控制台</a></div>
     <h1>账户与数据</h1><p>当前邮箱：{email}</p>
     <h2>导出个人数据</h2>
-    <p>可导出你的习惯、执行记录、试验性测量和评分证据。文件可能含有私人信息，不会上传到第三方。</p>
+    <p>可导出你的习惯、执行记录及其全部更正历史、试验性测量和评分证据。文件可能含有私人信息，不会上传到第三方。</p>
     <button className="assess-button" disabled={busy} onClick={exportData}>导出 JSON 数据</button>
     <hr className="settings-divider"/>
     <h2>删除账户</h2>

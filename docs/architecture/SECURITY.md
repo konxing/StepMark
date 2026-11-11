@@ -61,3 +61,9 @@ Owner-only `PATCH/PUT /api/v1/habits/:id/reflections/:reflectionId` withdraws co
 Mini-program `wx.request` uses supported PUT rather than unsupported PATCH; backend maintains both route aliases with identical ownership checks. Both clients read no more than a few recent personal notes for interactive display. Diary text never belongs in query params, application logs, issue comments or telemetry.
 
 Batch due-review endpoint only reads owner-scoped habits and returns limited data (title/id/status), with no raw personal notes or AI model outputs. It avoids N+1 request patterns.
+
+## Account-owned opportunity correction audit (2026-11-11)
+
+- `GET /api/v1/observations/:id` uses authenticated ownership checks on the event's habit, with no raw cross-account joins, and returns at most 20 correction rows per request. The requester must explicitly paginate to see older revisions.
+- The personal export `kind=corrections` is filtered through `event.habit.userId`, and `kind=events` includes the current revision number. A deleted account cascades away its historical corrections; an archived habit remains accessible to its owner.
+- No raw diary text, password, token, IP or third-party AI response is stored in the correction log. Neither the log nor event history is a scientifically validated automaticity measure. Multiuser and pagination integration tests cover this feature.
