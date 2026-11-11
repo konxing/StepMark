@@ -266,3 +266,24 @@ LLM coding must be calibrated against blinded human annotations before showing i
 ### 11.6 Scientific validation gates
 Conduct repeated-measure reliability and predictive comparisons with simple count and automaticity-only baselines; measure correlations between practice and genuinely independent skill outcomes. Do not merge voluntary diaries with validated SRBAI scores or directly infer ability gains. Score precision (0.1) is UI formatting, not measurement accuracy.
 
+
+### 11.7 Review policy v1.1 — cue-eligible logging and lower-burden monitoring
+
+Observations distinguish (i) completed when cue/opportunity was available, (ii) not completed when eligible, (iii) no cue/opportunity. Case (iii) is excluded from the denominator \(n_{eligible}\), and missing logs are **not** automatically encoded as failures. This prevents an absent stimulus from masquerading as habit decay. Repetition count still requires completion.
+
+For maintenance, an exploratory *scheduling* rule labels a recent sharp decline in natural initiation (0–4 ratings, latest <= 2 and a drop >= 2 from the previous valid daily reading, or three consecutive low ratings) as `recent_difficulty`. This prompts an in-app check approximately 6 days after the latest rating rather than the stable-habit interval (28±2 days). Other cases use approximately 7 or 14 days. The rule **does not** prove relapse and makes no claims about an optimal population-wide review interval. Its purpose is to reduce unnecessary prompts while checking plausible state changes sooner.
+
+The home page requests an owner-scoped, batched list of due reviews instead of relying on users opening every habit. No Web Push or WeChat subscription messages are sent.
+
+Scientifically important distinctions:
+- Gardner et al. (2016) distinguish habitual instigation and habitual execution: https://doi.org/10.1111/bjhp.12189
+- Gardner et al. (2024) highlight that maintained behavior need not imply a habit and that cue exposure matters: https://doi.org/10.1111/spc3.12975
+- Edgren et al. (2024) find high person-to-person variability in habit decay: https://doi.org/10.1111/aphw.12612
+- 2024 meta-analysis reports highly variable formation times and high risk of bias in many included studies: https://pubmed.ncbi.nlm.nih.gov/39685110/
+
+The next evaluation should compare the proposed schedule against periodic fixed reminders, measure skipped reminders and diary burden, and explicitly ask the user for consent/preferences before any *external* notification.
+
+### 11.8 AI consent and diary deletion as part of measurement ethics
+
+Users can revoke a single note's future AI processing or delete the note. When processing is already in flight, the operation returns a conflict instead of falsely guaranteeing revocation. A successful revoke removes platform-held derived classifications, but **cannot undo a prior third-party transmission**. A successful local deletion does not itself prove erasure by an external processor. Both operations require server-side user scoping and are independently tested.
+

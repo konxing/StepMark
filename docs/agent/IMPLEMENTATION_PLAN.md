@@ -77,3 +77,9 @@ StepMark 是 Web + 微信小程序的独立多用户 Alpha。代码已经有：
 4. Causal evidence of improvement in linked skills: perform independent baseline/retests and intervention controls. **Never increase a capability score from habit progress alone.**
 5. Production privacy law review, raw diary retention/deletion policies and third-party agreements; official Mini Program developer tool/test device UI validation.
 6. If users object to self-report burden, allow one-tap default and only request free text when prediction uncertainty benefits from it.
+
+## Review/consent follow-up implementation (2026-11-11)
+
+**Implemented now:** daily opportunity states (done / eligible missed / cue absent), progress not penalizing no-cue days, batch due-review endpoint, proactive in-app due-review surface on web and WeChat, early review after a sharp drop in initiation ease, explicit revocation of per-entry AI consent, first-party diary deletion, model output removal, processing-in-flight conflict, cross-user/CSRF integration tests, and a mini-program-compatible PUT route.
+
+**Next improvements:** authenticated daily record correction UX (currently conflicting overwrite is rejected), review cadence controls, dedicated privacy history, state machine with true retention/expiration, safe deletion request integration with AI providers, production platform validation and notification consent. Continue validity testing; the visual percentage and intervals are provisional settings rather than confirmed psychological scales.

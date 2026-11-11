@@ -53,3 +53,11 @@ https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Preven
 - **Before production:** verify explicit third-party provider consent text, privacy policy/legal transfer notices, age and data retention limits, retry budget, stale worker job recovery, consent revocation and deletion of previously transmitted content per vendor contract. The draft privacy page is not final.
 - No push notifications implemented; external reminders must use official permission and opt-in.
 
+
+## Reflection retention and consent controls — follow-up
+
+Owner-only `PATCH/PUT /api/v1/habits/:id/reflections/:reflectionId` withdraws consent for future AI processing and erases model-derived fields while retaining the user's own words and rating. `DELETE` erases the entire note in StepMark. Both require authenticated canonical userId; cookie-authenticated requests validate Origin. If the note is currently `PROCESSING`, return 409: an upstream request may already be in flight and cannot be guaranteed cancelled. Previously delivered text cannot be recalled from an external vendor merely by deleting it from our database. Retention, vendor deletion requests, user appeal and legal data processing arrangements remain production-release blockers.
+
+Mini-program `wx.request` uses supported PUT rather than unsupported PATCH; backend maintains both route aliases with identical ownership checks. Both clients read no more than a few recent personal notes for interactive display. Diary text never belongs in query params, application logs, issue comments or telemetry.
+
+Batch due-review endpoint only reads owner-scoped habits and returns limited data (title/id/status), with no raw personal notes or AI model outputs. It avoids N+1 request patterns.
