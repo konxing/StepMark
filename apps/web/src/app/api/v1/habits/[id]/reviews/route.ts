@@ -20,3 +20,6 @@ export async function PATCH(request:NextRequest,ctx:{params:Promise<{id:string}>
       {status:result.count?200:404,headers:{"Cache-Control":"no-store"}});
   }catch(error){return errorResponse(error);}
 }
+
+/** wx.request does not reliably support PATCH. PUT offers the same idempotent toggle setting. */
+export const PUT=PATCH;

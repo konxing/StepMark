@@ -57,3 +57,6 @@ export async function DELETE(request:NextRequest,context:Context){
     },{headers:{"Cache-Control":"no-store"}});
   }catch(error){return errorResponse(error);}
 }
+
+/** WeChat clients use PUT, with identical authorization and CSRF rules. */
+export const PUT=PATCH;

@@ -134,7 +134,7 @@ Page({
     const habit=this.data.modules.find(h=>h.id===e.currentTarget.dataset.id);
     if(!habit)return;
     try{
-      await this.api("/api/v1/habits/"+habit.id+"/reviews","PATCH",{enabled:!habit.reviewEnabled});
+      await this.api("/api/v1/habits/"+habit.id+"/reviews","PUT",{enabled:!habit.reviewEnabled});
       await this.loadHabits();await this.refreshProgress(habit.id);
       this.setData({status:habit.reviewEnabled?"复查提示已关闭":"复查提示已开启"});
     }catch(e){this.setData({status:e.message||"修改设置失败"});}
