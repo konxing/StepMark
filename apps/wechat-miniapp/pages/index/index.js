@@ -1,7 +1,7 @@
 const TOKEN_KEY="stepmark_mobile_access";
 const EXPIRES_KEY="stepmark_mobile_expires";
 Page({
-  data:{modules:[],status:"正在连接…",loading:false,authenticated:false,
+  data:{modules:[],dueReviews:[],status:"正在连接…",loading:false,authenticated:false,
     creating:false,title:"",action:"",cue:"",selectedHabitId:"",progress:null,
     reflectionEventId:"",feelingOptions:["非常抗拒","需要逼自己","有一点纠结","比较自然","几乎不用思考"],
     feelIndex:-1,feedbackNote:"",aiConsent:false},
@@ -52,6 +52,10 @@ Page({
     try{
       const response=await this.api("/api/v1/habits","GET");
       this.setData({modules:response.habits||[],status:"已连接"});
+      try {
+        const due=await this.api("/api/v1/habits/due","GET");
+        this.setData({dueReviews:(due.due||[]).slice(0,4)});
+      } catch {this.setData({dueReviews:[]});}
     }catch(e){
       if(String(e.message).includes("已过期")){
         wx.removeStorageSync(TOKEN_KEY);wx.removeStorageSync(EXPIRES_KEY);
@@ -139,6 +143,6 @@ Page({
     try{await this.api("/api/v1/auth/wechat/logout","POST",{});}
     catch(e){/* Best effort: revoke server session when reachable. */}
     wx.removeStorageSync(TOKEN_KEY);wx.removeStorageSync(EXPIRES_KEY);
-    this.setData({authenticated:false,modules:[],status:"已退出登录"});
+    this.setData({authenticated:false,modules:[],dueReviews:[],status:"已退出登录"});
   }
 });

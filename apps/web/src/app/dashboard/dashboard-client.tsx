@@ -4,6 +4,7 @@ import {useCallback,useEffect,useState} from "react";
 type Habit={id:string;title:string;cue:string|null;action:string;createdAt:string;_count:{events:number;checks:number}};
 export default function DashboardClient({email}:{email:string}) {
   const [habits,setHabits]=useState<Habit[]>([]);
+  const [dueReviews,setDueReviews]=useState<{habitId:string;title:string;progress:number;reviewReason:string}[]>([]);
   const [title,setTitle]=useState(""),[action,setAction]=useState(""),[cue,setCue]=useState("");
   const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
   const [selected,setSelected]=useState<string|null>(null);
@@ -13,10 +14,18 @@ export default function DashboardClient({email}:{email:string}) {
     posterior:{posteriorMean:number;posteriorSD:number}|null;
     latestAutomaticity:{indexScore:number;measuredAt:string}|null}>(null);
   const load=useCallback(async()=>{
-    const result=await fetch("/api/v1/habits",{cache:"no-store"});
+    const [result,reviewResult]=await Promise.all([
+      fetch("/api/v1/habits",{cache:"no-store"}),
+      fetch("/api/v1/habits/due",{cache:"no-store"})
+    ]);
     if(result.status===401){location.assign("/login");return;}
     if(!result.ok)throw new Error("LOAD_FAILED");
-    const data=await result.json() as {habits:Habit[]};setHabits(data.habits);
+    const data=await result.json() as {habits:Habit[]};
+    setHabits(data.habits);
+    if(reviewResult.ok){
+      const reviews=await reviewResult.json() as {due:{habitId:string;title:string;progress:number;reviewReason:string}[]};
+      setDueReviews(reviews.due);
+    }
   },[]);
   useEffect(()=>{void load().catch(()=>setMessage("读取失败，请检查数据库连接。"));},[load]);
   async function create(e:React.FormEvent){
@@ -62,6 +71,17 @@ export default function DashboardClient({email}:{email:string}) {
       <div><span className="account-email">{email}</span> <a href="/settings" className="text-button">账户与数据</a> <button className="text-button" onClick={logout}>退出</button></div></header>
     <section className="dash-welcome"><span className="kicker">MY DEVELOPMENT</span><h1>今天，从一个小行动开始。</h1>
       <p>记录你的实际行为，不用一次分数定义自己。能力测量模块将在校准后加入。</p></section>
+    {dueReviews.length>0&&<section className="dashboard-panel due-review-panel">
+      <h2>值得简短复查的习惯</h2>
+      <p>只是应用内提示，不发送消息；也不会因为你没有填写感受而直接判定退步。</p>
+      <div className="due-review-list">
+        {dueReviews.slice(0,4).map(review=><button type="button" key={review.habitId}
+          onClick={()=>detail(review.habitId)}>
+          <span>{review.title}</span>
+          <small>{review.reviewReason==="recent_difficulty"?"最近启动更费力": "看看现在是否仍然自然"}</small>
+        </button>)}
+      </div>
+    </section>}
     <p className="assessment-link"><a href="/assess">开始实验性逻辑推理测量 ↗</a></p>
     <section className="dashboard-grid">
       <article className="dashboard-panel"><h2>建立一个新习惯</h2>

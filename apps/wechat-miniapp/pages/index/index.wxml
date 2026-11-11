@@ -6,6 +6,14 @@
   <view class="note" aria-live="polite">{{status}}</view>
   <button wx:if="{{!authenticated}}" disabled="{{loading}}" bindtap="bootstrap" class="primary">连接我的账户</button>
   <block wx:if="{{authenticated}}">
+    <view wx:if="{{dueReviews.length>0}}" class="due-reviews">
+      <view class="section-title">近期复查</view>
+      <text class="meta">只是应用内提醒，不会因为偶尔漏做就扣除能力分。</text>
+      <view wx:for="{{dueReviews}}" wx:key="habitId" class="due-review-item">
+        <text>{{item.title}}</text>
+        <button class="progress-button" data-id="{{item.habitId}}" bindtap="openProgress">快速复查</button>
+      </view>
+    </view>
     <view class="section-title">我的习惯</view>
     <view wx:if="{{modules.length===0}}" class="empty">还没有习惯，创建一个可观察的微型行动吧。</view>
     <view class="cards">
