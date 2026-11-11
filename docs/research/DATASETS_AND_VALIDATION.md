@@ -44,10 +44,10 @@ Study data and core R scripts: https://osf.io/sngu4/
 
 ## 3. Behavior formation external data (not downloaded)
 
-**Klein et al.** (2023), *What can machine learning teach us about habit formation? Evidence from exercise and hygiene*. PNAS. Study data and reproducibility code: https://osf.io/m8gdp/ .
+**Buyalskaya, A., Ho, H., Milkman, K. L., et al.** (2023), *What can machine learning teach us about habit formation? Evidence from exercise and hygiene*. PNAS. Study data and reproducibility code: https://osf.io/m8gdp/ .
 Source: https://knowledge.uchicago.edu/records/pydeh-0tx89
 
-Contains de-identified gym and hospital handwashing records and a reproducibility package. Useful for behavior regularity, predictors of cue-linked repetition, and heterogeneity, **not** direct introspective automaticity without a separate ground truth.
+Contains de-identified gym and hospital handwashing records and a reproducibility package (the source reports over 12 million gym attendance observations and over 40 million handwashing observations). Useful for behavior regularity, predictors of cue-linked repetition, and heterogeneity, **not** direct introspective automaticity without a separate ground truth.
 
 ## 4. ESM repository for candidate longitudinal cohorts (not downloaded)
 
