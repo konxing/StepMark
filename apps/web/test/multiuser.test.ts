@@ -635,7 +635,11 @@ test("independent logic forms require elapsed retest time and expose only owned 
 });
 
 test("training recommendations and attempts remain tenant-scoped, answer-safe and outside form scores",async()=>{
-  const a=await db.user.create({data:{},select:{id:true}});
+  const a=await db.user.create({data:{credential:{create:{
+    email:"practice_"+randomUUID()+"@example.test",
+    passwordHash:await hashPassword("practice-test-strong-password-123"),
+    verifiedAt:new Date()
+  }}},select:{id:true}});
   const b=await db.user.create({data:{},select:{id:true}});
   try{
     const aToken=(await issueSession(a.id,"WECHAT")).token;
