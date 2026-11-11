@@ -135,3 +135,37 @@ node packages/core/scripts/evaluate-reasoning.mjs --input /private/consented-res
 ```
 
 **Remaining scientific blocker:** StepMark has no independently consented, sufficiently broad response cohort or linked anchor items; OECD files have not been mapped. A/B raw rates remain exploratory. 
+
+## 9. Open psychology survey reliability benchmark (2026-11-12)
+
+**Confirmed source:** William Revelle's R `psych` package includes 2,800 anonymized SAPA personality respondents with 25 IPIP Big Five items in `psych::bfi`. Upstream docs: https://cran.r-project.org/web/packages/psych/refman/psych.html . IPIP item texts themselves are public domain (https://www.ipip.ori.org/) but the fact that *item texts* are public domain does **not** automatically authorize any use of individual response datasets beyond the terms on their own source.
+
+Mirror used for reproducibility only: https://github.com/vincentarelbundock/Rdatasets
+Commit: `1dcc2bf5f955cc1224a3e1307256e1fe86b68dae`
+Relative path: `csv/psych/bfi.csv`
+Verified Git blob SHA1: `8bc0e5ed94c7e399acfec48b1ebc50f16054b4af`.
+
+The research-only CLI `node packages/core/scripts/validate-bfi.mjs` downloads this immutable source into memory (max 200 kB), refuses changed checksum and schema, and outputs only *aggregate* five-scale diagnostic values. It does **not** store participant rows in Git, the user's PostgreSQL or UI. The matching unit test uses synthetic rows.
+
+**Calculation:** for k=5 reverse-scored items within each of five scales, raw Cronbach alpha is
+`alpha = k/(k-1) * [1 - sum_j Var(item_j) / Var(sum_j item_j)]`.
+For each scale, only complete cases for that scale enter the variance calculation; missing is **not** zero. Reverse items `A1,C4,C5,E1,E2,O2,O5` use `7 - response`, for the source's 1..6 response coding. The report also includes the minimum *corrected item–total* correlation (item vs the sum of other items). It does not infer participant traits.
+
+**Scientific limits:** Alpha presumes a defensible reflective construct and has strong assumptions (including tau-equivalence); multidimensionality, reverse wording artifacts, missing data and scale length can distort it. Alpha is not proof of construct validity or causal improvement and may be negative. Report omega and factor structure after proper analysis rather than silently inferring them. Evidence: Revelle & Condon (2019), https://doi.org/10.1037/pas0000754.
+
+**Use in StepMark:** a regression benchmark for independent, classical measurement computations only. BFI personality answers **cannot** calibrate the StepMark logic A/B forms or determine which users have better thinking skills.
+
+### Highest-priority cognitive dataset identified separately
+
+**Condon & Revelle / ICAR, Harvard Dataverse v3:** https://doi.org/10.7910/DVN/AD9RVY
+Dataverse lists **CC0 1.0 response data** (about 97,000 respondents administered subsets of 60 cognitive items: 9 letter/number, 11 matrices, 16 verbal reasoning, 24 spatial rotation). The sample was collected online and is not nationally representative; responses are not longitudinal StepMark training results. Source **metadata and license have been reviewed**, but the 19.7MB archive has **not yet been imported, mapped or benchmarked** in this repository.
+
+**Critically: cognitive ITEM MATERIALS are governed by separate official Scientific Use License, not the Dataverse response-data CC0 label.** The ICAR team states that deploying ICAR test items on a commercial or ordinary noncommercial website is not permitted without an academic research context. https://sms.statistik.tu-dortmund.de/en/research/projects/completed-research-projects/international-cognitive-ability-resource-icar/ . Do not bundle test item text, scoring keys or generated questions in StepMark. Use response data only after validating their specific files, codebook and permissible analysis. The ICAR data **cannot** calibrate StepMark's original unrelated A/B items.
+
+### Other sources and controls
+
+- IPIP official item bank https://www.ipip.ori.org/ : public-domain item text, useful for future research on descriptive self-report constructs only. Do not treat personality, self-report or a generic scale as objective thinking ability, or turn a brief personality survey into a clinical diagnosis.
+- Prior HabitApp 133-person experimental count table: already checked by the separate research workflow; behavior counts are not independent automaticity ratings.
+- Dunlosky et al. (2013), https://doi.org/10.1177/1529100612453266 : retrieval practice and distributed practice received high utility ratings across studied educational contexts. This supports a *training design principle*, not a universal numerical spaced-retrieval interval.
+- Cepeda et al. (2006), https://doi.org/10.1037/0033-2909.132.3.354 : meta-analysis of 317 experiments, with optimal interval depending on retention horizon. No fixed schedule can be claimed universally optimal.
+- Simons et al. (2016), https://doi.org/10.1177/1529100616661983 : trained-task gains do not establish broad cognitive far transfer. Every capability-improvement claim must be separately justified.

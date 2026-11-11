@@ -6,6 +6,8 @@ on:
       - "packages/core/scripts/validate-habitapp.test.mjs"
       - "packages/core/scripts/evaluate-reasoning.mjs"
       - "packages/core/scripts/evaluate-reasoning.test.mjs"
+      - "packages/core/scripts/validate-bfi.mjs"
+      - "packages/core/scripts/validate-bfi.test.mjs"
       - ".github/workflows/research-data.yml"
   workflow_dispatch:
 permissions:
@@ -22,5 +24,9 @@ jobs:
         run: node --test packages/core/scripts/validate-habitapp.test.mjs
       - name: Verify cross-construct evidence gates for reasoning forms
         run: node --test packages/core/scripts/evaluate-reasoning.test.mjs
+      - name: Verify open psychological scale reliability diagnostics
+        run: node --test packages/core/scripts/validate-bfi.test.mjs
+      - name: Download pinned public R psych BFI demonstration data, verify Git checksum and print aggregate scale diagnostics
+        run: node packages/core/scripts/validate-bfi.mjs
       - name: Download pinned public research CSV, verify Git blob checksum and output aggregated contrasts only
         run: node packages/core/scripts/validate-habitapp.mjs
