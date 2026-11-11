@@ -40,6 +40,8 @@ jobs:
         run: npm run test
       - name: Typecheck
         run: npm run typecheck
+      - name: Longitudinal research adapter and rights gate tests
+        run: node --import tsx --test packages/core/scripts/evaluate-longitudinal.test.mjs
       - name: WeChat JavaScript syntax check
         run: |
           node --check apps/wechat-miniapp/app.js
