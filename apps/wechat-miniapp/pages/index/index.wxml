@@ -1,5 +1,5 @@
 <view class="page">
-  <view class="heading">STEP<span>MARK.</span></view>
+  <view class="heading">STEP<text class="heading-mark">MARK.</text></view>
   <view class="overline">PERSONAL GROWTH RESEARCH</view>
   <view class="hero">让成长，<text>有迹可循。</text></view>
   <view class="description">习惯和能力分开测量。今天的执行记录，不代表能力自动增加。</view>
