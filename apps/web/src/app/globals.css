@@ -25,3 +25,5 @@
 .save-feeling:disabled{opacity:.5;cursor:default}
 
 .habit-opportunity-actions{flex-wrap:wrap}.habit-opportunity-actions button:not(.text-button){flex-shrink:0}.habit-opportunity-actions .text-button{font-size:12px}
+
+.growth-history{margin-top:30px;border-top:1px solid #e3eae1;padding-top:20px}.growth-history h3{font-size:17px}.growth-history-row{border-top:1px solid #edf1ec;padding:12px 0}.growth-history-row p{overflow-wrap:anywhere;white-space:pre-wrap;font-size:13px}.growth-history-row small{color:#6d8075;font-size:11px}
