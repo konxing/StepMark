@@ -13,6 +13,7 @@ import {GET as insightGET} from "../src/app/api/v1/habits/[id]/insights/route";
 import {GET as habitProgressGET} from "../src/app/api/v1/habits/[id]/progress/route";
 import {POST as reflectionPOST, GET as reflectionGET} from "../src/app/api/v1/habits/[id]/reflections/route";
 import {PATCH as reviewPATCH} from "../src/app/api/v1/habits/[id]/reviews/route";
+import {PATCH as revokeAI, DELETE as deleteReflection} from "../src/app/api/v1/habits/[id]/reflections/[reflectionId]/route";
 import {POST as mobilePOST} from "../src/app/api/v1/auth/wechat/route";
 import {POST as resetPOST} from "../src/app/api/v1/auth/reset-password/route";
 import {POST as deletePOST} from "../src/app/api/v1/account/delete/route";
@@ -276,4 +277,76 @@ test("private habit feelings, progress and review settings enforce user ownershi
   }finally{
     await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});
   }
+});
+
+test("completed, missed and absent-cue opportunities have distinct denominator semantics",async()=>{
+  const user=await db.user.create({data:{},select:{id:true}});
+  try{
+    const habit=await db.habit.create({data:{userId:user.id,title:"Three states",action:"Start action"}});
+    const token=(await issueSession(user.id,"WECHAT")).token;
+    const send=(key:string,eligible:boolean,completed:boolean)=>eventPOST(req("/api/v1/observations","POST",{
+      habitId:habit.id,opportunityKey:key,eligible,completed,occurredAt:new Date().toISOString()
+    },token,"WECHAT"));
+    assert.equal((await send("daily:a",true,true)).status,201);
+    assert.equal((await send("daily:b",true,false)).status,201);
+    assert.equal((await send("daily:c",false,false)).status,201);
+    assert.equal((await send("daily:d",false,true)).status,400);
+    const response=await insightGET(req("/api/v1/habits/"+habit.id+"/insights","GET",undefined,token,"WECHAT"),{
+      params:Promise.resolve({id:habit.id})});
+    const body=await response.json() as {eligibleOpportunities:number;completions:number;observedRate:number};
+    assert.equal(body.eligibleOpportunities,2);
+    assert.equal(body.completions,1);
+    assert.equal(body.observedRate,.5);
+    const progress=await habitProgressGET(req("/api/v1/habits/"+habit.id+"/progress","GET",undefined,token,"WECHAT"),{
+      params:Promise.resolve({id:habit.id})});
+    const status=await progress.json() as {completedRepetitions:number};
+    assert.equal(status.completedRepetitions,1);
+  }finally{await db.user.deleteMany({where:{id:user.id}});}
+});
+
+test("AI consent can be revoked, diary deleted, but in-flight requests cannot falsely be recalled",async()=>{
+  const a=await db.user.create({data:{credential:{create:{
+    email:"control_"+randomUUID()+"@example.test",passwordHash:await hashPassword("private-control-password-12345"),
+    verifiedAt:new Date()
+  }}},select:{id:true}});
+  const b=await db.user.create({data:{},select:{id:true}});
+  const dbA=()=>db.habitReflection.findMany({where:{habit:{userId:a.id}}});
+  try{
+    const h=await db.habit.create({data:{userId:a.id,title:"private reflection",action:"Do it"}});
+    const foreign=await db.habit.create({data:{userId:b.id,title:"secret",action:"Private"}});
+    const token=(await issueSession(a.id,"WEB")).token;
+    const pending=await db.habitReflection.create({data:{habitId:h.id,aiConsent:true,
+      aiStatus:"PENDING",note:"A personally sensitive note",initiationLevel:3}});
+    const completed=await db.habitReflection.create({data:{habitId:h.id,aiConsent:true,
+      aiStatus:"COMPLETED",note:"Started naturally",aiLevel:4,aiConfidence:.9,
+      aiQuote:"naturally",aiModelId:"test-model",aiPromptVersion:"v1"}});
+    const inFlight=await db.habitReflection.create({data:{habitId:h.id,aiConsent:true,
+      aiStatus:"PROCESSING",note:"In-flight request"}});
+    const context=(habitId:string,reflectionId:string)=>({params:Promise.resolve({id:habitId,reflectionId})});
+    const route=(habitId:string,reflectionId:string,method:string,origin="http://localhost:3000")=>
+      req("/api/v1/habits/"+habitId+"/reflections/"+reflectionId,method,undefined,token,"WEB",origin);
+    assert.equal((await revokeAI(route(foreign.id,pending.id,"PATCH"),context(foreign.id,pending.id))).status,404);
+    assert.equal((await deleteReflection(route(foreign.id,pending.id,"DELETE"),context(foreign.id,pending.id))).status,404);
+    assert.equal((await revokeAI(route(h.id,pending.id,"PATCH","https://evil.example"),context(h.id,pending.id))).status,403);
+    const revoked=await revokeAI(route(h.id,pending.id,"PATCH"),context(h.id,pending.id));
+    assert.equal(revoked.status,200);
+    const afterPending=await db.habitReflection.findUniqueOrThrow({where:{id:pending.id}});
+    assert.equal(afterPending.aiConsent,false);
+    assert.equal(afterPending.aiStatus,"DISABLED");
+    assert.equal(afterPending.note,"A personally sensitive note");
+    const inflightResponse=await revokeAI(route(h.id,inFlight.id,"PATCH"),context(h.id,inFlight.id));
+    assert.equal(inflightResponse.status,409);
+    assert.equal((await deleteReflection(route(h.id,inFlight.id,"DELETE"),context(h.id,inFlight.id))).status,409);
+    const sent=await revokeAI(route(h.id,completed.id,"PATCH"),context(h.id,completed.id));
+    assert.equal(sent.status,200);
+    assert.equal((await sent.json() as {mayHaveBeenSentToProvider:boolean}).mayHaveBeenSentToProvider,true);
+    const afterCompleted=await db.habitReflection.findUniqueOrThrow({where:{id:completed.id}});
+    assert.equal(afterCompleted.aiLevel,null);
+    assert.equal(afterCompleted.aiQuote,null);
+    const erased=await deleteReflection(route(h.id,pending.id,"DELETE"),context(h.id,pending.id));
+    assert.equal(erased.status,200);
+    assert.equal(await db.habitReflection.findUnique({where:{id:pending.id}}),null);
+    assert.equal((await dbA()).length,2);
+    assert.notEqual(await db.habit.findUnique({where:{id:foreign.id}}),null);
+  }finally{await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});}
 });
