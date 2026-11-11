@@ -416,7 +416,7 @@ export type PracticeHistoryEntry={
  itemId:string;correct:boolean;hintUsed?:boolean|null;dayKey:string;createdAt:Date
 };
 function utcDayMillis(key:string):number{
- if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(key))throw new RangeError("INVALID_UTC_DAY");
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(key))throw new RangeError("INVALID_UTC_DAY");
  const parsed=new Date(key+"T00:00:00Z");
  if(!Number.isFinite(parsed.getTime())||parsed.toISOString().slice(0,10)!==key)
   throw new RangeError("INVALID_UTC_DAY");
