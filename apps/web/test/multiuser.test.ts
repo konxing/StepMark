@@ -6,7 +6,8 @@ import {getDb} from "../src/server/db";
 import {hashPassword,issueSession,lookupSession,requireSameOrigin,SESSION_COOKIE} from "../src/server/security";
 import {listOwnHabits,findOwnHabit,listOwnEvents} from "../src/server/habit-service";
 import {GET as habitsGET,POST as habitsPOST} from "../src/app/api/v1/habits/route";
-import {POST as eventPOST} from "../src/app/api/v1/observations/route";
+import {POST as eventPOST, GET as eventGET} from "../src/app/api/v1/observations/route";
+import {PUT as correctionPUT} from "../src/app/api/v1/observations/[id]/route";
 import {POST as logoutPOST} from "../src/app/api/v1/auth/logout/route";
 import {POST as loginPOST} from "../src/app/api/v1/auth/login/route";
 import {GET as insightGET} from "../src/app/api/v1/habits/[id]/insights/route";
@@ -74,6 +75,9 @@ test("per-user queries, CSRF rejection, idempotency and revocation",async()=>{
     const again=await eventPOST(req("/api/v1/observations","POST",payload,webToken));
     assert.equal(again.status,200);
     assert.equal((await again.json() as {replayed:boolean}).replayed,true);
+    const retry=await eventPOST(req("/api/v1/observations","POST",{...payload,
+      occurredAt:new Date(Date.now()+1000).toISOString()},webToken));
+    assert.equal(retry.status,200); // Same opportunity and state: timestamp is not a new event.
     const changed=await eventPOST(req("/api/v1/observations","POST",{...payload,completed:false},webToken));
     assert.equal(changed.status,409);
     const logout=await logoutPOST(req("/api/v1/auth/logout","POST",undefined,webToken));
@@ -399,4 +403,72 @@ test("WeChat-supported PUT performs secure consent and review changes without PA
     assert.equal((await reviewPUT(req("/api/v1/habits/"+h.id+"/reviews","PUT",{enabled:false},mobile,"WECHAT"),ctx(h.id))).status,200);
     assert.equal((await reviewPUT(req("/api/v1/habits/"+hb.id+"/reviews","PUT",{enabled:false},mobile,"WECHAT"),ctx(hb.id))).status,404);
   }finally{await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});}
+});
+
+test("opportunity corrections preserve history, ownership, CSRF and aggregate accuracy",async()=>{
+  const a=await db.user.create({data:{credential:{create:{
+    email:"correction_"+randomUUID()+"@example.test",
+    passwordHash:await hashPassword("strong-password-for-test-123"),verifiedAt:new Date()
+  }}},select:{id:true}});
+  const b=await db.user.create({data:{},select:{id:true}});
+  try{
+    const habit=await db.habit.create({data:{userId:a.id,title:"Fix record",action:"Start once"}});
+    const foreign=await db.habit.create({data:{userId:b.id,title:"Private",action:"Stay private"}});
+    const ownEvent=await db.habitEvent.create({data:{
+      habitId:habit.id,opportunityKey:"daily:today",eligible:true,completed:true,
+      source:"test",occurredAt:new Date()
+    }});
+    const foreignEvent=await db.habitEvent.create({data:{
+      habitId:foreign.id,opportunityKey:"daily:today",eligible:true,completed:true,
+      source:"test",occurredAt:new Date()
+    }});
+    const mobile=(await issueSession(a.id,"WECHAT")).token;
+    const web=(await issueSession(a.id,"WEB")).token;
+    const url="/api/v1/observations/"+ownEvent.id;
+    const send=(body:unknown,token=mobile,kind:"WEB"|"WECHAT"="WECHAT",origin="http://localhost:3000")=>
+      correctionPUT(req(url,"PUT",body,token,kind,origin),{params:Promise.resolve({id:ownEvent.id})});
+    const payload={expectedRevision:0,eligible:false,completed:false};
+    assert.equal((await send({...payload,completed:true})).status,400);
+    assert.equal((await send(payload,web,"WEB","https://evil.example")).status,403);
+    assert.equal((await correctionPUT(req("/api/v1/observations/"+foreignEvent.id,"PUT",payload,mobile,"WECHAT"),
+      {params:Promise.resolve({id:foreignEvent.id})})).status,404);
+    const corrected=await send(payload);
+    assert.equal(corrected.status,200);
+    assert.equal((await corrected.json() as {event:{revision:number}}).event.revision,1);
+    assert.equal((await send(payload)).status,409);
+    const read=await eventGET(req("/api/v1/observations?habitId="+habit.id,"GET",undefined,mobile,"WECHAT"));
+    assert.equal(read.status,200);
+    assert.equal((await read.json() as {events:{revision:number;eligible:boolean}[]}).events[0]?.revision,1);
+    const history=await db.habitEventCorrection.findMany({where:{eventId:ownEvent.id}});
+    assert.equal(history.length,1);
+    assert.equal(history[0]!.previousCompleted,true);
+    assert.equal(history[0]!.updatedEligible,false);
+    const summary=await insightGET(req("/api/v1/habits/"+habit.id+"/insights","GET",undefined,mobile,"WECHAT"),
+      {params:Promise.resolve({id:habit.id})});
+    assert.equal((await summary.json() as {eligibleOpportunities:number;completions:number}).eligibleOpportunities,0);
+    const noChange=await send({expectedRevision:1,eligible:false,completed:false});
+    assert.equal(noChange.status,200);
+    assert.equal((await noChange.json() as {unchanged:boolean}).unchanged,true);
+    assert.equal(await db.habitEventCorrection.count({where:{eventId:ownEvent.id}}),1);
+
+    const concurrent=await Promise.all([
+      send({expectedRevision:1,eligible:true,completed:true}),
+      send({expectedRevision:1,eligible:true,completed:false})
+    ]);
+    assert.deepEqual(concurrent.map(x=>x.status).sort(),[200,409]);
+    assert.equal(await db.habitEventCorrection.count({where:{eventId:ownEvent.id}}),2);
+
+    const attached=await db.habitEvent.create({data:{
+      habitId:habit.id,opportunityKey:"daily:diary",eligible:true,completed:true,
+      source:"test",occurredAt:new Date()
+    }});
+    await db.habitReflection.create({data:{habitId:habit.id,eventId:attached.id,note:"private",initiationLevel:3}});
+    const blocked=await correctionPUT(req("/api/v1/observations/"+attached.id,"PUT",
+      {expectedRevision:0,eligible:true,completed:false},mobile,"WECHAT"),
+      {params:Promise.resolve({id:attached.id})});
+    assert.equal(blocked.status,409);
+    assert.equal(await db.habitEventCorrection.count({where:{eventId:attached.id}}),0);
+  }finally{
+    await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});
+  }
 });

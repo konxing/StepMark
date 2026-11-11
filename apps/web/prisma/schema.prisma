@@ -218,11 +218,28 @@ model HabitEvent {
   occurredAt      DateTime
   source          String @db.VarChar(30)
   createdAt       DateTime @default(now())
+  revision        Int @default(0)
   habit           Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  corrections     HabitEventCorrection[]
   reflection HabitReflection?
   @@unique([habitId, opportunityKey])
   @@index([habitId, occurredAt])
   @@index([habitId, eligible, completed])
+}
+
+model HabitEventCorrection {
+  id                 String @id @default(uuid()) @db.Uuid
+  eventId            String @db.Uuid
+  revision           Int
+  previousEligible   Boolean
+  previousCompleted  Boolean
+  updatedEligible    Boolean
+  updatedCompleted   Boolean
+  source             String @db.VarChar(30)
+  correctedAt        DateTime @default(now())
+  event              HabitEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  @@unique([eventId, revision])
+  @@index([eventId, correctedAt])
 }
 
 model HabitReflection {

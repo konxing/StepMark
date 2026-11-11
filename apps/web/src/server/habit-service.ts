@@ -22,6 +22,6 @@ export async function listOwnEvents(userId:string,habitId:string) {
     where:{habitId,habit:{userId}},
     orderBy:[{occurredAt:"desc"},{id:"desc"}],
     take:60,
-    select:{id:true,opportunityKey:true,eligible:true,completed:true,occurredAt:true}
+    select:{id:true,opportunityKey:true,eligible:true,completed:true,occurredAt:true,revision:true}
   });
 }

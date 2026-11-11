@@ -32,8 +32,7 @@ export async function POST(request:NextRequest){
     }});
     if(existing){
       // Requests are idempotent; conflicting replays are not silently overwritten.
-      const same=existing.eligible===input.eligible && existing.completed===input.completed &&
-        existing.occurredAt.toISOString()===new Date(input.occurredAt).toISOString();
+      const same=existing.eligible===input.eligible && existing.completed===input.completed;
       if(!same)throw new ApiError(409,"OPPORTUNITY_CONFLICT");
       return NextResponse.json({event:existing,replayed:true},{headers:{"Cache-Control":"no-store"}});
     }
@@ -50,8 +49,7 @@ export async function POST(request:NextRequest){
         habitId_opportunityKey:{habitId:own.id,opportunityKey:input.opportunityKey}
       }});
       if(!raced)throw error;
-      const same=raced.eligible===input.eligible && raced.completed===input.completed &&
-        raced.occurredAt.toISOString()===new Date(input.occurredAt).toISOString();
+      const same=raced.eligible===input.eligible && raced.completed===input.completed;
       if(!same)throw new ApiError(409,"OPPORTUNITY_CONFLICT");
       return NextResponse.json({event:raced,replayed:true},{headers:{"Cache-Control":"no-store"}});
     }
