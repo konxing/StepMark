@@ -43,7 +43,7 @@ export async function GET(request:NextRequest){
       case "practice":
         data=await db.practiceAttempt.findMany({where:{userId:principal.userId},...paging,
           select:{id:true,itemId:true,bankVersion:true,selectedKey:true,correct:true,
-            dayKey:true,createdAt:true}});break;
+            hintUsed:true,dayKey:true,createdAt:true}});break;
       case "assessments":
         data=await db.assessmentAttempt.findMany({where:{userId:principal.userId},...paging,
           select:{id:true,taskId:true,taskVersion:true,evidenceKind:true,rawScore:true,evidence:true,deviceInfo:true,createdAt:true}});break;

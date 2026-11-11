@@ -4,17 +4,20 @@ type SkillCode="conditional"|"evidence"|"quantitative";
 type PracticeTask={id:string;skillCode:SkillCode;prompt:string;
   options:{key:string;label:string}[];hint:string;bankVersion:string};
 type Skill={code:SkillCode;label:string;recentlyAnswered:number;recentCorrect:number;
+  unassistedCorrect:number;assistedOrUnknown:number;
   wrongInLastCompletedForm:number|null};
 type PracticeResponse={recommendedSkill:SkillCode|null;skill:SkillCode;
   recommendationBasis:string;lastFormCode:string|null;skills:Skill[];
-  item:PracticeTask|null;todayUtc:string;notice:string};
-type Feedback={correct:boolean;selectedKey:string;answerKey:string;explanation:string;
+  item:PracticeTask|null;todayUtc:string;notice:string;
+  nextReviewUtc:string|null;dueReviewsToday:number;spacingPolicyVersion:string};
+type Feedback={correct:boolean;selectedKey:string;answerKey:string;explanation:string;hintUsed:boolean|null;
   bankVersion:string};
 export default function PracticeClient(){
  const [data,setData]=useState<PracticeResponse|null>(null);
  const [skill,setSkill]=useState<SkillCode|null>(null);
  const [selected,setSelected]=useState("");
  const [feedback,setFeedback]=useState<Feedback|null>(null);
+ const [hintUsed,setHintUsed]=useState(false);
  const [loading,setLoading]=useState(true);
  const [busy,setBusy]=useState(false);
  const [message,setMessage]=useState("正在寻找下一道练习…");
@@ -26,9 +29,10 @@ export default function PracticeClient(){
    if(response.status===401){location.assign("/login");return;}
    if(!response.ok)throw new Error("LOAD_FAILED");
    const result=await response.json() as PracticeResponse;
-   setData(result);setSkill(result.skill);setSelected("");setFeedback(null);
+   setData(result);setSkill(result.skill);setSelected("");setFeedback(null);setHintUsed(false);
    setMessage(result.item?"练习题不计入 A/B 卷成绩。作答后可以立即查看解释。":
-    "此类别今天的练习已完成，可以选择其他类别，或之后再练。");
+    result.nextReviewUtc?"此类别目前没有到期练习，下次建议复习："+result.nextReviewUtc:
+      "此类别今天的练习已完成，可以选择其他类别，或之后再练。");
   }catch{setMessage("练习题加载失败，请检查连接。");}
   finally{setLoading(false);}
  },[]);
@@ -40,7 +44,7 @@ export default function PracticeClient(){
   try{
    const response=await fetch("/api/v1/practice",{
     method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({itemId:item.id,selectedKey:selected})
+    body:JSON.stringify({itemId:item.id,selectedKey:selected,hintUsed})
    });
    if(!response.ok){
     setMessage(response.status===409?"这道题今天已经提交过，重新加载下一道即可。":
@@ -72,6 +76,7 @@ export default function PracticeClient(){
      onClick={()=>{void load(entry.code);}}>
       <strong>{entry.label}</strong>
       <span>{entry.code===data.recommendedSkill?"当前推荐 · ":""}近期完成 {entry.recentlyAnswered} 道</span>
+      <small>不看提示答对 {entry.unassistedCorrect} 道 · 使用提示或来源未知 {entry.assistedOrUnknown} 道</small>
       {entry.wrongInLastCompletedForm!==null&&
        <small>上一份完整测验中答错 {entry.wrongInLastCompletedForm}/2 道</small>}
      </button>)}
@@ -87,23 +92,30 @@ export default function PracticeClient(){
      <span><strong>{option.key}.</strong> {option.label}</span>
     </label>)}
    </fieldset>
-   {!feedback?<><details><summary>需要一点提示</summary><p>{data.item.hint}</p></details>
+   {!feedback?<><details onToggle={event=>{if(event.currentTarget.open)setHintUsed(true);}}>
+      <summary>需要一点提示</summary><p>{data.item.hint}</p></details>
+    {hintUsed&&<p className="progress-caveat">本次已使用提示；系统会作为辅助练习记录。</p>}
     <button className="assess-button" disabled={busy||loading||!selected} onClick={submit}>
      {busy?"正在保存…":"提交练习"}
     </button></>:
     <div className="assess-feedback">
      <strong>{feedback.correct?"答对了":"这次没有选对"}</strong>
      <p>你的选择：{feedback.selectedKey}；正确选项：{feedback.answerKey}</p>
+     <p className="progress-caveat">{feedback.hintUsed===false?
+       "本次为未查看提示的独立提取练习。":"本次属于提示辅助或来源未知的练习，不计入独立提取次数。"}</p>
      <p>{feedback.explanation}</p>
      <button type="button" className="assess-button" disabled={loading}
       onClick={()=>{void load(skill);}}>下一道练习</button>
     </div>}
   </section>}
   {!loading&&data&&!data.item&&<section className="assess-question">
-   <h2>这一类别今天已练完</h2><p>可以切换题型，或明天继续练习。</p>
+   <h2>当前没有可安排的练习</h2><p>可以切换题型，
+    {data.nextReviewUtc?"或在 "+data.nextReviewUtc+" 之后复习。":"或明天继续。"}
+   </p>
   </section>}
   <p role="status" aria-live="polite">{message}</p>
   <p className="progress-caveat">训练时允许查看提示与即时解析；正式测验仍维持独立题库、延迟解析及 7 天复测间隔。
-   近期训练数据的统计窗口最多为 300 条记录。每天按 UTC 日期防重复提交。</p>
+   系统采用可调整的间隔复习策略（1/3/7/14/28 天），不是经个人数据校准的最佳间隔；
+   显示的正确次数不代表能力提升。近期统计窗口最多 300 条，每天按 UTC 日期防重复提交。</p>
  </main>;
 }

@@ -37,16 +37,24 @@
             <text>{{choice.key}}. {{choice.label}}</text>
           </label>
         </radio-group>
-        <text class="small-note">提示：{{practiceItem.hint}}</text>
+        <button wx:if="{{!practiceHintUsed && !practiceFeedback}}" class="progress-button"
+          bindtap="showPracticeHint">需要提示</button>
+        <text wx:if="{{practiceHintUsed}}" class="small-note">提示：{{practiceItem.hint}}</text>
+        <text wx:if="{{practiceHintUsed}}" class="small-note">本次会标记为提示辅助练习。</text>
         <button wx:if="{{!practiceFeedback}}" class="primary" bindtap="submitPractice"
           disabled="{{practiceBusy || !practiceSelected}}">提交练习</button>
         <view wx:else class="practice-feedback">
           <text>{{practiceFeedback.correct ? '答对了' : '这次没有答对'}}</text>
           <text>你的选择：{{practiceFeedback.selectedKey}}；正确选项：{{practiceFeedback.answerKey}}</text>
           <text>{{practiceFeedback.explanation}}</text>
+          <text class="small-note">{{practiceFeedback.hintUsed == false ? '独立提取练习（未查看提示）' : '提示辅助或来源未知的练习'}}</text>
           <button class="progress-button" disabled="{{practiceBusy}}" bindtap="nextPractice">下一道练习</button>
         </view>
       </view>
+      <text wx:if="{{!practiceItem && practiceNextReviewUtc}}" class="small-note">
+        该类别下一次建议复习：{{practiceNextReviewUtc}}
+      </text>
+      <text class="small-note">复习间隔属于可调整的产品策略，不代表个人能力概率。</text>
     </view>
     <view class="section-title">我的习惯</view>
     <view wx:if="{{modules.length===0}}" class="empty">还没有习惯，创建一个可观察的微型行动吧。</view>

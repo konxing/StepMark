@@ -676,16 +676,19 @@ test("training recommendations and attempts remain tenant-scoped, answer-safe an
     assert.equal((await practicePOST(req("/api/v1/practice","POST",
       {itemId:payload.item.id,selectedKey:"A",userId:b.id},aToken,"WECHAT"))).status,400);
     const submitted=await practicePOST(req("/api/v1/practice","POST",
-      {itemId:payload.item.id,selectedKey:"A"},aToken,"WECHAT"));
+      {itemId:payload.item.id,selectedKey:"A",hintUsed:true},aToken,"WECHAT"));
     assert.equal(submitted.status,201);
-    const result=await submitted.json() as {answerKey:string;explanation:string;correct:boolean};
+    const result=await submitted.json() as {answerKey:string;explanation:string;correct:boolean;hintUsed:boolean|null};
     assert.ok(result.answerKey);
+    assert.equal(result.hintUsed,true);
     assert.ok(result.explanation.length>10);
     assert.equal((await practicePOST(req("/api/v1/practice","POST",
       {itemId:payload.item.id,selectedKey:"A"},aToken,"WECHAT"))).status,409);
     const own=await practiceGET(req("/api/v1/practice","GET",undefined,aToken,"WECHAT"));
-    const ownData=await own.json() as {skills:{recentlyAnswered:number}[];item:{id:string}};
+    const ownData=await own.json() as {skills:{recentlyAnswered:number;unassistedCorrect:number;assistedOrUnknown:number}[];item:{id:string}};
     assert.equal(ownData.skills[0]!.recentlyAnswered,1);
+    assert.equal(ownData.skills[0]!.unassistedCorrect,0);
+    assert.equal(ownData.skills[0]!.assistedOrUnknown,1);
     assert.notEqual(ownData.item.id,payload.item.id);
     const foreign=await practiceGET(req("/api/v1/practice","GET",undefined,bToken,"WECHAT"));
     const foreignData=await foreign.json() as {skills:{recentlyAnswered:number}[];item:{id:string}};
@@ -697,8 +700,9 @@ test("training recommendations and attempts remain tenant-scoped, answer-safe an
     const exportResponse=await exportGET(req("/api/v1/account/export?kind=practice&offset=0",
       "GET",undefined,aToken,"WECHAT"));
     assert.equal(exportResponse.status,200);
-    const ex=await exportResponse.json() as {items:{itemId:string}[]};
+    const ex=await exportResponse.json() as {items:{itemId:string;hintUsed:boolean|null}[]};
     assert.deepEqual(ex.items.map(x=>x.itemId),[payload.item.id]);
+    assert.deepEqual(ex.items.map(x=>x.hintUsed),[true]);
     await db.user.delete({where:{id:a.id}});
     assert.equal(await db.practiceAttempt.count({where:{userId:a.id}}),0);
   }finally{await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});}

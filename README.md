@@ -159,3 +159,10 @@ License: Apache-2.0. 引入任何第三方认知测验或量表前另行确认�
 - 微信小程序首页同样提供按类别练习、服务端推荐、单题作答和即时解析入口。进入页面不会额外自动请求训练数据，用户打开训练区后才加载；微信官方真机仍需单独验证。
 
 - 两份独立测验完成后，原始正确率对照还会展示 A/B 卷之间的**本人训练次数**。这是对练习效应和测量解释的必要背景，不用于计算能力分，也不能推断训练的因果效果。
+
+## Psychology-informed retrieval practice v1.1 (2026-11-12)
+
+- A published literature review (Dunlosky et al. 2013) rated practice testing and distributed practice as broadly useful learning methods; Cepeda et al. (2006) showed interval choice depends on retention horizon. StepMark now schedules **unassisted retrieval reviews**, favoring due previously seen tasks over new questions.
+- Transparent **heuristic** intervals for successive independent correct retrievals: 1, 3, 7, 14, 28 UTC days. Wrong, hinted or legacy-unknown attempts restart next-day review. These values are **product defaults, not a validated psychological equation or individual optimum**; they do not estimate memory retention probability.
+- Browser and WeChat training interfaces now expose hints **only on request**; `POST /api/v1/practice` records `hintUsed`. Prior attempts without hint evidence use `NULL` (unknown), NOT "no hint". User export `kind=practice` includes assistance. **A/B forms and ability scores remain unchanged.**
+- The system never requires a daily check-in or sends automatic reminder notifications. `GET /api/v1/practice` returns the next suggested UTC review date when no item is due. Database migration `20261112105000_practice_hint_used` is required on upgrades.

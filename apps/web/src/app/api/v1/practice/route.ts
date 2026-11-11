@@ -4,7 +4,7 @@ import {getDb} from "@/server/db";
 import {getLogicFormOverview,SKILLS} from "@/server/assessment-forms";
 import {ApiError,boundedJson,enforceRateLimit,errorResponse,principalFromRequest,requireSameOrigin}
  from "@/server/security";
-import {choosePracticeItem,findPracticeItem,publicPracticeItem,PRACTICE_BANK_VERSION,
+import {getPracticeSchedule,findPracticeItem,publicPracticeItem,PRACTICE_BANK_VERSION,
  PRACTICE_SKILLS,type PracticeSkill} from "@/server/practice-bank";
 export const runtime="nodejs";
 
@@ -19,7 +19,7 @@ export async function GET(request:NextRequest){
    getLogicFormOverview(principal.userId),
    getDb().practiceAttempt.findMany({
     where:{userId:principal.userId},orderBy:{createdAt:"desc"},take:300,
-    select:{itemId:true,correct:true,dayKey:true,createdAt:true}
+    select:{itemId:true,correct:true,hintUsed:true,dayKey:true,createdAt:true}
    })
   ]);
   const completed=[...forms.forms].reverse().find(f=>f.status==="completed");
@@ -31,11 +31,16 @@ export async function GET(request:NextRequest){
   const recommendedSkill=byScore[0]!.code;
   const skill=(requested??recommendedSkill) as PracticeSkill;
   const utcDay=new Date().toISOString().slice(0,10);
-  const task=choosePracticeItem(skill,history,utcDay);
+  const plan=getPracticeSchedule(skill,history,utcDay);
+  const task=plan.item;
   const totals=PRACTICE_SKILLS.map(s=>({
    code:s.code,label:s.label,
    recentlyAnswered:history.filter(h=>findPracticeItem(h.itemId)?.skillCode===s.code).length,
    recentCorrect:history.filter(h=>h.correct && findPracticeItem(h.itemId)?.skillCode===s.code).length,
+   unassistedCorrect:history.filter(h=>h.correct && h.hintUsed===false &&
+     findPracticeItem(h.itemId)?.skillCode===s.code).length,
+   assistedOrUnknown:history.filter(h=>h.hintUsed!==false &&
+     findPracticeItem(h.itemId)?.skillCode===s.code).length,
    wrongInLastCompletedForm:completed?.dimensions.find(d=>d.code===s.code)?.correct===null?null:
     completed ? 2-completed.dimensions.find(d=>d.code===s.code)!.correct!:null
   }));
@@ -43,7 +48,8 @@ export async function GET(request:NextRequest){
    recommendationBasis:completed?"latest_completed_form_errors":"no_completed_form",
    lastFormCode:completed?.code??null,skills:totals,
    item:task?publicPracticeItem(task):null,practiceBankVersion:PRACTICE_BANK_VERSION,
-   todayUtc:utcDay,
+   todayUtc:utcDay,nextReviewUtc:plan.nextReviewUtc,
+   dueReviewsToday:plan.dueCount,spacingPolicyVersion:plan.policyVersion,
    notice:"Independent original training questions only. Practice answers are not scored assessment evidence; " +
     "two items per domain cannot establish an ability diagnosis."},
     {headers:{"Cache-Control":"private, no-store"}});
@@ -69,7 +75,7 @@ export async function POST(request:NextRequest){
   try{
    record=await db.practiceAttempt.create({
     data:{...key,bankVersion:PRACTICE_BANK_VERSION,
-     selectedKey:body.selectedKey,correct},
+     selectedKey:body.selectedKey,correct,hintUsed:body.hintUsed??null},
     select:{id:true,createdAt:true}
    });
   }catch(error){
@@ -81,6 +87,7 @@ export async function POST(request:NextRequest){
   }
   return NextResponse.json({attemptId:record.id,correct,selectedKey:body.selectedKey,
    answerKey:item.answerKey,explanation:item.explanation,skillCode:item.skillCode,
+   hintUsed:body.hintUsed??null,
    bankVersion:PRACTICE_BANK_VERSION,createdAt:record.createdAt,
    notice:"Coaching feedback is immediate; independent A/B scores and ability estimates are unchanged."},
    {status:201,headers:{"Cache-Control":"private, no-store"}});
