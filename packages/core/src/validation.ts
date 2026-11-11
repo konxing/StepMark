@@ -1,0 +1,118 @@
+import {fitHabitCurve,habitCurve} from "./habit.ts";
+
+export interface AutomaticitySeriesRow {
+  participantId:string;
+  day:number;  // relative study day, NOT seconds
+  effectiveRepetitions:number; // cumulative completed opportunities
+  automaticity:number|null; // normalized and instrument-defined 0..100, missing!=0
+}
+export interface SeriesQuality {
+  participants:number;
+  rows:number;
+  observedAutomaticity:number;
+  missingAutomaticity:number;
+  missingFraction:number;
+  evaluatedParticipants:number;
+  excludedParticipants:number;
+  predictedHoldoutRecords:number;
+  curveEligibleParticipants:number;
+}
+export interface BaselineScore {
+  rmse:number|null;
+  mae:number|null;
+  participants:number;
+}
+export interface SeriesValidation {
+  status:"descriptive_out_of_time_comparison";
+  methodVersion:"time-split-v1";
+  split:"first 70% observed timepoints per participant train, later 30% test";
+  note:string;
+  quality:SeriesQuality;
+  lastObservation:BaselineScore;
+  constantMean:BaselineScore;
+  asymptoticCurve:BaselineScore;
+  /** Matched holdout persons: apples-to-apples baseline comparison for curve. */
+  matchedLastObservation:BaselineScore;
+  curveWinsFraction:number|null;
+}
+function rounded(x:number):number{return Number(x.toFixed(6));}
+function score(errors:readonly number[][]):BaselineScore {
+  if(!errors.length)return {rmse:null,mae:null,participants:0};
+  let mse=0,mae=0;
+  for(const person of errors){
+    mse+=person.reduce((s,e)=>s+e*e,0)/person.length;
+    mae+=person.reduce((s,e)=>s+Math.abs(e),0)/person.length;
+  }
+  return {rmse:rounded(Math.sqrt(mse/errors.length)),
+    mae:rounded(mae/errors.length),participants:errors.length};
+}
+/**
+ * Person-stratified temporal holdout: never mixes a person's future answers
+ * into a training model; do not confuse post-hoc fit RMSE with forecast RMSE.
+ * Grouping equally weights people so prolific reporters don't dominate.
+ */
+export function evaluateAutomaticitySeries(
+  records:readonly AutomaticitySeriesRow[]
+):SeriesValidation {
+  if(!records.length || records.length>150000)throw new RangeError("invalid dataset size");
+  const byPerson=new Map<string,AutomaticitySeriesRow[]>();
+  for(const r of records){
+    if(typeof r.participantId!=="string"||!/^[a-zA-Z0-9_.:-]{1,100}$/.test(r.participantId)||
+      !Number.isSafeInteger(r.day)||r.day<0||r.day>10000||
+      !Number.isSafeInteger(r.effectiveRepetitions)||r.effectiveRepetitions<0||
+      (r.automaticity!==null&&(!Number.isFinite(r.automaticity)||r.automaticity<0||r.automaticity>100)))
+      throw new RangeError("invalid or potentially identifying dataset row");
+    const data=byPerson.get(r.participantId)??[];
+    data.push(r);byPerson.set(r.participantId,data);
+    if(byPerson.size>10000)throw new RangeError("too many distinct participants");
+  }
+  let totalMissing=0,eligible=0,recordsHeld=0,curveWins=0,people=0;
+  const lastErrors:number[][]=[],constantErrors:number[][]=[],curveErrors:number[][]=[],matchedErrors:number[][]=[];
+  for(const original of byPerson.values()){
+    const rows=[...original].sort((a,b)=>a.day-b.day);
+    for(let i=0;i<rows.length;i++){
+      if(i>0 && (rows[i]!.day===rows[i-1]!.day ||
+        rows[i]!.effectiveRepetitions < rows[i-1]!.effectiveRepetitions))
+        throw new RangeError("duplicate day or declining cumulative repetitions");
+      if(rows[i]!.automaticity===null)totalMissing++;
+    }
+    const points=rows.filter(x=>x.automaticity!==null);
+    if(points.length<9)continue;
+    const boundary=Math.floor(points.length*0.7);
+    const train=points.slice(0,boundary),test=points.slice(boundary);
+    if(train.length<6||test.length<3||train.length>500||test.length>500)continue;
+    people++;recordsHeld+=test.length;
+    const mean=train.reduce((s,x)=>s+x.automaticity!,0)/train.length;
+    const latest=train[train.length-1]!.automaticity!;
+    const lastErr=test.map(x=>latest-x.automaticity!);
+    const constantErr=test.map(x=>mean-x.automaticity!);
+    lastErrors.push(lastErr);constantErrors.push(constantErr);
+    const fitted=fitHabitCurve(train.map(x=>({
+      effectiveRepetitions:x.effectiveRepetitions,automaticity:x.automaticity!
+    })));
+    if(fitted){
+      eligible++;
+      const curveErr=test.map(x=>habitCurve(x.effectiveRepetitions,fitted.parameters)-x.automaticity!);
+      curveErrors.push(curveErr);matchedErrors.push(lastErr);
+      const mse=e=>e.reduce((s,v)=>s+v*v,0)/e.length;
+      if(mse(curveErr)<mse(lastErr))curveWins++;
+    }
+  }
+  const n=records.length;
+  return {
+    status:"descriptive_out_of_time_comparison",
+    methodVersion:"time-split-v1",
+    split:"first 70% observed timepoints per participant train, later 30% test",
+    note:"No causality or validated habit-progress scale is established. AICc inside training does not substitute for held-out performance. Only comparable independent automaticity measures are eligible.",
+    quality:{
+      participants:byPerson.size,rows:n,observedAutomaticity:n-totalMissing,
+      missingAutomaticity:totalMissing,missingFraction:rounded(totalMissing/n),
+      evaluatedParticipants:people,excludedParticipants:byPerson.size-people,
+      predictedHoldoutRecords:recordsHeld,curveEligibleParticipants:eligible
+    },
+    lastObservation:score(lastErrors),constantMean:score(constantErrors),
+    asymptoticCurve:score(curveErrors),
+    matchedLastObservation:score(matchedErrors),
+    curveWinsFraction:eligible?rounded(curveWins/eligible):null
+  };
+}
