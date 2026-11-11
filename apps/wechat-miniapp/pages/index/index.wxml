@@ -37,6 +37,16 @@
       <text class="meta">已执行 {{progress.completedRepetitions}} 次，感受证据 {{progress.evidenceCount}} 条</text>
       <view wx:if="{{progress.reviewDue}}" class="review-note">该复查了：现在开始这个习惯仍然自然吗？</view>
       <view class="small-note">百分比是实验性成长指标，不是习惯形成概率，也不直接增加能力分。</view>
+      <view class="section-title">最近记录 · 更正</view>
+      <view wx:for="{{recentEvents}}" wx:key="id" class="reflection-item">
+        <text class="meta">{{item.opportunityKey}} · {{!item.eligible ? '没有触发机会' : (item.completed ? '已执行' : '有机会未执行')}} · 版本 {{item.revision}}</text>
+        <view class="opportunity-row">
+          <button data-id="{{item.id}}" data-kind="done" disabled="{{correcting}}" bindtap="correctOpportunity">改为已执行</button>
+          <button data-id="{{item.id}}" data-kind="missed" disabled="{{correcting}}" bindtap="correctOpportunity">改为未执行</button>
+          <button data-id="{{item.id}}" data-kind="no_cue" disabled="{{correcting}}" bindtap="correctOpportunity">改为无机会</button>
+        </view>
+      </view>
+      <text class="meta">更正将留下历史；关联感受的执行记录需要先处理感受记录。</text>
       <view class="section-title">记录开始行动的感受（选填）</view>
       <picker range="{{feelingOptions}}" value="{{feelIndex == -1 ? 0 : feelIndex}}" bindchange="chooseFeeling">
         <view class="picker-control">{{feelIndex == -1 ? '选择最接近的感受' : feelingOptions[feelIndex]}}</view>

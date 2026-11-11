@@ -11,6 +11,17 @@ export const observationSchema = z.object({
   /** Never accept personal location by default. */
   contextTag: z.string().max(80).optional()
 }).strict();
+/** Optimistic version check: prevent stale clients from overwriting a correction. */
+export const observationCorrectionSchema = z.object({
+  expectedRevision:z.number().int().min(0),
+  eligible:z.boolean(),
+  completed:z.boolean()
+}).strict().superRefine((value,ctx)=>{
+  if(!value.eligible && value.completed)
+    ctx.addIssue({code:"custom",message:"completed requires an eligible opportunity"});
+});
+export type ObservationCorrectionInput = z.infer<typeof observationCorrectionSchema>;
+
 export const automaticityCheckSchema = z.object({
   habitId: z.uuid(),
   /** Four 1-7 responses; validated local-language instrument TBD. */
