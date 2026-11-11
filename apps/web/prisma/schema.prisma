@@ -54,6 +54,7 @@ model User {
   sessions   Session[]
   habits     Habit[]
   attempts   AssessmentAttempt[]
+  practiceAttempts PracticeAttempt[]
   estimates  AbilityEstimate[]
   auditLogs  AuditLog[]
 }
@@ -147,6 +148,21 @@ model Task {
   @@unique([id, version])
   @@unique([formCode, formOrder])
   @@index([constructCode, formCode, publishedAt])
+}
+
+model PracticeAttempt {
+  id          String @id @default(uuid()) @db.Uuid
+  userId      String @db.Uuid
+  itemId      String @db.VarChar(64)
+  bankVersion String @db.VarChar(40)
+  selectedKey String @db.VarChar(4)
+  correct     Boolean
+  dayKey      String @db.VarChar(10)
+  createdAt   DateTime @default(now())
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, itemId, dayKey])
+  @@index([userId, createdAt])
+  @@index([userId, itemId, createdAt])
 }
 
 model AssessmentAttempt {

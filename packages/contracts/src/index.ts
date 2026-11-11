@@ -64,3 +64,10 @@ export const habitReflectionSchema = z.object({
     context.addIssue({code:"custom",message:"AI analysis requires a note"});
 });
 export type HabitReflectionInput = z.infer<typeof habitReflectionSchema>;
+
+/** Practice is a separate evidence channel, never a calibrated assessment. */
+export const practiceResponseSchema=z.object({
+  itemId:z.string().regex(/^practice-(cond|evid|quant)-[0-9]{2}$/),
+  selectedKey:z.enum(["A","B","C","D"])
+}).strict();
+export type PracticeResponseInput=z.infer<typeof practiceResponseSchema>;
