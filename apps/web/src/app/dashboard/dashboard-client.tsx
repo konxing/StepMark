@@ -9,6 +9,8 @@ export default function DashboardClient({email}:{email:string}) {
   const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
   const [selected,setSelected]=useState<string|null>(null);
   const [reflectionEventId,setReflectionEventId]=useState<string|null>(null);
+  const [events,setEvents]=useState<{id:string;opportunityKey:string;eligible:boolean;completed:boolean;occurredAt:string;revision:number}[]>([]);
+  const [correcting,setCorrecting]=useState<string|null>(null);
   const [insights,setInsights]=useState<null|{eligibleOpportunities:number;completions:number;
     observedRate:number|null;wilsonInterval95:{low:number;high:number}|null;
     posterior:{posteriorMean:number;posteriorSD:number}|null;
@@ -55,12 +57,45 @@ export default function DashboardClient({email}:{email:string}) {
       setMessage(res.status===409?"本日已有不同状态的记录；如需纠错请查看记录。":names[kind]);
     }catch{setMessage("记录失败，请重试。");}finally{setBusy(false);}
   }
+  async function refreshEvents(id:string){
+    const response=await fetch("/api/v1/observations?habitId="+encodeURIComponent(id),{cache:"no-store"});
+    if(!response.ok)throw new Error("EVENTS_FAILED");
+    const body=await response.json() as {events:typeof events};
+    setEvents(body.events);
+  }
+  async function correctOpportunity(event:typeof events[number],kind:"done"|"missed"|"no_cue"){
+    if(!selected||correcting)return;
+    const eligible=kind!=="no_cue",completed=kind==="done";
+    if(event.eligible===eligible&&event.completed===completed)return;
+    setCorrecting(event.id);
+    try{
+      const res=await fetch("/api/v1/observations/"+encodeURIComponent(event.id),{
+        method:"PUT",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({expectedRevision:event.revision,eligible,completed})
+      });
+      if(!res.ok){
+        const data=await res.json().catch(()=>null) as {error?:{code?:string}}|null;
+        const code=data?.error?.code;
+        setMessage(code==="DELETE_LINKED_REFLECTION_FIRST"?
+          "这条执行记录关联了感受记录，请先在下方删除对应感受，再更正状态。":
+          code==="STALE_OPPORTUNITY_REVISION"?"记录已在其他设备更改，已刷新列表，请重新选择。":
+          "更正失败，请刷新后重试。");
+        await refreshEvents(selected);
+        return;
+      }
+      await Promise.all([refreshEvents(selected),load()]);
+      await detail(selected);
+      setMessage("更正已保存，并保留了修改历史。");
+    }catch{setMessage("网络错误，更正未确认。");}
+    finally{setCorrecting(null);}
+  }
   async function detail(id:string,eventId:string|null=null){
     try{
       const r=await fetch(`/api/v1/habits/${encodeURIComponent(id)}/insights`,{cache:"no-store"});
       if(!r.ok)throw new Error();
       const report=await r.json() as NonNullable<typeof insights>;
       setSelected(id);setReflectionEventId(eventId);setInsights(report);
+      await refreshEvents(id);
     }catch{setMessage("无法读取记录。");}
   }
   async function logout(){
@@ -119,6 +154,20 @@ export default function DashboardClient({email}:{email:string}) {
         重复行为可能相关，因此此区间不应当被当作严格保证。</p>}
       {insights.latestAutomaticity?<p>最近一次试验性自动化指数：{insights.latestAutomaticity.indexScore.toFixed(1)}/100（不是已验证量表或能力值）。</p>:
         <p>还没有自动化程度的独立测量。完成次数不能证明习惯已经形成。</p>}
+    </section>}
+    {selected&&<section className="dashboard-panel">
+      <h2>最近记录 · 更正状态</h2>
+      <p>误选“已执行 / 没执行 / 没机会”时，可在这里更正。每次更正会保留审计历史，不会重复增加次数。</p>
+      {events.length===0?<p>暂无记录。</p>:events.slice(0,14).map(event=><div className="habit-row" key={event.id}>
+        <p>{new Date(event.occurredAt).toLocaleDateString("zh-CN")} · 当前：{!event.eligible?"没有触发机会":event.completed?"已执行":"有机会但未执行"} · 版本 {event.revision}</p>
+        <div className="habit-actions">
+          {(["done","missed","no_cue"] as const).map(kind=><button key={kind} type="button"
+            disabled={correcting!==null || (event.eligible===(kind!=="no_cue")&&event.completed===(kind==="done"))}
+            className="text-button" onClick={()=>correctOpportunity(event,kind)}>
+            {kind==="done"?"改为已执行":kind==="missed"?"改为未执行":"改为无机会"}
+          </button>)}
+        </div>
+      </div>)}
     </section>}
     {selected&&<HabitGrowthPanel key={selected} habitId={selected} eventId={reflectionEventId}/>}
     <p className="notice" role="status" aria-live="polite">{message}</p>
