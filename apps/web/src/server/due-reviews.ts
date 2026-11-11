@@ -39,14 +39,16 @@ export async function listDueHabitReviews(userId:string,now:Date=new Date()){
   const due: {habitId:string;title:string;progress:number;reviewReason:string;nextReviewAt:string}[]=[];
   for(const habit of habits){
     const count=countMap.get(habit.id)??{eligible:0,done:0};
-    const observations:InitiationEvidence[]=habit.reflections.flatMap(x=>{
-      if(x.initiationLevel!==null)return [{atMs:x.createdAt.getTime(),level:x.initiationLevel as 0|1|2|3|4,
-        source:"self_report" as const,confidence:1}];
-      if(x.aiStatus==="COMPLETED"&&x.aiLevel!==null)return [{
-        atMs:x.createdAt.getTime(),level:x.aiLevel as 0|1|2|3|4,
-        source:"ai_interpretation" as const,confidence:x.aiConfidence??0}];
-      return [];
-    });
+    const observations:InitiationEvidence[]=[];
+    for(const x of habit.reflections){
+      if(x.initiationLevel!==null){
+        observations.push({atMs:x.createdAt.getTime(),level:x.initiationLevel as 0|1|2|3|4,
+          source:"self_report",confidence:1});
+      }else if(x.aiStatus==="COMPLETED"&&x.aiLevel!==null){
+        observations.push({atMs:x.createdAt.getTime(),level:x.aiLevel as 0|1|2|3|4,
+          source:"ai_interpretation",confidence:x.aiConfidence??0});
+      }
+    }
     const status=calculateHabitProgress({
       completedRepetitions:count.done,completedOpportunities:count.done,
       eligibleOpportunities:count.eligible,nowMs:now.getTime(),
