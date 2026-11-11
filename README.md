@@ -2,7 +2,7 @@
 
 **当前状态：多用户 Alpha（开发预览；不可直接视为正式公网生产版本）。**
 Web + 微信小程序使用统一后端 API。每个用户有独立的身份、习惯与测评证据。
-Github 的 `main` 仍保留旧状态；开发工作通过 `feat/research-backed-foundation` PR 审查合并。
+**唯一长期维护分支为 `main`。** 开发成果已通过 PR 合并到主分支；本地部署与更新均以 `main` 为准。
 
 ## 已实现
 
@@ -37,7 +37,7 @@ docs/agent/              后续实现计划与验收标准
 ```powershell
 git clone https://github.com/konxing/StepMark.git
 cd StepMark
-git checkout feat/research-backed-foundation
+git checkout main
 npm ci
 Copy-Item apps/web/.env.example apps/web/.env
 # 编辑 apps/web/.env，设置你的本地数据库 URL、RATE_LIMIT_SECRET、APP_ORIGIN 等
