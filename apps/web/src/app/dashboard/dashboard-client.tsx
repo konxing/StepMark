@@ -141,7 +141,7 @@ export default function DashboardClient({email}:{email:string}) {
         </button>)}
       </div>
     </section>}
-    <p className="assessment-link"><a href="/assess">开始实验性逻辑推理测量 ↗</a></p>
+    <p className="assessment-link"><a href="/assess">开始实验性逻辑推理测量 ↗</a> · <a href="/practice">进行独立题库的推理专项训练 ↗</a></p>
     <section className="dashboard-grid">
       <article className="dashboard-panel"><h2>建立一个新习惯</h2>
         <form className="account-form" onSubmit={create}>
