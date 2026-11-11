@@ -3,7 +3,7 @@ const EXPIRES_KEY="stepmark_mobile_expires";
 Page({
   data:{modules:[],dueReviews:[],status:"正在连接…",loading:false,authenticated:false,
     creating:false,title:"",action:"",cue:"",selectedHabitId:"",progress:null,
-    reflectionEventId:"",feelingOptions:["非常抗拒","需要逼自己","有一点纠结","比较自然","几乎不用思考"],
+    reflectionEventId:"",recentEvents:[],correcting:false,feelingOptions:["非常抗拒","需要逼自己","有一点纠结","比较自然","几乎不用思考"],
     feelIndex:-1,feedbackNote:"",aiConsent:false,recentReflections:[]},
   onLoad(){this.bootstrap();},
   onShow(){if(this.data.authenticated)this.loadHabits();},
@@ -101,6 +101,33 @@ Page({
     const id=e.currentTarget.dataset.id;
     this.setData({selectedHabitId:id,reflectionEventId:"",feelIndex:-1,feedbackNote:"",aiConsent:false});
     await this.refreshProgress(id);
+    await this.refreshEvents(id);
+  },
+  async refreshEvents(id){
+    try{
+      const response=await this.api("/api/v1/observations?habitId="+encodeURIComponent(id),"GET");
+      this.setData({recentEvents:(response.events||[]).slice(0,14)});
+    }catch{this.setData({recentEvents:[]});}
+  },
+  async correctOpportunity(e){
+    if(this.data.correcting||this.data.creating)return;
+    const event=this.data.recentEvents.find(x=>x.id===e.currentTarget.dataset.id);
+    const kind=e.currentTarget.dataset.kind;
+    const id=this.data.selectedHabitId;
+    if(!event||!id)return;
+    const eligible=kind!=="no_cue",completed=kind==="done";
+    if(event.eligible===eligible&&event.completed===completed)return;
+    this.setData({correcting:true});
+    try{
+      await this.api("/api/v1/observations/"+event.id,"PUT",{
+        expectedRevision:event.revision,eligible,completed
+      });
+      await Promise.all([this.refreshEvents(id),this.loadHabits(),this.refreshProgress(id)]);
+      this.setData({status:"已更正，原状态和更正版本已留存。"});
+    }catch(e){
+      await this.refreshEvents(id);
+      this.setData({status:"更正失败。若关联了感受记录，需先删除该感受；或检查记录是否已被其他设备修改。"});
+    }finally{this.setData({correcting:false});}
   },
   async refreshProgress(id){
     try{
