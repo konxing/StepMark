@@ -23,6 +23,7 @@ import {GET as exportGET} from "../src/app/api/v1/account/export/route";
 import {hashToken} from "../src/server/security";
 import {GET as tasksGET} from "../src/app/api/v1/tasks/route";
 import {POST as assessPOST} from "../src/app/api/v1/assessments/route";
+import {GET as formOverviewGET} from "../src/app/api/v1/assessment-forms/route";
 
 const db=getDb();
 function req(path:string,method:string,body?:unknown,token?:string,kind:"WEB"|"WECHAT"="WEB",origin="http://localhost:3000"){
@@ -533,6 +534,100 @@ test("owned correction history is paginated, exportable and isolated across acco
     await db.user.delete({where:{id:a.id}});
     assert.equal(await db.habitEventCorrection.count({where:{eventId:ae.id}}),0);
     assert.equal(await db.habitEventCorrection.count({where:{eventId:be.id}}),1);
+  }finally{
+    await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});
+  }
+});
+
+test("independent logic forms require elapsed retest time and expose only owned deferred evidence",async()=>{
+  const a=await db.user.create({data:{},select:{id:true}});
+  const b=await db.user.create({data:{},select:{id:true}});
+  try{
+    const token=(await issueSession(a.id,"WECHAT")).token;
+    const other=(await issueSession(b.id,"WECHAT")).token;
+    const formUrl="/api/v1/assessment-forms";
+    const overview=async(t:string)=>formOverviewGET(req(formUrl,"GET",undefined,t,"WECHAT"));
+    assert.equal((await formOverviewGET(req(formUrl,"GET"))).status,401);
+    const initial=await overview(token);
+    assert.equal(initial.status,200);
+    assert.equal(initial.headers.get("Cache-Control"),"private, no-store");
+    const first=await initial.json() as {forms:{code:string;status:string;attempted:number}[];comparison:unknown};
+    assert.deepEqual(first.forms.map(x=>[x.code,x.status]),[
+      ["logic-a-v1","ready"],["logic-b-v1","locked"]]);
+    assert.equal(first.comparison,null);
+    const formTasks=async(form:string,t:string)=>tasksGET(req(
+      "/api/v1/tasks?construct=reasoning.logic&form="+form,"GET",undefined,t,"WECHAT"));
+    const aRaw=await formTasks("logic-a-v1",token);
+    const textA=await aRaw.text();
+    assert.equal(textA.includes("correctKey"),false);
+    assert.equal(textA.includes("explanation"),false);
+    const itemsA=(JSON.parse(textA) as {tasks:{id:string;skillCode:string;options:{key:string}[]}[]}).tasks;
+    assert.equal(itemsA.length,6);
+    assert.deepEqual([...new Set(itemsA.map(t=>t.skillCode))].sort(),
+      ["conditional","evidence","quantitative"]);
+    assert.equal((await formTasks("logic-b-v1",token)).status,200);
+    assert.equal((await formTasks("unknown",token)).status,400);
+    const locked=await formTasks("logic-b-v1",token);
+    assert.deepEqual((await locked.json() as {tasks:unknown[]}).tasks,[]);
+    const bItems=await db.task.findMany({where:{formCode:"logic-b-v1"},orderBy:{formOrder:"asc"}});
+    assert.equal(bItems.length,6);
+    const premature=await assessPOST(req("/api/v1/assessments","POST",
+      {taskId:bItems[0]!.id,selectedKey:"A"},token,"WECHAT"));
+    assert.equal(premature.status,409);
+    for(const [i,item] of itemsA.entries()){
+      const response=await assessPOST(req("/api/v1/assessments","POST",
+        {taskId:item.id,selectedKey:item.options[0]!.key},token,"WECHAT"));
+      assert.equal(response.status,201);
+      const json=await response.json() as Record<string,unknown>;
+      assert.equal(json.deferredFeedback,true);
+      assert.equal("correct" in json,false);
+      assert.equal("explanation" in json,false);
+      if(i<5){
+        const mid=await overview(token);
+        const midData=await mid.json() as {forms:{reviews:unknown[]}[]};
+        assert.deepEqual(midData.forms[0]!.reviews,[]);
+      }
+    }
+    const completed=await overview(token);
+    const completedBody=await completed.json() as {forms:{
+      status:string;correct:number|null;reviews:{taskId:string;correctKey:string}[];
+      dimensions:{total:number;correct:number|null}[];availableAt:string|null}[]};
+    assert.equal(completedBody.forms[0]!.status,"completed");
+    assert.equal(completedBody.forms[0]!.reviews.length,6);
+    assert.equal(completedBody.forms[0]!.dimensions.length,3);
+    assert.ok(completedBody.forms[0]!.dimensions.every(d=>d.total===2 && d.correct!==null));
+    assert.equal(completedBody.forms[1]!.status,"locked");
+    assert.ok(completedBody.forms[1]!.availableAt);
+    const otherResult=await overview(other);
+    const otherBody=await otherResult.json() as {forms:{reviews:unknown[];status:string}[]};
+    assert.deepEqual(otherBody.forms[0]!.reviews,[]);
+    assert.equal(otherBody.forms[0]!.status,"ready");
+    assert.equal((await assessPOST(req("/api/v1/assessments","POST",
+      {taskId:bItems[0]!.id,selectedKey:"A"},token,"WECHAT"))).status,409);
+    const aTaskIds=itemsA.map(t=>t.id);
+    await db.assessmentAttempt.updateMany({where:{userId:a.id,taskId:{in:aTaskIds}},
+      data:{createdAt:new Date(Date.now()-8*86400000)}});
+    const unlocked=await overview(token);
+    const unlockedData=await unlocked.json() as {forms:{status:string}[]};
+    assert.equal(unlockedData.forms[1]!.status,"ready");
+    const bTasks=await formTasks("logic-b-v1",token);
+    const bData=await bTasks.json() as {tasks:{id:string;options:{key:string}[]}[]};
+    assert.equal(bData.tasks.length,6);
+    assert.equal(new Set([...aTaskIds,...bData.tasks.map(t=>t.id)]).size,12);
+    for(const item of bData.tasks){
+      const r=await assessPOST(req("/api/v1/assessments","POST",
+        {taskId:item.id,selectedKey:item.options[0]!.key},token,"WECHAT"));
+      assert.equal(r.status,201);
+    }
+    const final=await overview(token);
+    const summary=await final.json() as {
+      forms:{status:string;correct:number;reviews:{taskId:string}[]}[];
+      comparison:{rawDifferencePoints:number;daysApart:number}};
+    assert.equal(summary.forms[1]!.status,"completed");
+    assert.equal(summary.forms[1]!.reviews.length,6);
+    assert.ok(Number.isFinite(summary.comparison.rawDifferencePoints));
+    assert.ok(summary.comparison.daysApart>=7);
+    assert.equal(await db.abilityEstimate.count({where:{userId:a.id}}),0);
   }finally{
     await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});
   }

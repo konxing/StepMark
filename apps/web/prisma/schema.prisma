@@ -136,13 +136,17 @@ model Task {
   constructCode String @db.VarChar(100)
   version       String @db.VarChar(50)
   rubricVersion String? @db.VarChar(50)
+  formCode      String? @db.VarChar(50)
+  skillCode     String? @db.VarChar(50)
+  formOrder     Int?
   content       Json
   calibration   Json?
   publishedAt   DateTime?
   construct     Construct @relation(fields: [constructCode], references: [code])
   attempts      AssessmentAttempt[]
   @@unique([id, version])
-  @@index([constructCode, publishedAt])
+  @@unique([formCode, formOrder])
+  @@index([constructCode, formCode, publishedAt])
 }
 
 model AssessmentAttempt {

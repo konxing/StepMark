@@ -3,6 +3,7 @@ import {choiceSubmissionSchema,singleChoiceContentSchema} from "@stepmark/contra
 import {evaluateSingleChoice} from "@stepmark/core";
 import {getDb} from "@/server/db";
 import {ApiError,boundedJson,enforceRateLimit,errorResponse,principalFromRequest,requireSameOrigin} from "@/server/security";
+import {getLogicFormOverview,isLogicFormCode} from "@/server/assessment-forms";
 export const runtime="nodejs";
 export async function GET(request:NextRequest){
   try{
@@ -20,8 +21,15 @@ export async function POST(request:NextRequest){
     await enforceRateLimit("assessment-user",p.userId,40,60*60*1000);
     const db=getDb();
     const task=await db.task.findFirst({where:{id:taskId,publishedAt:{lte:new Date()}},
-      select:{id:true,version:true,content:true}});
+      select:{id:true,version:true,content:true,formCode:true}});
     if(!task)throw new ApiError(404,"TASK_NOT_FOUND");
+    if(task.formCode){
+      if(!isLogicFormCode(task.formCode))throw new ApiError(503,"FORM_DEFINITION_INVALID");
+      const overview=await getLogicFormOverview(p.userId);
+      const form=overview.forms.find(f=>f.code===task.formCode);
+      if(!form||form.status==="locked"||form.status==="unavailable")
+        throw new ApiError(409,"FORM_LOCKED");
+    }
     const definition=singleChoiceContentSchema.safeParse(task.content);
     if(!definition.success)throw new ApiError(503,"TASK_DEFINITION_INVALID");
     let result;
@@ -39,6 +47,12 @@ export async function POST(request:NextRequest){
         select:{id:true}});
       if(existing)throw new ApiError(409,"TASK_ALREADY_SUBMITTED");
       throw error;
+    }
+    if(task.formCode){
+      // Deferred feedback: revealing answers during a form contaminates later items.
+      return NextResponse.json({attemptId:attempt.id,accepted:true,deferredFeedback:true,
+        notice:"Answers and explanations become available after this form is fully completed."},
+        {status:201,headers:{"Cache-Control":"no-store"}});
     }
     return NextResponse.json({attemptId:attempt.id,taskScore:result.taskScore,
       correct:result.isCorrect,explanation:definition.data.explanation,
