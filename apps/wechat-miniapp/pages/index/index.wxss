@@ -11,3 +11,5 @@
 .picker-control{border:1rpx solid #cedfd0;padding:23rpx;border-radius:12rpx;color:#406750;font-size:26rpx}
 .feedback-note{box-sizing:border-box;border:1rpx solid #cedfd0;width:100%;padding:22rpx;margin-top:18rpx;border-radius:10rpx;height:160rpx;font-size:26rpx}
 .ai-consent-row{display:flex;align-items:center;gap:15rpx;font-size:21rpx;color:#657b70;margin-top:18rpx;line-height:1.5}
+
+.opportunity-row{display:flex;gap:12rpx}.opportunity-row button{flex:1;font-size:21rpx;color:#44715a;background:#edf4ed;line-height:1.35;padding:15rpx 5rpx}

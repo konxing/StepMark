@@ -13,8 +13,12 @@
         <text class="title">{{item.title}}</text>
         <text class="meta">{{item.action}}</text>
         <text wx:if="{{item.cue}}" class="meta">触发情境：{{item.cue}}</text>
-        <text class="meta">已记录机会：{{item._count.events}}</text>
-        <button class="primary" data-id="{{item.id}}" disabled="{{creating}}" bindtap="record">今天已执行</button>
+        <text class="meta">已记录天数：{{item._count.events}}</text>
+        <button class="primary" data-id="{{item.id}}" data-kind="done" disabled="{{creating}}" bindtap="record">今天已执行</button>
+        <view class="opportunity-row">
+          <button data-id="{{item.id}}" data-kind="missed" disabled="{{creating}}" bindtap="record">有机会，没执行</button>
+          <button data-id="{{item.id}}" data-kind="no_cue" disabled="{{creating}}" bindtap="record">今天没机会</button>
+        </view>
         <button class="progress-button" data-id="{{item.id}}" bindtap="openProgress">查看习惯进度</button>
       </view>
     </view>

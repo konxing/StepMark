@@ -77,15 +77,18 @@ Page({
   async record(e){
     if(this.data.creating)return;
     const habitId=e.currentTarget.dataset.id;
-    const date=new Date(), day=date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");
+    const kind=e.currentTarget.dataset.kind||"done";
+    const date=new Date(),day=date.getFullYear()+"-"+String(date.getMonth()+1).padStart(2,"0")+"-"+String(date.getDate()).padStart(2,"0");
     this.setData({creating:true});
     try{
       const saved=await this.api("/api/v1/observations","POST",{
         habitId,opportunityKey:"daily:"+day,
-        eligible:true,completed:true,occurredAt:new Date().toISOString()
+        eligible:kind!=="no_cue",completed:kind==="done",occurredAt:new Date().toISOString()
       });
-      this.setData({status:"执行已保存，可以补充自己的感受（选填）。",
-        reflectionEventId:saved.event.id,selectedHabitId:habitId,feelIndex:-1,feedbackNote:"",aiConsent:false});
+      this.setData({status:kind==="done"?"执行已保存，欢迎补充感受（选填）。":
+        kind==="missed"?"已记录：有机会但没有执行。":"已记录：今天未出现触发情境。",
+        reflectionEventId:kind==="done"?saved.event.id:"",selectedHabitId:habitId,
+        feelIndex:-1,feedbackNote:"",aiConsent:false});
       await this.loadHabits();await this.refreshProgress(habitId);
     }catch(e){this.setData({status:e.message||"记录失败"});}
     finally{this.setData({creating:false});}

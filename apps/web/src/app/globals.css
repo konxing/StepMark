@@ -23,3 +23,5 @@
 .ai-opt-in input{margin-top:3px}
 .save-feeling{border:0;border-radius:8px;padding:12px 18px;background:#173a2c;color:white;cursor:pointer;font:inherit}
 .save-feeling:disabled{opacity:.5;cursor:default}
+
+.habit-opportunity-actions{flex-wrap:wrap}.habit-opportunity-actions button:not(.text-button){flex-shrink:0}.habit-opportunity-actions .text-button{font-size:12px}

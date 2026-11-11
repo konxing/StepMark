@@ -28,7 +28,7 @@ export default function DashboardClient({email}:{email:string}) {
       setTitle("");setAction("");setCue("");await load();setMessage("习惯已添加。");
     }catch{setMessage("创建失败，请重试。");}finally{setBusy(false);}
   }
-  async function complete(habitId:string){
+  async function recordOpportunity(habitId:string,kind:"done"|"missed"|"no_cue"){
     if(busy)return;setBusy(true);setMessage("");
     // A calendar-day opportunity is only a lightweight tracking convenience.
     // It is NOT a validated indicator of automaticity.
@@ -36,12 +36,14 @@ export default function DashboardClient({email}:{email:string}) {
     try{
       const res=await fetch("/api/v1/observations",{method:"POST",
         headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({habitId,opportunityKey:`daily:${today}`,eligible:true,
-          completed:true,occurredAt:new Date().toISOString()})});
+        body:JSON.stringify({habitId,opportunityKey:`daily:${today}`,eligible:kind!=="no_cue",
+          completed:kind==="done",occurredAt:new Date().toISOString()})});
       if(!res.ok && res.status!==409)throw new Error("SAVE_FAILED");
       const parsed= res.ok ? await res.json() as {event:{id:string}} : null;
-      await load();await detail(habitId,parsed?.event.id??null);
-      setMessage(res.status===409?"今天已有记录，仍可以另行复查。":"执行已保存，可以补充一次感受（选填）。");
+      await load();await detail(habitId,kind==="done"?(parsed?.event.id??null):null);
+      const names={done:"执行已保存；可选填一次感受。",missed:"记录为有机会但未执行。不会直接扣减习惯进度。",
+        no_cue:"记录为今天没有出现触发情境，不计为执行失败。"};
+      setMessage(res.status===409?"本日已有不同状态的记录；如需纠错请查看记录。":names[kind]);
     }catch{setMessage("记录失败，请重试。");}finally{setBusy(false);}
   }
   async function detail(id:string,eventId:string|null=null){
@@ -77,14 +79,18 @@ export default function DashboardClient({email}:{email:string}) {
         {habits.length===0?<p>还没有习惯，先创建一个可观察的行动。</p>:
           <div className="habits-list">{habits.map(h=><div className="habit-row" key={h.id}>
             <h3>{h.title}</h3><p>{h.action}</p>{h.cue&&<small>情境：{h.cue}</small>}
-            <div className="habit-actions"><button disabled={busy} onClick={()=>complete(h.id)}>记录今天已执行</button>
-              <button className="text-button" onClick={()=>detail(h.id)}>查看记录</button></div>
-            <small>已记录机会：{h._count.events}（并非能力分）</small></div>)}</div>}
+            <div className="habit-actions habit-opportunity-actions">
+              <button disabled={busy} onClick={()=>recordOpportunity(h.id,"done")}>已执行</button>
+              <button disabled={busy} className="text-button" onClick={()=>recordOpportunity(h.id,"missed")}>有机会，没执行</button>
+              <button disabled={busy} className="text-button" onClick={()=>recordOpportunity(h.id,"no_cue")}>今天没机会</button>
+              <button className="text-button" onClick={()=>detail(h.id)}>成长进度</button>
+            </div>
+            <small>已记录天数：{h._count.events}（并非能力分）</small></div>)}</div>}
       </article>
     </section>
     {selected&&insights&&<section className="dashboard-panel" aria-live="polite">
       <h2>习惯执行情况 · 统计解释</h2>
-      <p>有资格的机会 {insights.eligibleOpportunities} 次，完成 {insights.completions} 次。</p>
+      <p>有触发机会 {insights.eligibleOpportunities} 次，完成 {insights.completions} 次。没有出现触发情境的日子不计入分母。</p>
       <p>实际观察完成率：{insights.observedRate===null?"数据不足":(insights.observedRate*100).toFixed(1)+"%"}。</p>
       {insights.posterior&&<p>贝叶斯平滑预测：{(insights.posterior.posteriorMean*100).toFixed(1)}%（标准差 {(insights.posterior.posteriorSD*100).toFixed(1)} 个百分点）。
       采用 Beta(1,1) 先验，只是对后续类似执行机会的描述性预测。</p>}
