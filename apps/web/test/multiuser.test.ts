@@ -23,6 +23,7 @@ import {GET as exportGET} from "../src/app/api/v1/account/export/route";
 import {hashToken} from "../src/server/security";
 import {GET as tasksGET} from "../src/app/api/v1/tasks/route";
 import {POST as assessPOST} from "../src/app/api/v1/assessments/route";
+import {GET as practiceGET,POST as practicePOST} from "../src/app/api/v1/practice/route";
 import {GET as formOverviewGET} from "../src/app/api/v1/assessment-forms/route";
 
 const db=getDb();
@@ -631,4 +632,59 @@ test("independent logic forms require elapsed retest time and expose only owned 
   }finally{
     await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});
   }
+});
+
+test("training recommendations and attempts remain tenant-scoped, answer-safe and outside form scores",async()=>{
+  const a=await db.user.create({data:{},select:{id:true}});
+  const b=await db.user.create({data:{},select:{id:true}});
+  try{
+    const aToken=(await issueSession(a.id,"WECHAT")).token;
+    const bToken=(await issueSession(b.id,"WECHAT")).token;
+    const web=(await issueSession(a.id,"WEB")).token;
+    assert.equal((await practiceGET(req("/api/v1/practice","GET"))).status,401);
+    assert.equal((await practiceGET(req("/api/v1/practice?skill=invalid","GET",undefined,aToken,"WECHAT"))).status,400);
+    const initial=await practiceGET(req("/api/v1/practice","GET",undefined,aToken,"WECHAT"));
+    assert.equal(initial.status,200);
+    assert.equal(initial.headers.get("Cache-Control"),"private, no-store");
+    const raw=await initial.text();
+    assert.equal(raw.includes("answerKey"),false);
+    assert.equal(raw.includes("explanation"),false);
+    const payload=JSON.parse(raw) as {item:{id:string;options:{key:string}[]};recommendedSkill:string|null};
+    assert.equal(payload.recommendedSkill,null);
+    assert.ok(payload.item.id.startsWith("practice-cond-"));
+    assert.equal((await practicePOST(req("/api/v1/practice","POST",
+      {itemId:payload.item.id,selectedKey:"A"},web,"WEB","https://evil.example"))).status,403);
+    assert.equal((await practicePOST(req("/api/v1/practice","POST",
+      {itemId:payload.item.id,selectedKey:"X"},aToken,"WECHAT"))).status,400);
+    assert.equal((await practicePOST(req("/api/v1/practice","POST",
+      {itemId:"practice-cond-99",selectedKey:"A"},aToken,"WECHAT"))).status,404);
+    assert.equal((await practicePOST(req("/api/v1/practice","POST",
+      {itemId:payload.item.id,selectedKey:"A",userId:b.id},aToken,"WECHAT"))).status,400);
+    const submitted=await practicePOST(req("/api/v1/practice","POST",
+      {itemId:payload.item.id,selectedKey:"A"},aToken,"WECHAT"));
+    assert.equal(submitted.status,201);
+    const result=await submitted.json() as {answerKey:string;explanation:string;correct:boolean};
+    assert.ok(result.answerKey);
+    assert.ok(result.explanation.length>10);
+    assert.equal((await practicePOST(req("/api/v1/practice","POST",
+      {itemId:payload.item.id,selectedKey:"A"},aToken,"WECHAT"))).status,409);
+    const own=await practiceGET(req("/api/v1/practice","GET",undefined,aToken,"WECHAT"));
+    const ownData=await own.json() as {skills:{recentlyAnswered:number}[];item:{id:string}};
+    assert.equal(ownData.skills[0]!.recentlyAnswered,1);
+    assert.notEqual(ownData.item.id,payload.item.id);
+    const foreign=await practiceGET(req("/api/v1/practice","GET",undefined,bToken,"WECHAT"));
+    const foreignData=await foreign.json() as {skills:{recentlyAnswered:number}[];item:{id:string}};
+    assert.equal(foreignData.skills[0]!.recentlyAnswered,0);
+    assert.equal(foreignData.item.id,payload.item.id);
+    assert.equal(await db.assessmentAttempt.count({where:{userId:a.id}}),0);
+    assert.equal(await db.abilityEstimate.count({where:{userId:a.id}}),0);
+    assert.equal(await db.practiceAttempt.count({where:{userId:a.id}}),1);
+    const exportResponse=await exportGET(req("/api/v1/account/export?kind=practice&offset=0",
+      "GET",undefined,aToken,"WECHAT"));
+    assert.equal(exportResponse.status,200);
+    const ex=await exportResponse.json() as {items:{itemId:string}[]};
+    assert.deepEqual(ex.items.map(x=>x.itemId),[payload.item.id]);
+    await db.user.delete({where:{id:a.id}});
+    assert.equal(await db.practiceAttempt.count({where:{userId:a.id}}),0);
+  }finally{await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});}
 });

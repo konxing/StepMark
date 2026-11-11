@@ -5,7 +5,7 @@ import {ApiError,enforceRateLimit,errorResponse,principalFromRequest} from "@/se
 
 export const runtime="nodejs";
 /** Small owner-scoped pages prevent large JSON responses and avoid exposing secrets. */
-const kindSchema=z.enum(["habits","events","corrections","reflections","automaticity","assessments","estimates","judgements"]);
+const kindSchema=z.enum(["habits","events","corrections","reflections","practice","automaticity","assessments","estimates","judgements"]);
 export async function GET(request:NextRequest){
   try{
     const principal=await principalFromRequest(request);
@@ -40,6 +40,10 @@ export async function GET(request:NextRequest){
       case "automaticity":
         data=await db.automaticityCheck.findMany({where:{habit:{userId:principal.userId}},...paging,
           select:{id:true,habitId:true,instrumentVersion:true,responses:true,indexScore:true,measuredAt:true}});break;
+      case "practice":
+        data=await db.practiceAttempt.findMany({where:{userId:principal.userId},...paging,
+          select:{id:true,itemId:true,bankVersion:true,selectedKey:true,correct:true,
+            dayKey:true,createdAt:true}});break;
       case "assessments":
         data=await db.assessmentAttempt.findMany({where:{userId:principal.userId},...paging,
           select:{id:true,taskId:true,taskVersion:true,evidenceKind:true,rawScore:true,evidence:true,deviceInfo:true,createdAt:true}});break;
