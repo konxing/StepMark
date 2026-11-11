@@ -157,6 +157,8 @@ model PracticeAttempt {
   bankVersion String @db.VarChar(40)
   selectedKey String @db.VarChar(4)
   correct     Boolean
+  // NULL indicates a legacy client that did not track assistance.
+  hintUsed    Boolean?
   dayKey      String @db.VarChar(10)
   createdAt   DateTime @default(now())
   user        User @relation(fields: [userId], references: [id], onDelete: Cascade)

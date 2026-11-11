@@ -410,29 +410,76 @@ export function publicPracticeItem(item:PracticeItem){
  return {id:item.id,skillCode:item.skillCode,prompt:item.prompt,options:item.options,
    hint:item.hint,bankVersion:PRACTICE_BANK_VERSION};
 }
-export type PracticeHistoryEntry={itemId:string;correct:boolean;dayKey:string;createdAt:Date};
-/** Choose an unseen practice item first, then a previously incorrect item on a
- * later UTC date; never depend on an assessment answer or expose assessment keys.
+export const PRACTICE_SPACING_VERSION="retrieval-spacing-heuristic-1" as const;
+export const PRACTICE_SPACING_DAYS=[1,3,7,14,28] as const;
+export type PracticeHistoryEntry={
+ itemId:string;correct:boolean;hintUsed?:boolean|null;dayKey:string;createdAt:Date
+};
+function utcDayMillis(key:string):number{
+ if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(key))throw new RangeError("INVALID_UTC_DAY");
+ const parsed=new Date(key+"T00:00:00Z");
+ if(!Number.isFinite(parsed.getTime())||parsed.toISOString().slice(0,10)!==key)
+  throw new RangeError("INVALID_UTC_DAY");
+ return parsed.getTime();
+}
+function addDays(key:string,days:number):string{
+ return new Date(utcDayMillis(key)+days*86400000).toISOString().slice(0,10);
+}
+/**
+ * A scheduling POLICY inspired by distributed retrieval research, not a fitted
+ * psychological retention curve and not a claim of universal optimal intervals.
+ * Legacy hintUsed=null/undefined is NOT interpreted as unassisted success.
  */
-export function choosePracticeItem(skillCode:PracticeSkill,history:readonly PracticeHistoryEntry[],
-  utcDay:string):PracticeItem|null{
- const items=PRACTICE_BANK.filter(x=>x.skillCode===skillCode);
- const byId=new Map<string,PracticeHistoryEntry[]>();
- for(const entry of history){
-  if(!byId.has(entry.itemId))byId.set(entry.itemId,[]);
-  byId.get(entry.itemId)!.push(entry);
+export function reviewDueDay(history:readonly PracticeHistoryEntry[],today:string):string|null{
+ utcDayMillis(today);
+ if(!history.length)return null;
+ const sorted=[...history].sort((a,b)=>
+  b.dayKey.localeCompare(a.dayKey)||b.createdAt.getTime()-a.createdAt.getTime());
+ let streak=0;
+ for(const attempt of sorted){
+  if(attempt.correct!==true||attempt.hintUsed!==false)break;
+  streak++;
  }
- const available=items.filter(x=>!(byId.get(x.id)||[]).some(a=>a.dayKey===utcDay));
- available.sort((a,b)=>{
-  const aa=byId.get(a.id)||[],bb=byId.get(b.id)||[];
-  const ka=aa.length===0?0:aa.some(x=>!x.correct)?1:2;
-  const kb=bb.length===0?0:bb.some(x=>!x.correct)?1:2;
-  if(ka!==kb)return ka-kb;
-  if(aa.length!==bb.length)return aa.length-bb.length;
-  const ta=Math.max(0,...aa.map(x=>x.createdAt.getTime()));
-  const tb=Math.max(0,...bb.map(x=>x.createdAt.getTime()));
-  if(ta!==tb)return ta-tb;
-  return a.id.localeCompare(b.id);
+ const interval=PRACTICE_SPACING_DAYS[Math.min(Math.max(0,streak-1),
+  PRACTICE_SPACING_DAYS.length-1)]!;
+ const gap=streak===0?1:interval;
+ return addDays(sorted[0]!.dayKey,gap);
+}
+export function getPracticeSchedule(skillCode:PracticeSkill,
+ history:readonly PracticeHistoryEntry[],utcDay:string){
+ const todayMillis=utcDayMillis(utcDay);
+ const items=PRACTICE_BANK.filter(item=>item.skillCode===skillCode);
+ const candidates=items.map(item=>{
+  const previous=history.filter(entry=>entry.itemId===item.id);
+  const last=previous.length?[...previous].sort((a,b)=>
+   b.dayKey.localeCompare(a.dayKey)||b.createdAt.getTime()-a.createdAt.getTime())[0]!:null;
+  const dueDate=reviewDueDay(previous,utcDay);
+  const hadToday=previous.some(x=>x.dayKey===utcDay);
+  const dueDateMs=dueDate?utcDayMillis(dueDate):null;
+  const due=!hadToday&&dueDateMs!==null&&dueDateMs<=todayMillis;
+  return {item,previous,dueDate,dueDateMs,hadToday,due,
+   unseen:previous.length===0,
+   priorErrorOrHint:last!==null&&(!last.correct||last.hintUsed!==false)};
  });
- return available[0]??null;
+ // Due retrieval before new material; never return a not-yet-due old item.
+ const eligible=candidates.filter(x=>!x.hadToday&&(x.due||x.unseen));
+ eligible.sort((a,b)=>{
+  if(a.due!==b.due)return a.due?-1:1;
+  if(a.due&&b.due){
+   if(a.dueDateMs!==b.dueDateMs)return a.dueDateMs!-b.dueDateMs!;
+   if(a.priorErrorOrHint!==b.priorErrorOrHint)return a.priorErrorOrHint?-1:1;
+  }
+  return a.item.id.localeCompare(b.item.id);
+ });
+ const future=candidates.map(x=>x.dueDate).filter((d):d is string=>d!==null&&d>utcDay).sort();
+ return {item:eligible[0]?.item??null,
+  dueCount:candidates.filter(x=>x.due).length,
+  unseenCount:candidates.filter(x=>x.unseen).length,
+  nextReviewUtc:future[0]??null,
+  policyVersion:PRACTICE_SPACING_VERSION,
+  assistanceDefinition:"independent retrieval requires correct=true AND hintUsed=false; legacy unknown is not independent"};
+}
+export function choosePracticeItem(skillCode:PracticeSkill,
+ history:readonly PracticeHistoryEntry[],utcDay:string):PracticeItem|null{
+ return getPracticeSchedule(skillCode,history,utcDay).item;
 }
