@@ -94,7 +94,7 @@ export function evaluateAutomaticitySeries(
       eligible++;
       const curveErr=test.map(x=>habitCurve(x.effectiveRepetitions,fitted.parameters)-x.automaticity!);
       curveErrors.push(curveErr);matchedErrors.push(lastErr);
-      const mse=e=>e.reduce((s,v)=>s+v*v,0)/e.length;
+      const mse=(e:readonly number[])=>e.reduce((s,v)=>s+v*v,0)/e.length;
       if(mse(curveErr)<mse(lastErr))curveWins++;
     }
   }
