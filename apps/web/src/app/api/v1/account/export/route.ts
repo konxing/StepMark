@@ -5,7 +5,7 @@ import {ApiError,enforceRateLimit,errorResponse,principalFromRequest} from "@/se
 
 export const runtime="nodejs";
 /** Small owner-scoped pages prevent large JSON responses and avoid exposing secrets. */
-const kindSchema=z.enum(["habits","events","reflections","automaticity","assessments","estimates","judgements"]);
+const kindSchema=z.enum(["habits","events","corrections","reflections","automaticity","assessments","estimates","judgements"]);
 export async function GET(request:NextRequest){
   try{
     const principal=await principalFromRequest(request);
@@ -26,7 +26,12 @@ export async function GET(request:NextRequest){
           select:{id:true,title:true,cue:true,action:true,createdAt:true,archivedAt:true}});break;
       case "events":
         data=await db.habitEvent.findMany({where:{habit:{userId:principal.userId}},...paging,
-          select:{id:true,habitId:true,opportunityKey:true,eligible:true,completed:true,occurredAt:true,createdAt:true}});break;
+          select:{id:true,habitId:true,opportunityKey:true,eligible:true,completed:true,occurredAt:true,createdAt:true,revision:true}});break;
+      case "corrections":
+        data=await db.habitEventCorrection.findMany({
+          where:{event:{habit:{userId:principal.userId}}},...paging,
+          select:{id:true,eventId:true,revision:true,previousEligible:true,previousCompleted:true,
+            updatedEligible:true,updatedCompleted:true,source:true,correctedAt:true}});break;
       case "reflections":
         data=await db.habitReflection.findMany({where:{habit:{userId:principal.userId}},...paging,
           select:{id:true,habitId:true,eventId:true,note:true,initiationLevel:true,

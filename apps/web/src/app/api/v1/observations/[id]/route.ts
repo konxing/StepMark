@@ -6,6 +6,39 @@ import {ApiError,boundedJson,enforceRateLimit,errorResponse,principalFromRequest
 export const runtime="nodejs";
 type Context={params:Promise<{id:string}>};
 
+/** Read an owned event and an intentionally bounded page of its audit trail.
+ * Archived habits remain available for data subject access. Pagination is
+ * ordered newest first; the full trail is also available via account export.
+ */
+export async function GET(request:NextRequest,ctx:Context){
+  try{
+    const principal=await principalFromRequest(request);
+    const {id}=await ctx.params;
+    if(!z.uuid().safeParse(id).success)throw new ApiError(404,"NOT_FOUND");
+    const rawOffset=new URL(request.url).searchParams.get("offset")??"0";
+    if(!/^(0|[1-9][0-9]{0,5})$/.test(rawOffset)||Number(rawOffset)>100000)
+      throw new ApiError(400,"INVALID_OFFSET");
+    const offset=Number(rawOffset);
+    const db=getDb();
+    const event=await db.habitEvent.findFirst({
+      where:{id,habit:{userId:principal.userId}},
+      select:{id:true,habitId:true,opportunityKey:true,eligible:true,completed:true,
+        occurredAt:true,revision:true}
+    });
+    if(!event)throw new ApiError(404,"NOT_FOUND");
+    const rows=await db.habitEventCorrection.findMany({
+      where:{eventId:event.id},orderBy:[{revision:"desc"},{id:"asc"}],
+      skip:offset,take:21,
+      select:{id:true,revision:true,previousEligible:true,previousCompleted:true,
+        updatedEligible:true,updatedCompleted:true,source:true,correctedAt:true}
+    });
+    return NextResponse.json({event,corrections:rows.slice(0,20),
+      nextOffset:rows.length>20?offset+20:null},
+      {headers:{"Cache-Control":"private, no-store"}});
+  }catch(error){return errorResponse(error);}
+}
+
+
 /**
  * Correct a previously recorded opportunity without destroying its history.
  * A single revision is a compare-and-swap transaction, so concurrent clients

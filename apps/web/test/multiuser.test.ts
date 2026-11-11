@@ -7,7 +7,7 @@ import {hashPassword,issueSession,lookupSession,requireSameOrigin,SESSION_COOKIE
 import {listOwnHabits,findOwnHabit,listOwnEvents} from "../src/server/habit-service";
 import {GET as habitsGET,POST as habitsPOST} from "../src/app/api/v1/habits/route";
 import {POST as eventPOST, GET as eventGET} from "../src/app/api/v1/observations/route";
-import {PUT as correctionPUT} from "../src/app/api/v1/observations/[id]/route";
+import {GET as correctionGET,PUT as correctionPUT} from "../src/app/api/v1/observations/[id]/route";
 import {POST as logoutPOST} from "../src/app/api/v1/auth/logout/route";
 import {POST as loginPOST} from "../src/app/api/v1/auth/login/route";
 import {GET as insightGET} from "../src/app/api/v1/habits/[id]/insights/route";
@@ -468,6 +468,71 @@ test("opportunity corrections preserve history, ownership, CSRF and aggregate ac
       {params:Promise.resolve({id:attached.id})});
     assert.equal(blocked.status,409);
     assert.equal(await db.habitEventCorrection.count({where:{eventId:attached.id}}),0);
+  }finally{
+    await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});
+  }
+});
+
+test("owned correction history is paginated, exportable and isolated across accounts",async()=>{
+  const a=await db.user.create({data:{},select:{id:true}});
+  const b=await db.user.create({data:{},select:{id:true}});
+  try{
+    const ha=await db.habit.create({data:{userId:a.id,title:"Audit A",action:"A habit"}});
+    const hb=await db.habit.create({data:{userId:b.id,title:"Audit B",action:"B habit"}});
+    const ae=await db.habitEvent.create({data:{
+      habitId:ha.id,opportunityKey:"daily:a",eligible:true,completed:true,
+      occurredAt:new Date(),source:"web"
+    }});
+    const be=await db.habitEvent.create({data:{
+      habitId:hb.id,opportunityKey:"daily:b",eligible:true,completed:true,
+      occurredAt:new Date(),source:"wechat"
+    }});
+    await db.habitEventCorrection.createMany({data:Array.from({length:23},(_,i)=>({
+      eventId:ae.id,revision:i+1,previousEligible:true,previousCompleted:i%2===0,
+      updatedEligible:true,updatedCompleted:i%2!==0,source:"web"
+    }))});
+    await db.habitEvent.update({where:{id:ae.id},data:{revision:23,completed:false}});
+    await db.habitEventCorrection.create({data:{
+      eventId:be.id,revision:1,previousEligible:true,previousCompleted:true,
+      updatedEligible:false,updatedCompleted:false,source:"wechat"
+    }});
+    const token=(await issueSession(a.id,"WECHAT")).token;
+    const read=(id:string,offset:string="0")=>
+      correctionGET(req("/api/v1/observations/"+id+"?offset="+offset,"GET",undefined,token,"WECHAT"),
+        {params:Promise.resolve({id})});
+    assert.equal((await read(be.id)).status,404);
+    assert.equal((await read(ae.id,"-1")).status,400);
+    assert.equal((await read(ae.id,"100001")).status,400);
+    assert.equal((await correctionGET(req("/api/v1/observations/"+ae.id,"GET"),
+      {params:Promise.resolve({id:ae.id})})).status,401);
+    const first=await read(ae.id);
+    assert.equal(first.status,200);
+    assert.equal(first.headers.get("Cache-Control"),"private, no-store");
+    const one=await first.json() as {event:{revision:number};corrections:{revision:number}[];nextOffset:number|null};
+    assert.equal(one.event.revision,23);
+    assert.equal(one.corrections.length,20);
+    assert.deepEqual(one.corrections.map(x=>x.revision),Array.from({length:20},(_,i)=>23-i));
+    assert.equal(one.nextOffset,20);
+    const second=await read(ae.id,"20");
+    const two=await second.json() as {corrections:{revision:number}[];nextOffset:number|null};
+    assert.deepEqual(two.corrections.map(x=>x.revision),[3,2,1]);
+    assert.equal(two.nextOffset,null);
+    const exportResponse=await exportGET(req("/api/v1/account/export?kind=corrections&offset=0",
+      "GET",undefined,token,"WECHAT"));
+    assert.equal(exportResponse.status,200);
+    const exported=await exportResponse.json() as {items:{eventId:string;revision:number}[];nextOffset:number|null};
+    assert.equal(exported.items.length,23);
+    assert.ok(exported.items.every(x=>x.eventId===ae.id));
+    assert.equal(exported.nextOffset,null);
+    const eventsExport=await exportGET(req("/api/v1/account/export?kind=events&offset=0",
+      "GET",undefined,token,"WECHAT"));
+    const eventsData=await eventsExport.json() as {items:{id:string;revision:number}[]};
+    assert.deepEqual(eventsData.items.map(x=>[x.id,x.revision]),[[ae.id,23]]);
+    await db.habit.update({where:{id:ha.id},data:{archivedAt:new Date()}});
+    assert.equal((await read(ae.id)).status,200); // Archived data remains accessible.
+    await db.user.delete({where:{id:a.id}});
+    assert.equal(await db.habitEventCorrection.count({where:{eventId:ae.id}}),0);
+    assert.equal(await db.habitEventCorrection.count({where:{eventId:be.id}}),1);
   }finally{
     await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});
   }
