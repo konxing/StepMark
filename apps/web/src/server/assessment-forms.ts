@@ -88,7 +88,13 @@ export async function getLogicFormOverview(userId:string,now=new Date()){
       daysApart:Math.round((new Date(second.completedAt!).getTime()-
         new Date(first.completedAt!).getTime())/WAIT_MS*RETEST_WAIT_DAYS*10)/10
     }:null;
-  return {construct:"reasoning.logic",forms,comparison,
+  const practiceAttemptsBetweenForms=comparison?await db.practiceAttempt.count({
+    where:{userId,createdAt:{
+      gt:new Date(first.completedAt!),lt:new Date(second.completedAt!)
+    }}
+  }):null;
+  return {construct:"reasoning.logic",forms,
+    comparison:comparison?{...comparison,practiceAttemptsBetweenForms}:null,
     interpretation:"Raw independent-form performance only. Forms are not equated, " +
       "item counts are small, and a higher result is not validated ability growth."};
 }

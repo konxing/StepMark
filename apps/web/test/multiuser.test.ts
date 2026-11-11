@@ -611,6 +611,16 @@ test("independent logic forms require elapsed retest time and expose only owned 
     const unlocked=await overview(token);
     const unlockedData=await unlocked.json() as {forms:{status:string}[]};
     assert.equal(unlockedData.forms[1]!.status,"ready");
+    await db.practiceAttempt.create({data:{
+      userId:a.id,itemId:"practice-cond-01",bankVersion:"reasoning-practice-1",
+      selectedKey:"A",correct:true,dayKey:"2026-11-08",
+      createdAt:new Date(Date.now()-4*86400000)
+    }});
+    await db.practiceAttempt.create({data:{
+      userId:b.id,itemId:"practice-cond-01",bankVersion:"reasoning-practice-1",
+      selectedKey:"A",correct:true,dayKey:"2026-11-08",
+      createdAt:new Date(Date.now()-4*86400000)
+    }});
     const bTasks=await formTasks("logic-b-v1",token);
     const bData=await bTasks.json() as {tasks:{id:string;options:{key:string}[]}[]};
     assert.equal(bData.tasks.length,6);
@@ -623,11 +633,12 @@ test("independent logic forms require elapsed retest time and expose only owned 
     const final=await overview(token);
     const summary=await final.json() as {
       forms:{status:string;correct:number;reviews:{taskId:string}[]}[];
-      comparison:{rawDifferencePoints:number;daysApart:number}};
+      comparison:{rawDifferencePoints:number;daysApart:number;practiceAttemptsBetweenForms:number}};
     assert.equal(summary.forms[1]!.status,"completed");
     assert.equal(summary.forms[1]!.reviews.length,6);
     assert.ok(Number.isFinite(summary.comparison.rawDifferencePoints));
     assert.ok(summary.comparison.daysApart>=7);
+    assert.equal(summary.comparison.practiceAttemptsBetweenForms,1); // Other user's practice excluded.
     assert.equal(await db.abilityEstimate.count({where:{userId:a.id}}),0);
   }finally{
     await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});

@@ -8,7 +8,8 @@ type Review={taskId:string;taskVersion:string;skillCode:string|null;prompt:strin
 type FormSummary={code:string;title:string;phase:string;status:string;total:number;attempted:number;
   correct:number|null;completedAt:string|null;availableAt:string|null;dimensions:Dimension[];reviews:Review[]};
 type Overview={forms:FormSummary[];comparison:{
-  baselineCorrect:number;retestCorrect:number;total:number;rawDifferencePoints:number;daysApart:number
+  baselineCorrect:number;retestCorrect:number;total:number;rawDifferencePoints:number;daysApart:number;
+  practiceAttemptsBetweenForms:number
 }|null;interpretation:string};
 const skills:Record<string,string>={conditional:"条件推理",evidence:"论证与证据",quantitative:"数量与比例"};
 function statusText(form:FormSummary){
@@ -110,6 +111,7 @@ export default function AssessmentClient(){
         两次最后提交相隔约 {overview.comparison.daysApart} 天。</p>
       <p>正确率的算术差：{overview.comparison.rawDifferencePoints>0?"+":""}
         {overview.comparison.rawDifferencePoints} 个百分点。</p>
+      <p>两次测验之间完成的独立训练：{overview.comparison.practiceAttemptsBetweenForms} 道。</p>
       <p className="progress-caveat">这是不同题卷的原始正确率差异，不能直接解读为能力提高或下降；
         还可能包含题目难度差异、猜测与测量误差。</p>
     </section>}
