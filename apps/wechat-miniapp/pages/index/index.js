@@ -4,7 +4,7 @@ Page({
   data:{modules:[],dueReviews:[],status:"正在连接…",loading:false,authenticated:false,
     creating:false,title:"",action:"",cue:"",selectedHabitId:"",progress:null,
     reflectionEventId:"",feelingOptions:["非常抗拒","需要逼自己","有一点纠结","比较自然","几乎不用思考"],
-    feelIndex:-1,feedbackNote:"",aiConsent:false},
+    feelIndex:-1,feedbackNote:"",aiConsent:false,recentReflections:[]},
   onLoad(){this.bootstrap();},
   onShow(){if(this.data.authenticated)this.loadHabits();},
   api(path,method,data,authenticated=true){
@@ -106,6 +106,10 @@ Page({
     try{
       const progress=await this.api("/api/v1/habits/"+id+"/progress","GET");
       this.setData({selectedHabitId:id,progress});
+      try{
+        const data=await this.api("/api/v1/habits/"+id+"/reflections","GET");
+        this.setData({recentReflections:(data.reflections||[]).slice(0,5)});
+      }catch{this.setData({recentReflections:[]});}
     }catch(e){this.setData({status:e.message||"读取进度失败"});}
   },
   chooseFeeling(e){this.setData({feelIndex:Number(e.detail.value)});},
@@ -128,6 +132,30 @@ Page({
         feedbackNote:"",feelIndex:-1,aiConsent:false,reflectionEventId:""});
       await this.refreshProgress(id);
     }catch(e){this.setData({status:e.message||"保存感受失败"});}
+    finally{this.setData({creating:false});}
+  },
+  async controlReflection(e){
+    if(this.data.creating)return;
+    const habitId=this.data.selectedHabitId;
+    const reflectionId=e.currentTarget.dataset.id;
+    const action=e.currentTarget.dataset.action;
+    if(!habitId||!reflectionId)return;
+    if(action==="delete"){
+      const confirmed=await new Promise(resolve=>wx.showModal({
+        title:"删除感受记录",content:"从 StepMark 删除这条感受和本地分析。此前发送给第三方 AI 的文字无法收回。",
+        success:res=>resolve(res.confirm),fail:()=>resolve(false)
+      }));
+      if(!confirmed)return;
+    }
+    this.setData({creating:true});
+    try{
+      const result=await this.api("/api/v1/habits/"+habitId+"/reflections/"+reflectionId,
+        action==="delete"?"DELETE":"PUT");
+      await this.refreshProgress(habitId);
+      this.setData({status:result.mayHaveBeenSentToProvider?
+        "已更新本地记录；此前已发送给服务商的文字不能撤回。":
+        action==="delete"?"这条感受已从 StepMark 删除。":"已撤回后续 AI 分析授权。"});
+    }catch(e){this.setData({status:e.message||"修改失败；如果 AI 正在处理，请稍后重试。"});}
     finally{this.setData({creating:false});}
   },
   async toggleReview(e){

@@ -15,3 +15,5 @@
 .opportunity-row{display:flex;gap:12rpx}.opportunity-row button{flex:1;font-size:21rpx;color:#44715a;background:#edf4ed;line-height:1.35;padding:15rpx 5rpx}
 
 .due-reviews{margin-top:35rpx;border:1rpx solid #dce8dc;background:#f5f9f4;padding:25rpx;border-radius:15rpx}.due-reviews .section-title{margin:10rpx 0 16rpx}.due-review-item{border-top:1rpx solid #e0ece0;margin-top:16rpx;padding-top:13rpx;display:flex;justify-content:space-between;align-items:center;gap:15rpx}.due-review-item text{font-size:25rpx}.due-review-item button{margin:0;flex-shrink:0;font-size:21rpx}
+
+.recent-reflections{border-top:1rpx solid #dce7dc;margin-top:38rpx;padding-top:10rpx}.reflection-item{border-top:1rpx solid #edf1ec;padding:23rpx 0;display:flex;flex-direction:column;gap:12rpx}.reflection-item text{white-space:pre-wrap;word-break:break-all}.reflection-actions{display:flex;gap:10rpx}.reflection-actions button{flex:1;font-size:21rpx;color:#4b7458;background:#ecf3ed;border-radius:10rpx;margin:0;padding:8rpx 6rpx}

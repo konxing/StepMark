@@ -49,8 +49,22 @@
       </view>
       <button class="primary" disabled="{{creating || (!feedbackNote && feelIndex == -1)}}" bindtap="saveReflection">保存感受</button>
       <button class="progress-button" data-id="{{selectedHabitId}}" bindtap="toggleReview">
-        {{modules.length ? '切换当前习惯复查提示' : '复查提示'}}
+        切换当前习惯复查提示
       </button>
+      <view wx:if="{{recentReflections.length>0}}" class="recent-reflections">
+        <view class="section-title">我的近期感受</view>
+        <view wx:for="{{recentReflections}}" wx:key="id" class="reflection-item">
+          <text class="meta">{{item.note || '已记录一次自然启动等级'}}</text>
+          <text wx:if="{{item.aiConsent}}" class="meta">AI 状态：{{item.aiStatus}}</text>
+          <view class="reflection-actions">
+            <button wx:if="{{item.aiConsent}}" data-id="{{item.id}}" data-action="revoke"
+              disabled="{{creating}}" bindtap="controlReflection">撤回 AI 授权</button>
+            <button data-id="{{item.id}}" data-action="delete"
+              disabled="{{creating}}" bindtap="controlReflection">删除感受</button>
+          </view>
+        </view>
+        <view class="small-note">已发送给第三方的文字不能远程收回；处理中可能暂时无法取消。</view>
+      </view>
     </view>
     <view class="section-title">新增习惯</view>
     <view class="form">
