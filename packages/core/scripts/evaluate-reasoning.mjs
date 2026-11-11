@@ -43,8 +43,9 @@ export function validateReasoningManifest(manifest,sha256){
       manifest.purpose!=="descriptive-independent-form-audit"||
       manifest.participantIdsPseudonymous!==true||
       manifest.explicitResearchConsentConfirmed!==true||
-      manifest.rightsReviewed===false||manifest.rightsReviewed!==true||
-      manifest.sourceVersion?.length<2||manifest.citation?.length<8||
+      manifest.rightsReviewed!==true||
+      typeof manifest.sourceVersion!=="string"||manifest.sourceVersion.length<2||
+      typeof manifest.citation!=="string"||manifest.citation.length<8||
       !/^https:\/\//.test(manifest.sourceUrl??"")||
       !/^[a-f0-9]{64}$/.test(sha256)||
       manifest.sha256?.toLowerCase()!==sha256){

@@ -53,6 +53,8 @@ test("checksum, explicit consent, independent scope and pseudonyms are mandatory
   assert.throws(()=>validateReasoningManifest({...manifest,explicitResearchConsentConfirmed:false},hash),/UNVERIFIED/);
   assert.throws(()=>validateReasoningManifest({...manifest,datasetKind:"habitapp-behavior-counts"},hash),/UNVERIFIED/);
   assert.throws(()=>validateReasoningManifest({...manifest,participantIdsPseudonymous:false},hash),/UNVERIFIED/);
+  assert.throws(()=>validateReasoningManifest({...manifest,sourceVersion:undefined},hash),/UNVERIFIED/);
+  assert.throws(()=>validateReasoningManifest({...manifest,citation:undefined},hash),/UNVERIFIED/);
 });
 test("only complete, temporally separated matched forms yield descriptive summary",()=>{
   const result=describeReasoningFormEvidence(parseReasoningCsv(csv));
