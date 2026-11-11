@@ -14,6 +14,40 @@
         <button class="progress-button" data-id="{{item.habitId}}" bindtap="openProgress">快速复查</button>
       </view>
     </view>
+    <view class="section-title">推理专项训练</view>
+    <text class="meta">原创训练题与正式 A/B 卷完全分开，练习不会提升能力分数。</text>
+    <button class="progress-button" bindtap="openPractice">
+      {{practiceOpen ? '收起训练' : '开始 / 继续训练'}}
+    </button>
+    <view wx:if="{{practiceOpen}}" class="practice-card">
+      <view class="practice-tabs">
+        <button wx:for="{{practiceDomains}}" wx:key="code" data-skill="{{item.code}}"
+          disabled="{{practiceBusy}}" bindtap="changePracticeSkill">
+          {{item.label}}{{practiceRecommended == item.code ? ' · 推荐' : ''}}
+        </button>
+      </view>
+      <text class="meta">{{practiceStatus}}</text>
+      <view wx:if="{{practiceItem}}">
+        <text class="practice-prompt">{{practiceItem.prompt}}</text>
+        <radio-group bindchange="choosePracticeAnswer">
+          <label wx:for="{{practiceItem.options}}" wx:for-item="choice" wx:key="key"
+            class="practice-choice">
+            <radio value="{{choice.key}}" checked="{{practiceSelected == choice.key}}"
+              disabled="{{practiceBusy || practiceFeedback != null}}"/>
+            <text>{{choice.key}}. {{choice.label}}</text>
+          </label>
+        </radio-group>
+        <text class="small-note">提示：{{practiceItem.hint}}</text>
+        <button wx:if="{{!practiceFeedback}}" class="primary" bindtap="submitPractice"
+          disabled="{{practiceBusy || !practiceSelected}}">提交练习</button>
+        <view wx:else class="practice-feedback">
+          <text>{{practiceFeedback.correct ? '答对了' : '这次没有答对'}}</text>
+          <text>你的选择：{{practiceFeedback.selectedKey}}；正确选项：{{practiceFeedback.answerKey}}</text>
+          <text>{{practiceFeedback.explanation}}</text>
+          <button class="progress-button" disabled="{{practiceBusy}}" bindtap="nextPractice">下一道练习</button>
+        </view>
+      </view>
+    </view>
     <view class="section-title">我的习惯</view>
     <view wx:if="{{modules.length===0}}" class="empty">还没有习惯，创建一个可观察的微型行动吧。</view>
     <view class="cards">

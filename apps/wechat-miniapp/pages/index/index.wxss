@@ -17,3 +17,14 @@
 .due-reviews{margin-top:35rpx;border:1rpx solid #dce8dc;background:#f5f9f4;padding:25rpx;border-radius:15rpx}.due-reviews .section-title{margin:10rpx 0 16rpx}.due-review-item{border-top:1rpx solid #e0ece0;margin-top:16rpx;padding-top:13rpx;display:flex;justify-content:space-between;align-items:center;gap:15rpx}.due-review-item text{font-size:25rpx}.due-review-item button{margin:0;flex-shrink:0;font-size:21rpx}
 
 .recent-reflections{border-top:1rpx solid #dce7dc;margin-top:38rpx;padding-top:10rpx}.reflection-item{border-top:1rpx solid #edf1ec;padding:23rpx 0;display:flex;flex-direction:column;gap:12rpx}.reflection-item text{white-space:pre-wrap;word-break:break-all}.reflection-actions{display:flex;gap:10rpx}.reflection-actions button{flex:1;font-size:21rpx;color:#4b7458;background:#ecf3ed;border-radius:10rpx;margin:0;padding:8rpx 6rpx}
+
+/* Optional independent reasoning practice; no extra API calls on page load. */
+.practice-card{padding:27rpx;margin-top:15rpx;border:1rpx solid #dce6da;border-radius:16rpx;background:#fff}
+.practice-tabs{display:flex;gap:9rpx;flex-wrap:wrap;margin-bottom:25rpx}
+.practice-tabs button{font-size:21rpx;background:#edf4ee;color:#2b5d40;padding:9rpx;margin:0}
+.practice-prompt{display:block;margin:23rpx 0;font-size:27rpx;font-weight:600;line-height:1.7}
+.practice-choice{display:flex;gap:13rpx;align-items:flex-start;padding:20rpx 10rpx;border-top:1rpx solid #e4eee4;font-size:24rpx}
+.practice-choice radio{flex-shrink:0}
+.practice-choice text{flex:1;line-height:1.6}
+.practice-feedback{display:flex;flex-direction:column;gap:15rpx;padding:21rpx;margin-top:16rpx;border-radius:12rpx;background:#eff7f0;font-size:24rpx;color:#315b3c;line-height:1.65}
+.practice-feedback button{margin-top:15rpx}
