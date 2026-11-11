@@ -11,6 +11,7 @@ import {POST as logoutPOST} from "../src/app/api/v1/auth/logout/route";
 import {POST as loginPOST} from "../src/app/api/v1/auth/login/route";
 import {GET as insightGET} from "../src/app/api/v1/habits/[id]/insights/route";
 import {GET as habitProgressGET} from "../src/app/api/v1/habits/[id]/progress/route";
+import {GET as dueReviewsGET} from "../src/app/api/v1/habits/due/route";
 import {POST as reflectionPOST, GET as reflectionGET} from "../src/app/api/v1/habits/[id]/reflections/route";
 import {PATCH as reviewPATCH} from "../src/app/api/v1/habits/[id]/reviews/route";
 import {PATCH as revokeAI, DELETE as deleteReflection} from "../src/app/api/v1/habits/[id]/reflections/[reflectionId]/route";
@@ -348,5 +349,31 @@ test("AI consent can be revoked, diary deleted, but in-flight requests cannot fa
     assert.equal(await db.habitReflection.findUnique({where:{id:pending.id}}),null);
     assert.equal((await dbA()).length,2);
     assert.notEqual(await db.habit.findUnique({where:{id:foreign.id}}),null);
+  }finally{await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});}
+});
+
+test("batched due-review endpoint only exposes own opted-in habits",async()=>{
+  const a=await db.user.create({data:{},select:{id:true}});
+  const b=await db.user.create({data:{},select:{id:true}});
+  try{
+    const dueA=await db.habit.create({data:{userId:a.id,title:"Due A",action:"Do something"}});
+    const hiddenA=await db.habit.create({data:{userId:a.id,title:"Hidden A",action:"Do something",reviewEnabled:false}});
+    const dueB=await db.habit.create({data:{userId:b.id,title:"Secret B",action:"Private"}});
+    const old=new Date(Date.now()-40*86400000);
+    await Promise.all([dueA.id,hiddenA.id,dueB.id].map(habitId=>
+      db.habitEvent.create({data:{habitId,opportunityKey:"old",eligible:true,completed:true,
+        occurredAt:old,source:"test"}})
+    ));
+    await Promise.all([dueA.id,hiddenA.id,dueB.id].map(habitId=>
+      db.habitReflection.create({data:{habitId,initiationLevel:3,createdAt:old}})
+    ));
+    const token=(await issueSession(a.id,"WECHAT")).token;
+    const response=await dueReviewsGET(req("/api/v1/habits/due","GET",undefined,token,"WECHAT"));
+    assert.equal(response.status,200);
+    const result=await response.json() as {due:{habitId:string;title:string}[];totalDue:number};
+    assert.equal(result.totalDue,1);
+    assert.equal(result.due[0]!.habitId,dueA.id);
+    assert.equal(JSON.stringify(result).includes("Secret B"),false);
+    assert.equal(JSON.stringify(result).includes("Hidden A"),false);
   }finally{await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});}
 });
