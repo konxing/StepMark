@@ -1,0 +1,38 @@
+{
+  "name": "@stepmark/web",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test:integration": "tsx --tsconfig tsconfig.json --test --test-concurrency=1 test/*.test.ts",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "tsx --tsconfig tsconfig.json prisma/seed.ts",
+    "db:prune": "tsx --tsconfig tsconfig.json scripts/prune-expired.ts",
+    "habits:analyze": "tsx --tsconfig tsconfig.json scripts/process-habit-reflections.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "7.10.1",
+    "@prisma/adapter-pg": "7.10.1",
+    "@stepmark/contracts": "*",
+    "@stepmark/core": "*",
+    "next": "16.4.6",
+    "pg": "^8.16.3",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.15.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "dotenv": "^17.2.0",
+    "prisma": "7.10.1"
+  }
+}

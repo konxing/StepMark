@@ -1,0 +1,78 @@
+<view class="page">
+  <view class="heading">STEP<span>MARK.</span></view>
+  <view class="overline">PERSONAL GROWTH RESEARCH</view>
+  <view class="hero">让成长，<text>有迹可循。</text></view>
+  <view class="description">习惯和能力分开测量。今天的执行记录，不代表能力自动增加。</view>
+  <view class="note" aria-live="polite">{{status}}</view>
+  <button wx:if="{{!authenticated}}" disabled="{{loading}}" bindtap="bootstrap" class="primary">连接我的账户</button>
+  <block wx:if="{{authenticated}}">
+    <view wx:if="{{dueReviews.length>0}}" class="due-reviews">
+      <view class="section-title">近期复查</view>
+      <text class="meta">只是应用内提醒，不会因为偶尔漏做就扣除能力分。</text>
+      <view wx:for="{{dueReviews}}" wx:key="habitId" class="due-review-item">
+        <text>{{item.title}}</text>
+        <button class="progress-button" data-id="{{item.habitId}}" bindtap="openProgress">快速复查</button>
+      </view>
+    </view>
+    <view class="section-title">我的习惯</view>
+    <view wx:if="{{modules.length===0}}" class="empty">还没有习惯，创建一个可观察的微型行动吧。</view>
+    <view class="cards">
+      <view wx:for="{{modules}}" wx:key="id" class="card">
+        <text class="title">{{item.title}}</text>
+        <text class="meta">{{item.action}}</text>
+        <text wx:if="{{item.cue}}" class="meta">触发情境：{{item.cue}}</text>
+        <text class="meta">已记录天数：{{item._count.events}}</text>
+        <button class="primary" data-id="{{item.id}}" data-kind="done" disabled="{{creating}}" bindtap="record">今天已执行</button>
+        <view class="opportunity-row">
+          <button data-id="{{item.id}}" data-kind="missed" disabled="{{creating}}" bindtap="record">有机会，没执行</button>
+          <button data-id="{{item.id}}" data-kind="no_cue" disabled="{{creating}}" bindtap="record">今天没机会</button>
+        </view>
+        <button class="progress-button" data-id="{{item.id}}" bindtap="openProgress">查看习惯进度</button>
+      </view>
+    </view>
+    <view wx:if="{{selectedHabitId && progress}}" class="progress-card">
+      <view class="section-title">习惯形成进度</view>
+      <view class="progress-percentage">{{progress.progress}}%</view>
+      <view class="progress-track"><view class="progress-fill" style="width:{{progress.progress}}%;"></view></view>
+      <text class="meta">已执行 {{progress.completedRepetitions}} 次，感受证据 {{progress.evidenceCount}} 条</text>
+      <view wx:if="{{progress.reviewDue}}" class="review-note">该复查了：现在开始这个习惯仍然自然吗？</view>
+      <view class="small-note">百分比是实验性成长指标，不是习惯形成概率，也不直接增加能力分。</view>
+      <view class="section-title">记录开始行动的感受（选填）</view>
+      <picker range="{{feelingOptions}}" value="{{feelIndex == -1 ? 0 : feelIndex}}" bindchange="chooseFeeling">
+        <view class="picker-control">{{feelIndex == -1 ? '选择最接近的感受' : feelingOptions[feelIndex]}}</view>
+      </picker>
+      <textarea maxlength="600" class="feedback-note" value="{{feedbackNote}}" bindinput="updateFeelingNote"
+        placeholder="例如：这次看到提示就自然开始了，没有思考。"></textarea>
+      <view class="ai-consent-row">
+        <switch checked="{{aiConsent}}" disabled="{{!feedbackNote}}" bindchange="setAiConsent" color="#347856"/>
+        <text>同意将当前文字发送给 AI 服务商分析（默认关闭）</text>
+      </view>
+      <button class="primary" disabled="{{creating || (!feedbackNote && feelIndex == -1)}}" bindtap="saveReflection">保存感受</button>
+      <button class="progress-button" data-id="{{selectedHabitId}}" bindtap="toggleReview">
+        切换当前习惯复查提示
+      </button>
+      <view wx:if="{{recentReflections.length>0}}" class="recent-reflections">
+        <view class="section-title">我的近期感受</view>
+        <view wx:for="{{recentReflections}}" wx:key="id" class="reflection-item">
+          <text class="meta">{{item.note || '已记录一次自然启动等级'}}</text>
+          <text wx:if="{{item.aiConsent}}" class="meta">AI 状态：{{item.aiStatus}}</text>
+          <view class="reflection-actions">
+            <button wx:if="{{item.aiConsent}}" data-id="{{item.id}}" data-action="revoke"
+              disabled="{{creating}}" bindtap="controlReflection">撤回 AI 授权</button>
+            <button data-id="{{item.id}}" data-action="delete"
+              disabled="{{creating}}" bindtap="controlReflection">删除感受</button>
+          </view>
+        </view>
+        <view class="small-note">已发送给第三方的文字不能远程收回；处理中可能暂时无法取消。</view>
+      </view>
+    </view>
+    <view class="section-title">新增习惯</view>
+    <view class="form">
+      <input maxlength="180" value="{{title}}" bindinput="updateTitle" placeholder="习惯名称"/>
+      <textarea maxlength="500" value="{{action}}" bindinput="updateAction" placeholder="具体行动"/>
+      <input maxlength="250" value="{{cue}}" bindinput="updateCue" placeholder="触发情境（选填）"/>
+      <button class="primary" disabled="{{creating}}" bindtap="createHabit">保存习惯</button>
+    </view>
+    <button class="logout" bindtap="logout">退出登录</button>
+  </block>
+</view>

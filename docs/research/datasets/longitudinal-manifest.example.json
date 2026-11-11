@@ -1,0 +1,10 @@
+{
+  "datasetId": "stepmark-longitudinal-example",
+  "purpose": "synthetic_schema_example_only",
+  "sourceUrl": "https://example.invalid/not-a-real-dataset",
+  "citation": "SYNTHETIC EXAMPLE — NOT AN EMPIRICAL DATASET",
+  "license": "not_applicable_synthetic",
+  "reusePermissionConfirmed": false,
+  "automaticityMeasure": "synthetic 0..100 values with no psychometric validity",
+  "notes": "A real dataset must provide an independent repeat automaticity measure, rights review, and stable version/checksum. Never use this example to claim model validation."
+}

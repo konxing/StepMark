@@ -1,0 +1,22 @@
+name: Reproducible public research dataset benchmark
+on:
+  push:
+    paths:
+      - "packages/core/scripts/validate-habitapp.mjs"
+      - "packages/core/scripts/validate-habitapp.test.mjs"
+      - ".github/workflows/research-data.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  habitapp-public-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Verify parser, ownership-free source validation and tamper detection
+        run: node --test packages/core/scripts/validate-habitapp.test.mjs
+      - name: Download pinned public research CSV, verify Git blob checksum and output aggregated contrasts only
+        run: node packages/core/scripts/validate-habitapp.mjs

@@ -1,0 +1,126 @@
+"use client";
+import HabitGrowthPanel from "./habit-growth-panel";
+import {useCallback,useEffect,useState} from "react";
+type Habit={id:string;title:string;cue:string|null;action:string;createdAt:string;_count:{events:number;checks:number}};
+export default function DashboardClient({email}:{email:string}) {
+  const [habits,setHabits]=useState<Habit[]>([]);
+  const [dueReviews,setDueReviews]=useState<{habitId:string;title:string;progress:number;reviewReason:string}[]>([]);
+  const [title,setTitle]=useState(""),[action,setAction]=useState(""),[cue,setCue]=useState("");
+  const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
+  const [selected,setSelected]=useState<string|null>(null);
+  const [reflectionEventId,setReflectionEventId]=useState<string|null>(null);
+  const [insights,setInsights]=useState<null|{eligibleOpportunities:number;completions:number;
+    observedRate:number|null;wilsonInterval95:{low:number;high:number}|null;
+    posterior:{posteriorMean:number;posteriorSD:number}|null;
+    latestAutomaticity:{indexScore:number;measuredAt:string}|null}>(null);
+  const load=useCallback(async()=>{
+    const [result,reviewResult]=await Promise.all([
+      fetch("/api/v1/habits",{cache:"no-store"}),
+      fetch("/api/v1/habits/due",{cache:"no-store"})
+    ]);
+    if(result.status===401){location.assign("/login");return;}
+    if(!result.ok)throw new Error("LOAD_FAILED");
+    const data=await result.json() as {habits:Habit[]};
+    setHabits(data.habits);
+    if(reviewResult.ok){
+      const reviews=await reviewResult.json() as {due:{habitId:string;title:string;progress:number;reviewReason:string}[]};
+      setDueReviews(reviews.due);
+    }
+  },[]);
+  useEffect(()=>{void load().catch(()=>setMessage("读取失败，请检查数据库连接。"));},[load]);
+  async function create(e:React.FormEvent){
+    e.preventDefault();if(busy)return;setBusy(true);setMessage("");
+    try{
+      const res=await fetch("/api/v1/habits",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({title,action,cue:cue||undefined})});
+      if(!res.ok)throw new Error("CREATE_FAILED");
+      setTitle("");setAction("");setCue("");await load();setMessage("习惯已添加。");
+    }catch{setMessage("创建失败，请重试。");}finally{setBusy(false);}
+  }
+  async function recordOpportunity(habitId:string,kind:"done"|"missed"|"no_cue"){
+    if(busy)return;setBusy(true);setMessage("");
+    // A calendar-day opportunity is only a lightweight tracking convenience.
+    // It is NOT a validated indicator of automaticity.
+    const today=new Date().toLocaleDateString("en-CA");
+    try{
+      const res=await fetch("/api/v1/observations",{method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({habitId,opportunityKey:`daily:${today}`,eligible:kind!=="no_cue",
+          completed:kind==="done",occurredAt:new Date().toISOString()})});
+      if(!res.ok && res.status!==409)throw new Error("SAVE_FAILED");
+      const parsed= res.ok ? await res.json() as {event:{id:string}} : null;
+      await load();await detail(habitId,kind==="done"?(parsed?.event.id??null):null);
+      const names={done:"执行已保存；可选填一次感受。",missed:"记录为有机会但未执行。不会直接扣减习惯进度。",
+        no_cue:"记录为今天没有出现触发情境，不计为执行失败。"};
+      setMessage(res.status===409?"本日已有不同状态的记录；如需纠错请查看记录。":names[kind]);
+    }catch{setMessage("记录失败，请重试。");}finally{setBusy(false);}
+  }
+  async function detail(id:string,eventId:string|null=null){
+    try{
+      const r=await fetch(`/api/v1/habits/${encodeURIComponent(id)}/insights`,{cache:"no-store"});
+      if(!r.ok)throw new Error();
+      const report=await r.json() as NonNullable<typeof insights>;
+      setSelected(id);setReflectionEventId(eventId);setInsights(report);
+    }catch{setMessage("无法读取记录。");}
+  }
+  async function logout(){
+    await fetch("/api/v1/auth/logout",{method:"POST"});location.assign("/login");
+  }
+  return <main className="dashboard-shell">
+    <header className="dashboard-header"><a className="wordmark" href="/">STEP<span>MARK</span><span className="brand-dot">.</span></a>
+      <div><span className="account-email">{email}</span> <a href="/settings" className="text-button">账户与数据</a> <button className="text-button" onClick={logout}>退出</button></div></header>
+    <section className="dash-welcome"><span className="kicker">MY DEVELOPMENT</span><h1>今天，从一个小行动开始。</h1>
+      <p>记录你的实际行为，不用一次分数定义自己。能力测量模块将在校准后加入。</p></section>
+    {dueReviews.length>0&&<section className="dashboard-panel due-review-panel">
+      <h2>值得简短复查的习惯</h2>
+      <p>只是应用内提示，不发送消息；也不会因为你没有填写感受而直接判定退步。</p>
+      <div className="due-review-list">
+        {dueReviews.slice(0,4).map(review=><button type="button" key={review.habitId}
+          onClick={()=>detail(review.habitId)}>
+          <span>{review.title}</span>
+          <small>{review.reviewReason==="recent_difficulty"?"最近启动更费力": "看看现在是否仍然自然"}</small>
+        </button>)}
+      </div>
+    </section>}
+    <p className="assessment-link"><a href="/assess">开始实验性逻辑推理测量 ↗</a></p>
+    <section className="dashboard-grid">
+      <article className="dashboard-panel"><h2>建立一个新习惯</h2>
+        <form className="account-form" onSubmit={create}>
+          <label htmlFor="habit-title">习惯名称</label>
+          <input id="habit-title" maxLength={180} minLength={2} required value={title} onChange={e=>setTitle(e.target.value)} placeholder="例如：表达前先说结论"/>
+          <label htmlFor="habit-action">具体行动</label>
+          <textarea id="habit-action" maxLength={500} minLength={2} required value={action} onChange={e=>setAction(e.target.value)} placeholder="例如：先用一句话概括结论，再解释原因"/>
+          <label htmlFor="habit-cue">触发情境（选填）</label>
+          <input id="habit-cue" maxLength={250} value={cue} onChange={e=>setCue(e.target.value)} placeholder="例如：当我要解释技术问题时"/>
+          <button disabled={busy}>添加习惯</button>
+        </form>
+      </article>
+      <article className="dashboard-panel"><h2>正在训练</h2>
+        {habits.length===0?<p>还没有习惯，先创建一个可观察的行动。</p>:
+          <div className="habits-list">{habits.map(h=><div className="habit-row" key={h.id}>
+            <h3>{h.title}</h3><p>{h.action}</p>{h.cue&&<small>情境：{h.cue}</small>}
+            <div className="habit-actions habit-opportunity-actions">
+              <button disabled={busy} onClick={()=>recordOpportunity(h.id,"done")}>已执行</button>
+              <button disabled={busy} className="text-button" onClick={()=>recordOpportunity(h.id,"missed")}>有机会，没执行</button>
+              <button disabled={busy} className="text-button" onClick={()=>recordOpportunity(h.id,"no_cue")}>今天没机会</button>
+              <button className="text-button" onClick={()=>detail(h.id)}>成长进度</button>
+            </div>
+            <small>已记录天数：{h._count.events}（并非能力分）</small></div>)}</div>}
+      </article>
+    </section>
+    {selected&&insights&&<section className="dashboard-panel" aria-live="polite">
+      <h2>习惯执行情况 · 统计解释</h2>
+      <p>有触发机会 {insights.eligibleOpportunities} 次，完成 {insights.completions} 次。没有出现触发情境的日子不计入分母。</p>
+      <p>实际观察完成率：{insights.observedRate===null?"数据不足":(insights.observedRate*100).toFixed(1)+"%"}。</p>
+      {insights.posterior&&<p>贝叶斯平滑预测：{(insights.posterior.posteriorMean*100).toFixed(1)}%（标准差 {(insights.posterior.posteriorSD*100).toFixed(1)} 个百分点）。
+      采用 Beta(1,1) 先验，只是对后续类似执行机会的描述性预测。</p>}
+      {insights.wilsonInterval95&&<p>观察比例粗略 95% 区间：
+        {(insights.wilsonInterval95.low*100).toFixed(1)}%—{(insights.wilsonInterval95.high*100).toFixed(1)}%。
+        重复行为可能相关，因此此区间不应当被当作严格保证。</p>}
+      {insights.latestAutomaticity?<p>最近一次试验性自动化指数：{insights.latestAutomaticity.indexScore.toFixed(1)}/100（不是已验证量表或能力值）。</p>:
+        <p>还没有自动化程度的独立测量。完成次数不能证明习惯已经形成。</p>}
+    </section>}
+    {selected&&<HabitGrowthPanel key={selected} habitId={selected} eventId={reflectionEventId}/>}
+    <p className="notice" role="status" aria-live="polite">{message}</p>
+  </main>;
+}

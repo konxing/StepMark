@@ -1,0 +1,280 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum IdentityProvider {
+  LOCAL
+  WECHAT
+  AICHAT
+}
+
+enum EvidenceKind {
+  OBJECTIVE
+  RUBRIC
+  SELF_REPORT
+  AI_ASSISTED
+}
+
+enum ReviewStatus {
+  PROVISIONAL
+  REVIEWED
+  REJECTED
+}
+
+enum EmailTokenPurpose {
+  VERIFY
+  RESET
+}
+
+enum HabitAIStatus {
+  DISABLED
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum SessionKind {
+  WEB
+  WECHAT
+}
+
+model User {
+  id         String @id @default(uuid()) @db.Uuid
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  deletedAt  DateTime?
+  credential Credential?
+  identities ExternalIdentity[]
+  sessions   Session[]
+  habits     Habit[]
+  attempts   AssessmentAttempt[]
+  estimates  AbilityEstimate[]
+  auditLogs  AuditLog[]
+}
+
+model Credential {
+  id            String    @id @default(uuid()) @db.Uuid
+  userId        String    @unique @db.Uuid
+  email         String    @unique @db.VarChar(320)
+  passwordHash  String    @db.VarChar(255)
+  verifiedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  verifications VerificationToken[]
+}
+
+model VerificationToken {
+  id          String @id @default(uuid()) @db.Uuid
+  credentialId String @db.Uuid
+  tokenHash   String @unique @db.VarChar(64)
+  purpose     EmailTokenPurpose @default(VERIFY)
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime @default(now())
+  credential  Credential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  @@index([credentialId, expiresAt])
+}
+
+model RateLimitBucket {
+  key       String @id @db.VarChar(160)
+  hits      Int @default(0)
+  expiresAt DateTime
+  @@index([expiresAt])
+}
+
+model LoginCode {
+  codeHash   String @id @db.VarChar(64)
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  @@index([expiresAt])
+}
+
+model ExternalIdentity {
+  id              String @id @default(uuid()) @db.Uuid
+  userId          String @db.Uuid
+  provider        IdentityProvider
+  providerSubject String @db.VarChar(255)
+  user            User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+  @@unique([provider, providerSubject])
+  @@index([userId])
+}
+
+model Session {
+  id         String @id @default(uuid()) @db.Uuid
+  userId     String @db.Uuid
+  kind       SessionKind @default(WEB)
+  tokenHash  String @unique @db.VarChar(64)
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime @default(now())
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, expiresAt])
+  @@index([expiresAt])
+}
+
+model Construct {
+  code        String @id @db.VarChar(100)
+  title       String @db.VarChar(200)
+  version     String @db.VarChar(50)
+  metadata    Json
+  tasks       Task[]
+  habits      HabitAssociation[]
+  estimates   AbilityEstimate[]
+  @@index([version])
+}
+
+model Task {
+  id            String @id @default(uuid()) @db.Uuid
+  constructCode String @db.VarChar(100)
+  version       String @db.VarChar(50)
+  rubricVersion String? @db.VarChar(50)
+  content       Json
+  calibration   Json?
+  publishedAt   DateTime?
+  construct     Construct @relation(fields: [constructCode], references: [code])
+  attempts      AssessmentAttempt[]
+  @@unique([id, version])
+  @@index([constructCode, publishedAt])
+}
+
+model AssessmentAttempt {
+  id           String @id @default(uuid()) @db.Uuid
+  userId       String @db.Uuid
+  taskId       String @db.Uuid
+  taskVersion  String @db.VarChar(50)
+  evidenceKind EvidenceKind
+  rawScore     Float?
+  evidence     Json
+  deviceInfo   Json?
+  createdAt    DateTime @default(now())
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task         Task @relation(fields: [taskId], references: [id])
+  judgements   AIJudgement[]
+  @@index([userId, createdAt])
+  @@unique([userId, taskId])
+  @@index([taskId, createdAt])
+}
+
+model AIJudgement {
+  id             String @id @default(uuid()) @db.Uuid
+  attemptId      String @db.Uuid
+  modelId        String @db.VarChar(100)
+  promptVersion  String @db.VarChar(100)
+  rubricVersion  String @db.VarChar(100)
+  evidence       Json
+  reviewStatus   ReviewStatus @default(PROVISIONAL)
+  createdAt      DateTime @default(now())
+  attempt        AssessmentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  @@index([attemptId, createdAt])
+}
+
+model AbilityEstimate {
+  id             String @id @default(uuid()) @db.Uuid
+  userId         String @db.Uuid
+  constructCode  String @db.VarChar(100)
+  estimator      String @db.VarChar(100)
+  modelVersion   String @db.VarChar(50)
+  estimate       Float
+  standardError  Float?
+  evidenceCount  Int
+  metadata       Json
+  calculatedAt   DateTime @default(now())
+  user           User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  construct      Construct @relation(fields: [constructCode], references: [code])
+  @@index([userId, constructCode, calculatedAt])
+}
+
+model Habit {
+  id          String @id @default(uuid()) @db.Uuid
+  userId      String @db.Uuid
+  title       String @db.VarChar(180)
+  cue         String? @db.VarChar(250)
+  action      String @db.VarChar(500)
+  createdAt   DateTime @default(now())
+  archivedAt  DateTime?
+  reviewEnabled Boolean @default(true)
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events      HabitEvent[]
+  checks      AutomaticityCheck[]
+  reflections HabitReflection[]
+  associations HabitAssociation[]
+  @@index([userId, archivedAt, createdAt])
+}
+
+model HabitEvent {
+  id              String @id @default(uuid()) @db.Uuid
+  habitId         String @db.Uuid
+  opportunityKey  String @db.VarChar(100)
+  eligible        Boolean
+  completed       Boolean
+  occurredAt      DateTime
+  source          String @db.VarChar(30)
+  createdAt       DateTime @default(now())
+  habit           Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  reflection HabitReflection?
+  @@unique([habitId, opportunityKey])
+  @@index([habitId, occurredAt])
+  @@index([habitId, eligible, completed])
+}
+
+model HabitReflection {
+  id              String @id @default(uuid()) @db.Uuid
+  habitId         String @db.Uuid
+  eventId         String? @unique @db.Uuid
+  note            String? @db.VarChar(600)
+  initiationLevel Int?
+  aiConsent       Boolean @default(false)
+  aiStatus        HabitAIStatus @default(DISABLED)
+  aiLevel         Int?
+  aiConfidence    Float?
+  aiQuote         String? @db.VarChar(180)
+  aiModelId       String? @db.VarChar(100)
+  aiPromptVersion String? @db.VarChar(60)
+  reviewedAt      DateTime?
+  createdAt       DateTime @default(now())
+  habit           Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  event           HabitEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  @@index([habitId, createdAt])
+  @@index([aiStatus, createdAt])
+}
+
+model AutomaticityCheck {
+  id                String @id @default(uuid()) @db.Uuid
+  habitId           String @db.Uuid
+  instrumentVersion String @db.VarChar(40)
+  responses         Json
+  indexScore        Float
+  measuredAt        DateTime @default(now())
+  habit             Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  @@index([habitId, measuredAt])
+}
+
+model HabitAssociation {
+  habitId       String @db.Uuid
+  constructCode String @db.VarChar(100)
+  hypothesis    String @db.VarChar(500)
+  evidenceLevel String @db.VarChar(40)
+  updatedAt     DateTime @updatedAt
+  habit         Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  construct     Construct @relation(fields: [constructCode], references: [code])
+  @@id([habitId, constructCode])
+}
+
+model AuditLog {
+  id        String @id @default(uuid()) @db.Uuid
+  userId    String? @db.Uuid
+  action    String @db.VarChar(100)
+  subject   String? @db.VarChar(100)
+  createdAt DateTime @default(now())
+  details   Json?
+  user      User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([userId, createdAt])
+}
