@@ -118,6 +118,30 @@ export function benchmarkBfi(input,{verifyPinned=false}={}){
     "missing-data calculations. Alpha is not construct validity or norming. " +
     "Personality responses are not cognitive ability, automaticity, or StepMark form calibration."};
 }
+/** Pinned regression expectations from the real 2,800-case psych::bfi
+ * demonstration data, cross-checked against an independent R psych calculation.
+ * The fixed target is for reproducibility, NOT an individual norm or cutoff.
+ */
+export const EXPECTED_BFI_AGGREGATES=Object.freeze({
+ A:{complete:2709,rawAlpha:0.7038,minCorrectedItemTotal:0.3114},
+ C:{complete:2707,rawAlpha:0.7293,minCorrectedItemTotal:0.4553},
+ E:{complete:2713,rawAlpha:0.7609,minCorrectedItemTotal:0.4546},
+ N:{complete:2694,rawAlpha:0.8133,minCorrectedItemTotal:0.4867},
+ O:{complete:2726,rawAlpha:0.6025,minCorrectedItemTotal:0.2199}
+});
+export function verifyPinnedBfiRegression(result){
+ if(result.participants!==2800 || result.scales?.length!==5)
+  throw new Error("BFI_REGRESSION_MISMATCH");
+ for(const entry of result.scales){
+  const expected=EXPECTED_BFI_AGGREGATES[entry.scale];
+  if(!expected || entry.status!=="descriptive_internal_consistency" ||
+     entry.complete!==expected.complete ||
+     Math.abs(entry.rawAlpha-expected.rawAlpha)>0.0001 ||
+     Math.abs(entry.minCorrectedItemTotal-expected.minCorrectedItemTotal)>0.0001)
+     throw new Error("BFI_REGRESSION_MISMATCH");
+ }
+ return true;
+}
 async function main(){
  let bytes;
  if(process.argv.length===4 && process.argv[2]==="--input"){
@@ -132,6 +156,7 @@ async function main(){
   bytes=Buffer.from(await response.arrayBuffer());
  }else throw new Error("Usage: node validate-bfi.mjs [--input pinned-bfi.csv]");
  const result=benchmarkBfi(bytes,{verifyPinned:true});
+ verifyPinnedBfiRegression(result);
  process.stdout.write(JSON.stringify(result,null,2)+"\n");
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){

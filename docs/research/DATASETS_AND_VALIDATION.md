@@ -179,3 +179,19 @@ Implementation: `getPracticeSchedule(skill, ownerHistory, todayUtc)` first selec
 In the privacy model `PracticeAttempt.hintUsed` is **nullable**, so historical rows cannot falsely be asserted as independently recalled. Current Web and WeChat clients only send `hintUsed=true` if the user opened the optional hint. This client flag is self-reported/observable only within that client; it is *not* tamperproof research evidence. The empirical task response remains separately recorded and is excluded from official A/B scores regardless of assistance. Reviewed practice items inevitably contaminate subsequent answers to that same item; use **novel independent A/B tasks** for the limited cross-time evidence.
 
 **Caution:** spacing is an educational design default, not a fitted memory decay model; neither the schedule nor repeat-practice gains demonstrate domain-general reasoning improvement (Simons et al. 2016, https://doi.org/10.1177/1529100616661983). Avoid manufacturing user ability or habit-formation probability from practice history.
+
+### Executed research benchmark results (2026-11-12)
+
+The GitHub Actions research run
+https://github.com/konxing/StepMark/actions/runs/43064070164
+successfully fetched and validated the exact pinned CSV (2,800 respondents). Descriptive **raw** alpha and scale-specific complete-case count:
+
+| IPIP dimension | Complete respondents | Raw Cronbach alpha | Min corrected item-total |
+|---|---:|---:|---:|
+| A | 2,709 | 0.7038 | 0.3114 |
+| C | 2,707 | 0.7293 | 0.4553 |
+| E | 2,713 | 0.7609 | 0.4546 |
+| N | 2,694 | 0.8133 | 0.4867 |
+| O | 2,726 | 0.6025 | 0.2199 |
+
+The separate test `verifyPinnedBfiRegression` now refuses changed complete-case N, raw alpha or min corrected item-total coefficient on **future real-data reruns**. This is a reproducibility check of measurement arithmetic, not proof of a five-factor model, population representativeness, diagnostic validity, or effects of StepMark training. This is an online SAPA convenience cohort, not a probability sample of the general population.

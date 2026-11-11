@@ -1,6 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {parseBfiCsv,diagnoseScale,benchmarkBfi,blobSha,SOURCE} from "./validate-bfi.mjs";
+import {parseBfiCsv,diagnoseScale,benchmarkBfi,blobSha,SOURCE,
+ verifyPinnedBfiRegression,EXPECTED_BFI_AGGREGATES} from "./validate-bfi.mjs";
 const headers=["rownames",...["A","C","E","N","O"].flatMap(s=>
  Array.from({length:5},(_,i)=>s+(i+1))),"gender","education","age"].join(",");
 const fixture=[headers,"123,"+Array(25).fill("4").join(",")+",1,4,28"].join("\n");
@@ -40,4 +41,17 @@ test("constant and invalid responses are rejected or flagged, not scored as vali
  assert.throws(()=>diagnoseScale(flat,"Z"),/INVALID_SCALE/);
  const invalid=flat.map(x=>[...x]);invalid[0][1]=9;
  assert.throws(()=>diagnoseScale(invalid,"A"),/INVALID_SCALE/);
+});
+
+test("real-data regression gate detects alpha and sample-count drift",()=>{
+ const good={participants:2800,scales:Object.entries(EXPECTED_BFI_AGGREGATES)
+  .map(([scale,fields])=>({scale,status:"descriptive_internal_consistency",...fields}))};
+ assert.equal(verifyPinnedBfiRegression(good),true);
+ assert.throws(()=>verifyPinnedBfiRegression({...good,participants:2799}),/REGRESSION_MISMATCH/);
+ const bad=JSON.parse(JSON.stringify(good));
+ bad.scales[0].rawAlpha+=0.1;
+ assert.throws(()=>verifyPinnedBfiRegression(bad),/REGRESSION_MISMATCH/);
+ bad.scales[0].rawAlpha=0.7038;
+ bad.scales[2].complete-=5;
+ assert.throws(()=>verifyPinnedBfiRegression(bad),/REGRESSION_MISMATCH/);
 });
