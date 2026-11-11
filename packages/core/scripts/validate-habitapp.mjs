@@ -1,6 +1,6 @@
 /**
  * External public-data smoke benchmark, not StepMark habit-progress validation.
- * Upstream: Gera et al. HabitApp, DOI 10.1038/s41467-024-49477-7.
+ * Upstream: Gera et al. HabitApp, DOI 10.3758/s13428-023-02263-6.
  * Research records are held ephemerally, never bundled into StepMark or a DB.
  */
 import {readFile} from "node:fs/promises";
