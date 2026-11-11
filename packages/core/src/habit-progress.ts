@@ -36,6 +36,7 @@ export interface HabitProgress {
   mostRecentAutomaticity:number|null;
   reviewDue:boolean;
   nextReviewAt:string|null;
+  reviewReason:"none"|"low_evidence"|"routine_check"|"maintenance"|"recent_difficulty";
   note:string;
 }
 const DAY=24*60*60*1000;
@@ -106,7 +107,13 @@ export function calculateHabitProgress(input:HabitProgressInput):HabitProgress {
   const stable=evidenceLevel==="repeated" && n>=20 && progress>=80 &&
     lastRating!==null && lastRating>=70;
   const lastAnchor=latest?.atMs??input.lastCompletedAtMs??null;
-  const baseInterval=stable?28:count>=2?14:7;
+  // A substantial downward change in initiation confidence calls for an
+  // earlier check, but a single hard day does not erase habit history.
+  const recentDifficulty=count>=2 && latest!.level<=2 &&
+    (recent[1]!.level-latest!.level>=2 || recent.slice(0,3).every(x=>x.level<=2));
+  const reviewReason=lastAnchor===null?"none":recentDifficulty?"recent_difficulty":
+    stable?"maintenance":count<2?"low_evidence":"routine_check";
+  const baseInterval=recentDifficulty?6:stable?28:count>=2?14:7;
   const interval=Math.max(5,baseInterval+(stable?reviewJitter(input.seed??""):0));
   const nextReviewMs=lastAnchor===null?null:lastAnchor+interval*DAY;
   const due=input.reviewEnabled!==false && nextReviewMs!==null && nowMs>=nextReviewMs;
@@ -118,7 +125,7 @@ export function calculateHabitProgress(input:HabitProgressInput):HabitProgress {
     automaticitySignal:automaticitySignal===null?null:Number(automaticitySignal.toFixed(1)),
     evidenceLevel,stage,completedRepetitions:n,evidenceCount:count,
     evidenceSpanDays:Number(span.toFixed(1)),mostRecentAutomaticity:lastRating,
-    reviewDue:due,nextReviewAt:input.reviewEnabled===false||nextReviewMs===null?null:new Date(nextReviewMs).toISOString(),
+    reviewDue:due,reviewReason,nextReviewAt:input.reviewEnabled===false||nextReviewMs===null?null:new Date(nextReviewMs).toISOString(),
     note:"Progress is a configurable visual indicator, not probability of habit formation; changes in ability require independent tests."
   };
 }

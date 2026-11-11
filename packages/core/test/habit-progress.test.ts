@@ -55,3 +55,12 @@ test("review opt-out hides deadlines",()=>{
   assert.equal(a.nextReviewAt,null);
   assert.equal(a.reviewDue,false);
 });
+
+test("a sudden initiation difficulty schedules earlier review without erasing execution",()=>{
+  const prior=base(95,[evidence(1,4),evidence(12,4),evidence(25,4)]);
+  const change=base(96,[evidence(0,1),evidence(12,4),evidence(25,4)]);
+  assert.equal(prior.reviewReason,"maintenance");
+  assert.equal(change.reviewReason,"recent_difficulty");
+  assert.ok(new Date(change.nextReviewAt!).getTime()-now<=7*DAY);
+  assert.ok(change.progress>0 && change.completedRepetitions===96);
+});
