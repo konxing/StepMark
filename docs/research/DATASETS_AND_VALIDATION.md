@@ -31,7 +31,7 @@ https://github.com/konxing/StepMark/actions/runs/43033393514
 
 **Interpretation limits:** These are descriptive counts from an experimental task, NOT a replication of the paper's preregistered mixed-model analysis, NOT evidence that a group developed more/less habit, NOT an SRBAI/automaticity dataset, and NOT evidence that StepMark 0–100 habit progress, review interval or skill score is correct. Group differences can reflect other features; use the authors' specified model for inference.
 
-## 2. Higher-priority longitudinal automaticity dataset (not downloaded here)
+## 2. Higher-priority longitudinal automaticity dataset (now verified in isolated research CI)
 
 **Edgren, R., Baretta, D., & Inauen, J.** (2025).
 *The temporal trajectories of habit decay in daily life: An intensive longitudinal study on four health-risk behaviors*.
