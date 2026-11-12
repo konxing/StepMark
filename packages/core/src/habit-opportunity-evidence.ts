@@ -52,7 +52,7 @@ export interface HabitOpportunityEvidenceAudit {
 }
 const isTri=(x:unknown):x is TriState=> x===true || x===false || x===null;
 const isRating=(x:unknown):x is InitiationLevel|null=>x===null ||
- (Number.isInteger(x) && typeof x==="number" && x>=0 && x<=4);
+ (typeof x==="number" && Number.isInteger(x) && x>=0 && x<=4);
 /** All records refer to a single habit within one owner's isolated collection. */
 export function auditHabitOpportunities(
   events:readonly HabitOpportunityEvidence[]
@@ -75,6 +75,8 @@ export function auditHabitOpportunities(
        !isTri(r.performed) || !isRating(r.initiationAutomaticity) ||
        (r.source!=="user_explicit" && r.source!=="ai_interpretation"))
       throw new RangeError("invalid cue, opportunity, performance or rating");
+    if(r.initiationAutomaticity!==null && r.performed!==true)
+      throw new RangeError("event-level automaticity rating requires observed performed action");
     if(r.source==="ai_interpretation"){
       if(typeof r.userMessageId!=="string" || !/^[A-Za-z0-9_.:-]{1,128}$/.test(r.userMessageId) ||
          typeof r.supportingQuote!=="string" ||
