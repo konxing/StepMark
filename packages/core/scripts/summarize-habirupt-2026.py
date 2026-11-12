@@ -22,8 +22,9 @@ def main():
  for u in users:
   uid=u["id_users"]
   if uid in byid:raise ValueError("DUPLICATE_ID")
+  u["intervention_arm"]=u["intervention_arm"].strip().lower()
   if u["intervention_arm"] not in ("control","inhibition","substitution","discontinuation_avb"):
-   raise ValueError("UNKNOWN_ARM")
+   raise ValueError("UNKNOWN_ARM:"+repr(u["intervention_arm"]))
   byid[uid]=u
  groups=defaultdict(lambda:{"participants":0,"rows":0,"missing":0,"sum":0.0,"observed":0,
                             "pairedChanges":[]})
