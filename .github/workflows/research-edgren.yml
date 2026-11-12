@@ -1,0 +1,24 @@
+name: Edgren 2025 longitudinal decay research benchmark
+on:
+  push:
+    paths:
+      - "packages/core/scripts/validate-edgren.mjs"
+      - "packages/core/scripts/validate-edgren.test.mjs"
+      - ".github/workflows/research-edgren.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22', cache: npm}
+      - name: Install pinned dependencies
+        run: npm ci --ignore-scripts
+      - name: Check decay input parsing, missingness and unit semantics
+        run: node --import tsx --test packages/core/scripts/validate-edgren.test.mjs
+      - name: Download pinned Edgren longitudinal SRBAI and report group-level holdout scores only
+        run: node --import tsx packages/core/scripts/validate-edgren.mjs
