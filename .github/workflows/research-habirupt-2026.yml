@@ -1,0 +1,17 @@
+name: Inventory additional 2026 HABIRUPT public data (metadata only)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "packages/core/scripts/inventory-osf-habirupt-2026.py"
+      - ".github/workflows/research-habirupt-2026.yml"
+permissions:
+  contents: read
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect OSF project metadata without retrieving personal observations
+        run: python3 packages/core/scripts/inventory-osf-habirupt-2026.py
