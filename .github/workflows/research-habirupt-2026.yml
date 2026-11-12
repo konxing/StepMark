@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - "packages/core/scripts/inventory-osf-habirupt-2026.py"
+      - "packages/core/scripts/inspect-osf-habirupt-2026.py"
       - ".github/workflows/research-habirupt-2026.yml"
 permissions:
   contents: read
@@ -15,3 +16,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Inspect OSF project metadata without retrieving personal observations
         run: python3 packages/core/scripts/inventory-osf-habirupt-2026.py
+      - name: Verify pinned RCT data files and print schema/README only
+        run: python3 packages/core/scripts/inspect-osf-habirupt-2026.py
