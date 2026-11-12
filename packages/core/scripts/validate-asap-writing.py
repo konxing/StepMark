@@ -27,11 +27,14 @@ def read_essays(data,min_rows=10000):
     verify_source(data)
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         files=[m for m in z.infolist() if m.filename.lower().endswith(".csv")]
-        if len(files)!=1 or files[0].file_size>110_000_000:
-            # Archive metadata only; no essay contents or identifiers.
-            raise ValueError("ASAP_ZIP_LAYOUT_CHANGED csv_count="+str(len(files))+
+        # The publisher archive also contains a 288-byte macOS sidecar CSV.
+        # Select its unique substantive CSV rather than parsing the sidecar.
+        actual=[m for m in files if 1_000_000<=m.file_size<=110_000_000
+                and not any(part.startswith("._") for part in m.filename.split("/"))]
+        if len(actual)!=1:
+            raise ValueError("ASAP_ZIP_LAYOUT_CHANGED substantive_csv_count="+str(len(actual))+
                              " sizes="+str([m.file_size for m in files]))
-        with z.open(files[0]) as f:
+        with z.open(actual[0]) as f:
             rd=csv.DictReader(io.TextIOWrapper(f,encoding="utf-8-sig",newline=""))
             if not rd.fieldnames or not NEED.issubset(rd.fieldnames):
                 raise ValueError("ASAP_HEADER_CHANGED")
