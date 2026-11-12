@@ -28,7 +28,7 @@ const reflectionWords=/(感觉|感受|自然|不用思考|没想|纠结|犹豫|�
  * future plan, somebody else's actions, or a no-record instruction into a
  * durable habit event. This is a conservative reject-only guard, not NLP.
  */
-const nonActualEventWords=/(如果|假如|假设|假定|例如|比如|举个例子|打算|计划|明天|后天|下周|下个月|将来|以后会|可能|也许|希望明天|我准备|模拟|演示|测试一下|先不要记录|别记录|不用记录|不要记)/u;
+const nonActualEventWords=/(如果|假如|假设|假定|例如|比如|举个例子|打算|计划|想打卡|准备打卡|明天|后天|下周|下个月|将来|以后会|可能|也许|希望明天|我准备|模拟|演示|测试一下|先不要记录|别记录|不用记录|不要记)/u;
 const thirdPartyActor=/(?:我的?朋友|我的?同事|同学|老师|别人|他|她|他们|她们)[^。！？!?]{0,24}(?:完成了|做了|执行了|阅读了|跑了|练了|练习了|没做|没完成)/u;
 
 
@@ -87,6 +87,9 @@ export function authorizeAssistantCommand(raw:unknown,userText:string,habits:rea
     if(!v.status||v.confidence<0.75)return clarification("我不确定你是否完成了这次行动，请说清楚“已完成”“有机会未做”或“没有触发机会”。");
     if(v.status==="done"&&(!doneWords.test(userText)||missedWords.test(userText)))
       return clarification("我没有找到明确的“已经执行”证据，请直接告诉我是否完成了。");
+    if(v.status==="missed"&&
+       (noCueWords.test(userText)||/(?:还没|尚未|等会|待会|一会儿)/u.test(userText)))
+      return clarification("这可能是尚未执行或根本没有触发机会，不能自动算作一次有机会未做。请说明实际情况。");
     if(v.status==="missed"&&!missedWords.test(userText))
       return clarification("请明确说出这次有机会但没有执行。");
     if(v.status==="no_cue"&&!noCueWords.test(userText))

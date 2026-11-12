@@ -60,6 +60,7 @@ test("chat cannot misrecord hypothetical, future or third-party achievements",()
     ["明天打算完成睡前阅读","today"],
     ["我的朋友今天完成了睡前阅读","today"],
     ["今天完成了睡前阅读，但先不要记录","today"],
+    ["今天想打卡睡前阅读","today"],
     ["完成了睡前阅读","today"],
     ["今天做完了其他运动","today"],
   ] as const;
@@ -69,6 +70,18 @@ test("chat cannot misrecord hypothetical, future or third-party achievements",()
     }),message,[habit]);
     assert.equal(outcome.intent,"clarify",message);
   }
+  const noOpportunityMisclassified=authorizeAssistantCommand(
+    template("record_opportunity",{habitId:habit.id,status:"missed",when:"today"}),
+    "今天没做睡前阅读，因为没有机会",[habit]);
+  assert.equal(noOpportunityMisclassified.intent,"clarify");
+  const incompleteToday=authorizeAssistantCommand(
+    template("record_opportunity",{habitId:habit.id,status:"missed",when:"today"}),
+    "今天还没做睡前阅读",[habit]);
+  assert.equal(incompleteToday.intent,"clarify");
+  const noCue=authorizeAssistantCommand(template("record_opportunity",{
+    habitId:habit.id,status:"no_cue",when:"today"
+  }),"今天没做睡前阅读，因为没有机会",[habit]);
+  assert.equal(noCue.intent,"record_opportunity");
   const expected=authorizeAssistantCommand(template("record_opportunity",{
     habitId:habit.id,status:"done",when:"today"
   }),"今天完成了睡前阅读",[habit]);
