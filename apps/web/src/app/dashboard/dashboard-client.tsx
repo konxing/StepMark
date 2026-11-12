@@ -1,5 +1,6 @@
 "use client";
 import HabitGrowthPanel from "./habit-growth-panel";
+import AssistantChatPanel from "./assistant-chat-panel";
 import {useCallback,useEffect,useState} from "react";
 type Habit={id:string;title:string;cue:string|null;action:string;createdAt:string;_count:{events:number;checks:number}};
 type Correction={id:string;revision:number;previousEligible:boolean;previousCompleted:boolean;
@@ -9,6 +10,7 @@ function stateLabel(eligible:boolean,completed:boolean){
 }
 export default function DashboardClient({email}:{email:string}) {
   const [habits,setHabits]=useState<Habit[]>([]);
+  const [showManual,setShowManual]=useState(false);
   const [dueReviews,setDueReviews]=useState<{habitId:string;title:string;progress:number;reviewReason:string}[]>([]);
   const [title,setTitle]=useState(""),[action,setAction]=useState(""),[cue,setCue]=useState("");
   const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
@@ -128,8 +130,11 @@ export default function DashboardClient({email}:{email:string}) {
   return <main className="dashboard-shell">
     <header className="dashboard-header"><a className="wordmark" href="/">STEP<span>MARK</span><span className="brand-dot">.</span></a>
       <div><span className="account-email">{email}</span> <a href="/settings" className="text-button">账户与数据</a> <button className="text-button" onClick={logout}>退出</button></div></header>
-    <section className="dash-welcome"><span className="kicker">MY DEVELOPMENT</span><h1>今天，从一个小行动开始。</h1>
-      <p>记录你的实际行为，不用一次分数定义自己。能力测量模块将在校准后加入。</p></section>
+    <section className="dash-welcome"><span className="kicker">MY DEVELOPMENT</span><h1>和 AI 说说，今天有什么进展。</h1>
+      <p>用对话创建习惯、记录执行或感受；客观测验与习惯成长证据依然分开。</p></section>
+    <AssistantChatPanel onChanged={async id=>{await load();if(id)await detail(id);}}/>
+    <button type="button" className="assistant-advanced-toggle" onClick={()=>setShowManual(x=>!x)}
+      aria-expanded={showManual}>{showManual?"收起手动管理":"展开手动管理与详细记录"}</button>
     {dueReviews.length>0&&<section className="dashboard-panel due-review-panel">
       <h2>值得简短复查的习惯</h2>
       <p>只是应用内提示，不发送消息；也不会因为你没有填写感受而直接判定退步。</p>
@@ -142,8 +147,8 @@ export default function DashboardClient({email}:{email:string}) {
       </div>
     </section>}
     <p className="assessment-link"><a href="/assess">开始实验性逻辑推理测量 ↗</a> · <a href="/practice">进行独立题库的推理专项训练 ↗</a></p>
-    <section className="dashboard-grid">
-      <article className="dashboard-panel"><h2>建立一个新习惯</h2>
+    <section className={showManual?"dashboard-grid":"dashboard-grid dashboard-grid-single"}>
+      {showManual&&<article className="dashboard-panel"><h2>手动建立习惯（备用入口）</h2>
         <form className="account-form" onSubmit={create}>
           <label htmlFor="habit-title">习惯名称</label>
           <input id="habit-title" maxLength={180} minLength={2} required value={title} onChange={e=>setTitle(e.target.value)} placeholder="例如：表达前先说结论"/>
@@ -153,15 +158,15 @@ export default function DashboardClient({email}:{email:string}) {
           <input id="habit-cue" maxLength={250} value={cue} onChange={e=>setCue(e.target.value)} placeholder="例如：当我要解释技术问题时"/>
           <button disabled={busy}>添加习惯</button>
         </form>
-      </article>
-      <article className="dashboard-panel"><h2>正在训练</h2>
+      </article>}
+      <article className="dashboard-panel"><h2>已记录的习惯</h2>
         {habits.length===0?<p>还没有习惯，先创建一个可观察的行动。</p>:
           <div className="habits-list">{habits.map(h=><div className="habit-row" key={h.id}>
             <h3>{h.title}</h3><p>{h.action}</p>{h.cue&&<small>情境：{h.cue}</small>}
             <div className="habit-actions habit-opportunity-actions">
-              <button disabled={busy} onClick={()=>recordOpportunity(h.id,"done")}>已执行</button>
-              <button disabled={busy} className="text-button" onClick={()=>recordOpportunity(h.id,"missed")}>有机会，没执行</button>
-              <button disabled={busy} className="text-button" onClick={()=>recordOpportunity(h.id,"no_cue")}>今天没机会</button>
+              {showManual&&<button disabled={busy} onClick={()=>recordOpportunity(h.id,"done")}>已执行</button>}
+              {showManual&&<button disabled={busy} className="text-button" onClick={()=>recordOpportunity(h.id,"missed")}>有机会，没执行</button>}
+              {showManual&&<button disabled={busy} className="text-button" onClick={()=>recordOpportunity(h.id,"no_cue")}>今天没机会</button>}
               <button className="text-button" onClick={()=>detail(h.id)}>成长进度</button>
             </div>
             <small>已记录天数：{h._count.events}（并非能力分）</small></div>)}</div>}
