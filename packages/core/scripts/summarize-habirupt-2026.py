@@ -35,14 +35,25 @@ def main():
   a,b=num(u["D7_SRBAI"]),num(u["D91_SRBAI"])
   groups[arm].setdefault("allPairs",[]).append((a,b))
   if a is not None and b is not None:groups[arm]["pairedChanges"].append(b-a)
+ seen_days=set()
  for r in diary:
   if r["id_users"] not in byid:raise ValueError("UNLINKED_DIARY")
-  if not 0<=int(r["esm_day"])<=84:raise ValueError("BAD_STUDY_DAY")
+  day=int(r["esm_day"])
+  if not 0<=day<=84:raise ValueError("BAD_STUDY_DAY")
+  key=(r["id_users"],day)
+  if key in seen_days:raise ValueError("DUPLICATE_STUDY_DAY")
+  seen_days.add(key)
   arm=byid[r["id_users"]]["intervention_arm"]
   g=groups[arm];g["rows"]+=1
   value=num(r["SRBAI"])
   if value is None:g["missing"]+=1
   else:g["observed"]+=1;g["sum"]+=value
+  period=("first_week" if day<=6 else "middle_weeks_5_to_8" if 28<=day<=55
+          else "last_week" if day>=78 else None)
+  if period is not None:
+   bucket=g.setdefault("periods",{}).setdefault(period,{"rows":0,"observed":0})
+   bucket["rows"]+=1
+   if value is not None:bucket["observed"]+=1
  result={}
  bounds={arm:bounded_change_summary(g["allPairs"]) for arm,g in groups.items()}
  for arm,g in sorted(groups.items()):
@@ -53,7 +64,11 @@ def main():
     "observedMeanSRBAI0to4":round(g["sum"]/g["observed"],4) if g["observed"] else None,
     "pairedBaselineEndN":len(changes),
     "descriptiveEndMinusBaseline":round(sum(changes)/len(changes),4) if changes else None,
-    "missingOutcomeIdentification":bounds[arm]}
+    "missingOutcomeIdentification":bounds[arm],
+    "periodMissingness":{period:{
+      "observed":v["observed"],"possible":v["rows"],
+      "missingFraction":round((v["rows"]-v["observed"])/v["rows"],4)}
+      for period,v in sorted(g.get("periods",{}).items())}}
  print(json.dumps({"status":"RESEARCH_ONLY_PINNED_RCT_DESCRIPTIVE",
    "source":"https://osf.io/z7tby/","people":len(users),"rows":len(diary),
    "groups":result,
