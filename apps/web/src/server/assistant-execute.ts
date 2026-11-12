@@ -3,7 +3,7 @@ import {Prisma} from "@/generated/prisma/client";
 import {calculateHabitProgress,type InitiationEvidence} from "@stepmark/core";
 import {getDb} from "./db";
 import {ApiError} from "./security";
-import {observationDay,type SafeAssistantCommand,validatedClientLocalDate,verifiedInitiationEvidence} from "./assistant-command";
+import {observationDay,type SafeAssistantCommand,validateClientLocalDate,verifiedInitiationEvidence} from "./assistant-command";
 
 export type AssistantResult={
   reply:string;
@@ -69,6 +69,18 @@ export async function executeAssistantCommand(args:{
               eligible,completed,occurredAt:day===localDate?new Date():new Date(day+"T12:00:00.000Z"),
               source:"assistant"
             }});
+          }
+          const evidence=completed?verifiedInitiationEvidence(command,message):null;
+          let recordedFeeling=false;
+          if(evidence&&(!existing || !(await tx.habitReflection.findUnique({
+            where:{eventId:existing.id},select:{id:true}})))){
+            const eventId=existing?.id||(await tx.habitEvent.findUniqueOrThrow({where:key2,select:{id:true}})).id;
+            await tx.habitReflection.create({data:{habitId:target.id,eventId,
+              note:message.slice(0,600),initiationLevel:null,aiConsent:true,
+              aiStatus:"COMPLETED",aiLevel:evidence.level,aiConfidence:evidence.confidence,
+              aiQuote:evidence.quote,aiModelId:model.slice(0,100),
+              aiPromptVersion:"conversation-intent-v1",reviewedAt:new Date()}});
+            recordedFeeling=true;
           }
           const state=completed?"已执行":eligible?"有机会但未执行":"没有出现触发情境";
           result={reply:`已记录「${target.title}」在 ${day} 的状态：${state}。这是行为记录，不会直接改变能力分数。`,

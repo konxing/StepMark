@@ -1,3 +1,5 @@
+import {createHash} from "node:crypto";
+import {getDb} from "@/server/db";
 import {NextRequest,NextResponse} from "next/server";
 import {z} from "zod";
 import {listOwnHabits} from "@/server/habit-service";
@@ -18,6 +20,16 @@ export async function POST(request:NextRequest){
     if(principal.kind==="WEB")requireSameOrigin(request);
     const body=await boundedJson(request,requestSchema,4096);
     try{validateClientLocalDate(body.localDate);}catch{throw new ApiError(400,"INVALID_LOCAL_DATE");}
+    // Return an identical completed request without paying for a second model call.
+    const digest=createHash("sha256").update(body.message).digest("hex");
+    const earlier=await getDb().assistantAction.findUnique({
+      where:{userId_requestId:{userId:principal.userId,requestId:body.requestId}},
+      select:{messageDigest:true,result:true}
+    });
+    if(earlier){
+      if(earlier.messageDigest!==digest)throw new ApiError(409,"ASSISTANT_REQUEST_ID_REUSED");
+      return NextResponse.json(earlier.result,{headers:{"Cache-Control":"private, no-store"}});
+    }
     // Fail safely BEFORE using any external provider when consent or server
     // configuration is missing. No raw user text is logged.
     try{assistantProviderConfig();}catch{throw new ApiError(503,"ASSISTANT_NOT_CONFIGURED");}
