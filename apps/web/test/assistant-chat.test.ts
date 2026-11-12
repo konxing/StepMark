@@ -169,3 +169,64 @@ test("unauthorized assistant HTTP calls cannot trigger provider access",async()=
     assert.equal((await request({...base,consentToAI:true},"https://evil.example")).status,403);
   }finally{await db.user.delete({where:{id:user.id}});}
 });
+
+test("real assistant HTTP route: mocked LLM only proposes, server writes owner-only and replays without refetch",async()=>{
+  const user=await db.user.create({data:{},select:{id:true}});
+  const other=await db.user.create({data:{},select:{id:true}});
+  const oldFetch=globalThis.fetch;
+  const old={provider:process.env.AI_ASSISTANT_PROVIDER,
+    key:process.env.AI_ASSISTANT_API_KEY,model:process.env.AI_ASSISTANT_MODEL};
+  try{
+    await db.habit.create({data:{userId:other.id,title:"绝不应外传的其他用户习惯",action:"隐藏"}});
+    const token=(await issueSession(user.id,"WECHAT")).token;
+    process.env.AI_ASSISTANT_PROVIDER="openai";
+    process.env.AI_ASSISTANT_API_KEY="fake-ci-only";
+    process.env.AI_ASSISTANT_MODEL="fake-json-capable-model";
+    let calls=0;
+    globalThis.fetch=async(input,init)=>{
+      calls++;
+      assert.equal(String(input),"https://api.openai.com/v1/chat/completions");
+      const sent=JSON.parse(String(init?.body)) as {messages:{role:string;content:string}[]};
+      assert.ok(!sent.messages[1]!.content.includes("绝不应外传的其他用户习惯"));
+      assert.ok(!sent.messages[1]!.content.includes(user.id));
+      assert.equal(sent.messages[1]!.role,"user");
+      const plan=template("create_habit",{
+        title:"晨起阅读",action:"每天早晨阅读10页",cue:"起床以后"
+      });
+      return new Response(JSON.stringify({choices:[{message:{content:JSON.stringify(plan)}}]}),{
+        status:200,headers:{"content-type":"application/json"}
+      });
+    };
+    const text="帮我添加一个每天早晨阅读10页的习惯";
+    const requestId=randomUUID();
+    const request=(message:string,id=requestId)=>new NextRequest(
+      "http://localhost:3000/api/v1/assistant",{
+        method:"POST",headers:{"content-type":"application/json",
+          authorization:"Bearer "+token},
+        body:JSON.stringify({message,requestId:id,localDate:localDate(),consentToAI:true})
+      });
+    const created=await assistantPOST(request(text));
+    assert.equal(created.status,200);
+    const body=await created.json() as {reply:string;change:{habitId:string;kind:string}};
+    assert.equal(body.change.kind,"habit_created");
+    assert.equal(await db.habit.count({where:{userId:user.id}}),1);
+    assert.equal(await db.habit.count({where:{userId:other.id}}),1);
+    const duplicate=await assistantPOST(request(text));
+    assert.equal(duplicate.status,200);
+    assert.equal((await duplicate.json() as {change:{habitId:string}}).change.habitId,
+      body.change.habitId);
+    assert.equal(calls,1,"retry must not pay for a second provider call");
+    assert.equal((await assistantPOST(request("我想修改这次消息"))).status,409);
+    assert.equal(calls,1);
+  }finally{
+    globalThis.fetch=oldFetch;
+    for(const [key,value] of [
+      ["AI_ASSISTANT_PROVIDER",old.provider],["AI_ASSISTANT_API_KEY",old.key],
+      ["AI_ASSISTANT_MODEL",old.model]
+    ] as const){
+      if(value===undefined)delete process.env[key];
+      else process.env[key]=value;
+    }
+    await db.user.deleteMany({where:{id:{in:[user.id,other.id]}}});
+  }
+});
