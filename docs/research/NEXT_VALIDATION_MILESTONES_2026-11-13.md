@@ -35,7 +35,7 @@ Fiorella (2026), https://doi.org/10.1007/s10648-026-10235-3 ：当天情境一�
 | ICAR / Harvard Dataverse v3, https://doi.org/10.7910/DVN/AD9RVY | 大约 97000 人、60 项认知作答；标为 CC0 的是存档中受访者作答数据 | 2PL/EAP 的合成参数恢复、样本外概率校准、DIF 敏感性、缺失答题机制 | 仓库已登记但**尚未执行**此真实数据基准；ICAR 试题材料另受 Scientific Use License 约束，不得发布到 StepMark。参见 https://sms.statistik.tu-dortmund.de/en/research/projects/completed-research-projects/international-cognitive-ability-resource-icar/ |
 | IRW `icar_sapa`, https://itemresponsewarehouse.org/tables/icar_sapa/ | 标准化表声称 95,236 人、60 题、1,199,896 条二分类作答，CC0；IRW 重新整形过原始数据 | 稀疏二分类作答的诊断与模型回归测试 | 首先独立核对 IRW 转换、原始 Harvard Dataverse 版本与数据字典；不得将 IRW 行数与原始参与者数无条件等同。既不是纵向训练结果，也不是 StepMark 自创题的校准样本。 |
 | ASAP 2.0, https://github.com/scrosseye/ASAP_2.0 | 24,278 篇英语青少年来源写作，人工总评分、评分标准、来源材料；仓库标 CC BY 4.0 | AI 写作质量量规与人工评分一致性、分题目与年龄段的误差、公平性 | 先核对下载文件与训练/测试划分；未运行。不能作为成年中文口头表达能力的效标。 |
-| PERSUADE, https://the-learning-agency-lab.com/learning-exchange/persuade-dataset/ | 公开页面称 14000+ 篇有论证要素标注作文，CC BY 4.0；后续 PERSUADE 2.0 论文报告 25000+ 篇 | 论点、理由、证据、反驳等结构化表达要素识别 | 两个版本和任务范围不得混淆；仅可作为受领域限制的表达子任务，不代表完整“表达能力”。 |
+| PERSUADE, https://the-learning-agency-lab.com/learning-exchange/persuade-dataset/ | 公开 PERSUADE 介绍页提到旧版本/广义语料的 CC BY 4.0；作者发布的 **PERSUADE 2.0 明确为 CC BY-NC-SA 4.0 非商业许可**，含 25000+ 篇 | 论点、理由、证据、反驳等结构化表达要素识别 | 版本与许可不能混淆；PERSUADE 2.0 仅供独立的非商业研究验证，禁止当作线上商业模型的训练授权。 |
 | 预测任务 | StepMark 自己的带时间戳预测和实际结果 | Brier、Log loss、可靠性图、基准技能分 | 不从当前 Metaculus API 抓取做 AI 模型评估：官方 https://www.metaculus.com/api/ 明确要求事先许可。仅使用有独立合法来源与可核实结果的回放数据。 |
 
 ## 4. 统一验证门槛（按本仓库“科学可信度”目标）
@@ -71,4 +71,4 @@ CI 脚本在临时 runner 中下载，只输出汇总统计，严禁将第三方
 
 不直接拟合“完成 90 次就养成”的统一阈值；不混合习惯形成与有害习惯衰退的参数；不把 AI 自述理解当 SRBAI 正式答案；不把英文作文评分当中文口语分；不把 BFI 性格问卷当思维测验；不将 Metaculus API 或 ICAR 受限制题材未经许可放入应用。
 
-**本次修订状态**：新文献和公开数据来源已核查，尚未运行 ICAR、ASAP 2.0 或 PERSUADE 的真实数据评估；因此没有为这些新数据集报告任何拟合结果或能力效度结论。
+**执行状态更新（2026-11-13）**：P0 Fiorella/Edgren 配对误差区间与缺失数据、P1 ICAR 原始数据 1PL/2PL 留出检验，以及 P2 ASAP 2.0 英文作文人工评分和 PERSUADE 2.0 四题论证标签研究均已在独立 GitHub Actions 真实数据上运行成功。来源版本、方法、指标和局限见 [P0 配对统计](./PAIRED_BOOTSTRAP_RESULTS_2026-11-13.md)、[P1 ICAR 结果](./ICAR_VALIDATION_RESULTS_2026-11-13.md)、[P2 写作与论证结果](./P2_WRITING_AND_ARGUMENT_RESULTS_2026-11-13.md)。**P2 研究方法初步验证通过，但中文成人表达能力产品评分尚未校准；PERSUADE 2.0 非商业许可必须保留。** 本段覆盖上表先前的“尚未下载/尚未运行”历史状态。
