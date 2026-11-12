@@ -1,0 +1,19 @@
+name: Research OSF public metadata check
+on:
+  push:
+    paths:
+      - "packages/core/scripts/probe-osf-public.mjs"
+      - ".github/workflows/research-osf.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  metadata-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Check fixed public OSF projects (metadata only, no raw records)
+        run: node packages/core/scripts/probe-osf-public.mjs
