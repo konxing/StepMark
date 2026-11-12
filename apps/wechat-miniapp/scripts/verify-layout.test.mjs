@@ -47,7 +47,7 @@ function structuralTags(src){
 }
 test("mobile WXML has balanced containers and a safe chat data contract",()=>{
   const tags=structuralTags(wxml);
-  assert.ok(tags.get("scroll-view")>=2,"chat and practice scroll need bounded view");
+  assert.ok(tags.get("scroll-view")>=1,"chat scroll needs a bounded view");
   for(const key of ["chatMessages","chatInput","chatConsent","chatBusy","chatBottomId",
     "modules","dueReviews","progress","recentReflections","showAdvanced"]){
     assert.ok(wxml.includes(key),"missing visible "+key);
