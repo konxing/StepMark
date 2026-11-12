@@ -2,6 +2,11 @@ const TOKEN_KEY="stepmark_mobile_access";
 const EXPIRES_KEY="stepmark_mobile_expires";
 Page({
   data:{modules:[],dueReviews:[],status:"正在连接…",loading:false,authenticated:false,
+    chatMessages:[{id:"chat-welcome",role:"assistant",text:"告诉我你想培养的习惯、今天有没有完成，以及开始行动时的感受。我会在明确且安全的情况下帮你记录。"}],
+    chatInput:"",chatBusy:false,chatConsent:false,chatStatus:"",
+    chatBottomId:"chat-welcome",chatRetryId:"",chatRetryMessage:"",
+    showAdvanced:false,
+    chatSuggestions:["帮我添加一个睡前阅读10页的习惯","我今天完成了睡前阅读","查看睡前阅读的习惯进度"],
     creating:false,title:"",action:"",cue:"",selectedHabitId:"",progress:null,
     reflectionEventId:"",recentEvents:[],correcting:false,
     auditEventId:"",auditRows:[],auditNextOffset:null,auditLoading:false,
@@ -23,10 +28,17 @@ Page({
       wx.request({
         url:base+path,method,
         header:Object.assign({"content-type":"application/json"},authenticated?{"Authorization":"Bearer "+token}:{}),
-        data,timeout:8000,
+        data,timeout:path==="/api/v1/assistant"?17000:8000,
         success:res=> {
           if(res.statusCode>=200&&res.statusCode<300)resolve(res.data);
-          else reject(new Error(res.statusCode===401?"登录信息已过期":"服务请求失败（"+res.statusCode+"）"));
+          else {
+            const code=res.data&&res.data.error&&res.data.error.code;
+            const error=new Error(res.statusCode===401?"登录信息已过期":
+              code==="ASSISTANT_NOT_CONFIGURED"?"服务器暂未配置对话 AI，可先使用手动管理。":
+              code==="RATE_LIMITED"?"AI 对话次数达到上限，请稍后使用。":
+              "服务请求失败（"+res.statusCode+"）");
+            error.code=code;reject(error);
+          }
         },
         fail:()=>reject(new Error("网络请求失败"))
       });
@@ -69,6 +81,58 @@ Page({
         this.bootstrap();
       }else this.setData({status:e.message||"读取失败"});
     }
+  },
+  toggleAdvanced(){this.setData({showAdvanced:!this.data.showAdvanced});},
+  onChatInput(e){this.setData({chatInput:e.detail.value});},
+  onChatConsent(e){this.setData({chatConsent:Boolean(e.detail.value),chatStatus:""});},
+  chooseChatSuggestion(e){this.setData({chatInput:e.currentTarget.dataset.text||"",chatStatus:""});},
+  appendChat(role,text){
+    const id="chat-"+Date.now()+"-"+Math.floor(Math.random()*1000000);
+    this.setData({chatMessages:this.data.chatMessages.concat([{id,role,text}]).slice(-14),
+      chatBottomId:id});
+  },
+  newRequestId(){
+    // This is an idempotency identifier, never an authentication credential.
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g,c=>{
+      const v=Math.floor(Math.random()*16);return (c==="x"?v:((v&3)|8)).toString(16);
+    });
+  },
+  localCalendarDay(){
+    const d=new Date();
+    return [d.getFullYear(),String(d.getMonth()+1).padStart(2,"0"),
+      String(d.getDate()).padStart(2,"0")].join("-");
+  },
+  async sendChat(){
+    const message=this.data.chatInput.trim();
+    if(this.data.chatBusy||message.length<2)return;
+    if(!this.data.chatConsent){
+      this.setData({chatStatus:"请先选择是否同意将当前消息与习惯名称发送给配置的第三方 AI。"});
+      return;
+    }
+    const retry=this.data.chatRetryMessage===message&&this.data.chatRetryId;
+    const requestId=retry?this.data.chatRetryId:this.newRequestId();
+    this.setData({chatBusy:true,chatStatus:"正在理解并检查记录…",chatInput:"",
+      chatRetryId:requestId,chatRetryMessage:message});
+    if(!retry)this.appendChat("user",message);
+    try{
+      const result=await this.api("/api/v1/assistant","POST",{
+        message,requestId,localDate:this.localCalendarDay(),consentToAI:true
+      });
+      if(typeof result.reply!=="string")throw new Error("AI 响应不完整");
+      this.appendChat("assistant",result.reply);
+      this.setData({chatStatus:"",chatRetryId:"",chatRetryMessage:""});
+      const habitId=result.change&&result.change.habitId||
+        (result.progress&&result.progress.habitId);
+      if(result.change)await this.loadHabits();
+      if(habitId){
+        this.setData({selectedHabitId:habitId,reflectionEventId:""});
+        await this.refreshProgress(habitId);
+        await this.refreshEvents(habitId);
+      }
+    }catch(e){
+      this.setData({chatInput:message,chatStatus:e.message||
+        "无法确认是否已保存，请先核查习惯记录，再决定是否重试。"});
+    }finally{this.setData({chatBusy:false});}
   },
   async openPractice(){
     if(this.data.practiceOpen){
@@ -280,6 +344,9 @@ Page({
     catch(e){/* Best effort: revoke server session when reachable. */}
     wx.removeStorageSync(TOKEN_KEY);wx.removeStorageSync(EXPIRES_KEY);
     this.setData({authenticated:false,modules:[],dueReviews:[],recentEvents:[],
+      chatInput:"",chatConsent:false,chatRetryId:"",chatRetryMessage:"",
+      chatMessages:[{id:"chat-welcome",role:"assistant",text:"登录后，我可以帮你记录行动与感受。"}],
+      chatBottomId:"chat-welcome",chatStatus:"",
       auditEventId:"",auditRows:[],auditNextOffset:null,practiceOpen:false,
       practiceItem:null,practiceFeedback:null,practiceSelected:"",practiceDomains:[],
       practiceHintUsed:false,practiceNextReviewUtc:"",

@@ -6,6 +6,38 @@
   <view class="note" aria-live="polite">{{status}}</view>
   <button wx:if="{{!authenticated}}" disabled="{{loading}}" bindtap="bootstrap" class="primary">连接我的账户</button>
   <block wx:if="{{authenticated}}">
+    <view class="chat-card">
+      <view class="chat-title">和 AI 聊聊今天的成长</view>
+      <view class="chat-description">说出行动与感受，后端核对后自动记录；不确定时会先询问。</view>
+      <scroll-view class="chat-feed" scroll-y="true" scroll-into-view="{{chatBottomId}}" enable-flex="true">
+        <view wx:for="{{chatMessages}}" wx:key="id" id="{{item.id}}"
+          class="chat-bubble {{item.role == 'user' ? 'chat-mine' : 'chat-ai'}}">
+          <text selectable="true">{{item.text}}</text>
+        </view>
+      </scroll-view>
+      <view class="chat-suggestions">
+        <button wx:for="{{chatSuggestions}}" wx:key="*this" data-text="{{item}}"
+          disabled="{{chatBusy}}" bindtap="chooseChatSuggestion">{{item}}</button>
+      </view>
+      <view class="chat-compose">
+        <textarea value="{{chatInput}}" maxlength="600" auto-height="true"
+          class="chat-textarea" bindinput="onChatInput"
+          placeholder="今天做了什么？开始时是自然还是有点犹豫？"/>
+        <button disabled="{{chatBusy || !chatInput}}" bindtap="sendChat" class="chat-send">
+          {{chatBusy ? '处理…' : '发送'}}
+        </button>
+      </view>
+      <view class="chat-consent">
+        <switch checked="{{chatConsent}}" color="#317655" bindchange="onChatConsent"/>
+        <text>同意将本次消息与习惯名称发送给配置的 AI 服务商，关闭则不发送。</text>
+      </view>
+      <text wx:if="{{chatStatus}}" class="chat-status">{{chatStatus}}</text>
+      <text class="chat-hint">AI 只可记录明确的行为、感受及创建习惯，不能直接修改能力分。聊天消息仅保留在当前页面。</text>
+    </view>
+    <button class="advanced-toggle" bindtap="toggleAdvanced">
+      {{showAdvanced ? '收起手动与专项功能' : '展开手动管理与专项训练'}}
+    </button>
+
     <view wx:if="{{dueReviews.length>0}}" class="due-reviews">
       <view class="section-title">近期复查</view>
       <text class="meta">只是应用内提醒，不会因为偶尔漏做就扣除能力分。</text>
@@ -14,6 +46,7 @@
         <button class="progress-button" data-id="{{item.habitId}}" bindtap="openProgress">快速复查</button>
       </view>
     </view>
+    <block wx:if="{{showAdvanced}}">
     <view class="section-title">推理专项训练</view>
     <text class="meta">原创训练题与正式 A/B 卷完全分开，练习不会提升能力分数。</text>
     <button class="progress-button" bindtap="openPractice">
@@ -56,6 +89,7 @@
       </text>
       <text class="small-note">复习间隔属于可调整的产品策略，不代表个人能力概率。</text>
     </view>
+    </block>
     <view class="section-title">我的习惯</view>
     <view wx:if="{{modules.length===0}}" class="empty">还没有习惯，创建一个可观察的微型行动吧。</view>
     <view class="cards">
@@ -64,8 +98,8 @@
         <text class="meta">{{item.action}}</text>
         <text wx:if="{{item.cue}}" class="meta">触发情境：{{item.cue}}</text>
         <text class="meta">已记录天数：{{item._count.events}}</text>
-        <button class="primary" data-id="{{item.id}}" data-kind="done" disabled="{{creating}}" bindtap="record">今天已执行</button>
-        <view class="opportunity-row">
+        <button wx:if="{{showAdvanced}}" class="primary" data-id="{{item.id}}" data-kind="done" disabled="{{creating}}" bindtap="record">今天已执行</button>
+        <view wx:if="{{showAdvanced}}" class="opportunity-row">
           <button data-id="{{item.id}}" data-kind="missed" disabled="{{creating}}" bindtap="record">有机会，没执行</button>
           <button data-id="{{item.id}}" data-kind="no_cue" disabled="{{creating}}" bindtap="record">今天没机会</button>
         </view>
@@ -133,13 +167,15 @@
         <view class="small-note">已发送给第三方的文字不能远程收回；处理中可能暂时无法取消。</view>
       </view>
     </view>
-    <view class="section-title">新增习惯</view>
+    <block wx:if="{{showAdvanced}}">
+    <view class="section-title">手动添加习惯（备用）</view>
     <view class="form">
       <input maxlength="180" value="{{title}}" bindinput="updateTitle" placeholder="习惯名称"/>
       <textarea maxlength="500" value="{{action}}" bindinput="updateAction" placeholder="具体行动"/>
       <input maxlength="250" value="{{cue}}" bindinput="updateCue" placeholder="触发情境（选填）"/>
       <button class="primary" disabled="{{creating}}" bindtap="createHabit">保存习惯</button>
     </view>
+    </block>
     <button class="logout" bindtap="logout">退出登录</button>
   </block>
 </view>

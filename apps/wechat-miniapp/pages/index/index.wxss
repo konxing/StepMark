@@ -28,3 +28,49 @@
 .practice-choice text{flex:1;line-height:1.6}
 .practice-feedback{display:flex;flex-direction:column;gap:15rpx;padding:21rpx;margin-top:16rpx;border-radius:12rpx;background:#eff7f0;font-size:24rpx;color:#315b3c;line-height:1.65}
 .practice-feedback button{margin-top:15rpx}
+
+/* Mobile-first chat with bounded message viewport and safe-area padding. */
+page{width:100%;overflow-x:hidden;background:#f5f6f2}
+.page{box-sizing:border-box;width:100%;min-width:0;max-width:100vw;
+  padding:30rpx 30rpx calc(90rpx + env(safe-area-inset-bottom));overflow-x:hidden}
+.page .overline{margin-top:34rpx}
+.page .hero{font-size:52rpx;margin-top:15rpx}
+.page .description{margin-top:14rpx;line-height:1.65}
+.page .note{margin-top:18rpx;padding:14rpx 18rpx;overflow-wrap:anywhere}
+.page view,.page text,.page textarea,.page button{box-sizing:border-box;max-width:100%}
+.page button{white-space:normal;overflow-wrap:anywhere;min-width:0}
+.chat-card{background:#fff;border:1rpx solid #d9e8dc;border-radius:22rpx;
+  margin:24rpx 0 24rpx;padding:24rpx;min-width:0}
+.chat-title{font-size:34rpx;font-weight:800;color:#163f2a}
+.chat-description{font-size:23rpx;color:#6c8173;line-height:1.65;margin:9rpx 0 22rpx}
+.chat-feed{height:470rpx;max-height:45vh;width:100%;padding:18rpx;
+  background:#f5f9f4;border:1rpx solid #e1ebdf;border-radius:15rpx}
+.chat-bubble{display:block;width:fit-content;max-width:87%;padding:15rpx 20rpx;
+  margin:0 0 18rpx;line-height:1.65;font-size:26rpx;
+  border-radius:18rpx;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-all}
+.chat-ai{background:#fff;color:#355842;border:1rpx solid #dce9de}
+.chat-mine{background:#245d40;color:#fff;margin-left:auto}
+.chat-suggestions{display:flex;flex-wrap:wrap;gap:9rpx;margin:20rpx 0}
+.chat-suggestions button{background:#edf6ed;color:#366c4e;border:1rpx solid #d5e7d7;
+  border-radius:25rpx;padding:12rpx 17rpx;margin:0;
+  font-size:22rpx;line-height:1.45;text-align:left}
+.chat-compose{display:flex;align-items:stretch;gap:12rpx;width:100%}
+.chat-textarea{box-sizing:border-box;flex:1;width:0;min-width:0;min-height:110rpx;
+  max-height:220rpx;padding:15rpx;background:#fff;border:1rpx solid #b9d1bf;
+  border-radius:12rpx;font-size:27rpx;line-height:1.5}
+.chat-send{flex:0 0 130rpx;width:130rpx;margin:0;padding:15rpx 7rpx;
+  border:0;border-radius:12rpx;color:#fff;background:#194632;
+  font-size:25rpx;min-height:100rpx;line-height:1.55}
+.chat-consent{display:flex;align-items:flex-start;gap:15rpx;margin:20rpx 0 12rpx;
+  color:#516d5d;font-size:23rpx;line-height:1.6}
+.chat-consent switch{flex-shrink:0;transform:scale(.85);transform-origin:top left}
+.chat-consent text{flex:1;min-width:0;overflow-wrap:anywhere}
+.chat-status{display:block;color:#a03f33;font-size:23rpx;line-height:1.6;margin:12rpx 0}
+.chat-hint{display:block;color:#75877b;font-size:20rpx;line-height:1.65;margin-top:12rpx}
+.advanced-toggle{margin:12rpx 0 20rpx;border:1rpx solid #ccddcf;background:#fff;
+  color:#346b4c;border-radius:13rpx;font-size:24rpx;padding:12rpx}
+.card,.progress-card,.practice-card,.due-reviews{min-width:0;overflow-wrap:anywhere}
+.card .primary,.progress-card .primary{min-height:79rpx}
+.opportunity-row button,.reflection-actions button{min-height:76rpx;
+  font-size:23rpx;line-height:1.45;word-break:break-word}
+.practice-tabs button{min-height:70rpx}
