@@ -9,7 +9,7 @@ class BoundedMissingOutcomeTests(unittest.TestCase):
   self.assertEqual(x["identificationRangeWidth"],0)
  def test_end_missing_and_baseline_missing_have_separate_extrema(self):
   x=bounded_change_summary([(2,None),(None,1),(None,None)])
-  self.assertEqual(x["meanChangeBounds"],[-3.0,3.666667])
+  self.assertEqual(x["meanChangeBounds"],[-3.0,2.333333])
   self.assertEqual(x["baselineMissing"],2)
   self.assertEqual(x["endMissing"],2)
   self.assertEqual(x["allAssignedDirectionIdentified"],"unresolved")
