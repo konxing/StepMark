@@ -302,8 +302,15 @@ def evaluate_models(train, holdout, heldout_ids, names, fitted):
                 "personMeanLogLoss":round(float(np.mean(log_person[key])),6),
                 "brierImprovementVsItemRate":round(float((base-losses).mean()),6),
                 "brierImprovementCi95":confidence_interval(base-losses)}
+    direct = np.array(per_person["1PL"]) - np.array(per_person["2PL"])
+    # A matched *direct* 2PL-vs-1PL comparison is more informative than
+    # looking only at two separate confidence intervals against baseline.
+    comparison={"brierImprovement2plVs1pl":round(float(direct.mean()),6),
+                "bootstrap95":confidence_interval(direct),
+                "interpretation":"Positive means 2PL predicts better; uncertainty is participant-clustered and exploratory."}
     return {"testedRespondents":len(per_person["item_rate"]),
             "heldoutItemResponses":target_answers,
+            "directModelComparison":comparison,
             "results":{key:result_for(key) for key in ("item_rate","1PL","2PL")},
             "note":"Held-out respondents and within-person target items; descriptive predictive benchmark, not StepMark item calibration."}
 
