@@ -28,7 +28,9 @@ def read_essays(data,min_rows=10000):
     with zipfile.ZipFile(io.BytesIO(data)) as z:
         files=[m for m in z.infolist() if m.filename.lower().endswith(".csv")]
         if len(files)!=1 or files[0].file_size>110_000_000:
-            raise ValueError("ASAP_ZIP_LAYOUT_CHANGED")
+            # Archive metadata only; no essay contents or identifiers.
+            raise ValueError("ASAP_ZIP_LAYOUT_CHANGED csv_count="+str(len(files))+
+                             " sizes="+str([m.file_size for m in files]))
         with z.open(files[0]) as f:
             rd=csv.DictReader(io.TextIOWrapper(f,encoding="utf-8-sig",newline=""))
             if not rd.fieldnames or not NEED.issubset(rd.fieldnames):
