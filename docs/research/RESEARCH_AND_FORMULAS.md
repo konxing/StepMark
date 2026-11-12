@@ -287,3 +287,19 @@ The next evaluation should compare the proposed schedule against periodic fixed 
 
 Users can revoke a single note's future AI processing or delete the note. When processing is already in flight, the operation returns a conflict instead of falsely guaranteeing revocation. A successful revoke removes platform-held derived classifications, but **cannot undo a prior third-party transmission**. A successful local deletion does not itself prove erasure by an external processor. Both operations require server-side user scoping and are independently tested.
 
+
+## 12. Preserve last-evidenced habit growth and independently flag stale evidence (2026-11-12)
+
+The experimental progress indicator \(P_t\) represents the **last supported historical progress**, not an estimate of current habit status. A previous policy discarded all diary ratings older than 90 days; if the person stopped reporting, the visual percentage could fall merely because data aged out. That implicitly encoded "missingness = low automaticity" and is incompatible with the uncertainty cautions in the HABIRUPT 2026 real-data audit (see `DATASETS_AND_VALIDATION.md` §13).
+
+**Corrected implementation:** include up to 12 most recent distinct-day valid ratings from a bounded historical read, even if older than 90 days. Use *relative* ages from the most recent rating for weighting:
+\[
+w_i=2^{-(t_{latest}-t_i)/(35\text{ days})}.
+\]
+If no new rating is added, then \(w_i\) and the resulting weighted automaticity index stay constant when wall-clock time advances. The repetition count is also unchanged unless a new true completion is logged. Progress thus remains unchanged in the absence of new evidence; a newly submitted difficulty rating can still lower the score. The evidence-count cap and distinction between self-report and AI-only annotation remain in force.
+
+**Freshness:** separately set `evidenceStale=true` when the latest valid rating is more than 45 days old, return `lastRatingAt` for transparency, and render "historic evidence needs updating" instead of implying a current 90%-formed habit. An existing opt-out for reminders still suppresses prompts. The **45-day value is an arbitrary transparent product policy**, not a valid expiration or diagnostic threshold. A person can report more often or disable review.
+
+**Implementation:** `packages/core/src/habit-progress.ts`, owner-scoped limited historical reads in the API and due-review selector, unit test comparing progress at +150 days with no added rating, real PostgreSQL test comparing a private note at 190 days, and updated Web / WeChat UI.
+
+The remaining scientific challenge is to validate reliability of 0–4 single-item initiation ratings against a suitable independent habit scale, with adequate sensitivity to genuine habit change. The corrected display does **not** validate the progress score, nor can it establish that a user maintained a habit during the silent interval.
