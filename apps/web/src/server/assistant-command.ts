@@ -57,8 +57,8 @@ export function authorizeAssistantCommand(raw:unknown,userText:string,habits:rea
   if(v.intent==="check_progress")return {...v,target};
   if(question.test(userText))
     return clarification("这句看起来是在提问，我不会把它自动写成已执行记录。需要记录的话，请直接说“我今天完成了某某习惯”。");
-  if(v.when==="today"&&userText.includes("昨天")||
-     v.when==="yesterday"&&userText.includes("今天"))
+  if((userText.includes("昨天")&&v.when!=="yesterday")||
+     (userText.includes("今天")&&v.when==="yesterday"))
     return clarification("日期不够确定。请说明这次是今天还是昨天的记录。");
   if(v.intent==="record_opportunity"){
     if(!v.status||v.confidence<0.75)return clarification("我不确定你是否完成了这次行动，请说清楚“已完成”“有机会未做”或“没有触发机会”。");

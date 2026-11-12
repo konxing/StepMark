@@ -18,6 +18,11 @@ export async function executeAssistantCommand(args:{
 }):Promise<AssistantResult>{
   const {userId,requestId,message,command,model}=args;
   const localDate=validateClientLocalDate(args.localDate);
+  // Do not persist ordinary conversational replies or private free-text chat.
+  // Only explicit mutations require durable replay receipts.
+  if(command.intent==="chat"||command.intent==="clarify")
+    return {reply:limitText(command.reply||"我没有改动任何记录。"),
+      change:null,progress:null};
   const digest=createHash("sha256").update(message).digest("hex");
   const db=getDb();
   const key={userId_requestId:{userId,requestId}};
@@ -84,7 +89,8 @@ export async function executeAssistantCommand(args:{
           }
           const state=completed?"已执行":eligible?"有机会但未执行":"没有出现触发情境";
           result={reply:`已记录「${target.title}」在 ${day} 的状态：${state}。这是行为记录，不会直接改变能力分数。`,
-            change:existing?null:{kind:"opportunity_recorded",habitId:target.id,habitTitle:target.title},
+            change:recordedFeeling?{kind:"reflection_recorded",habitId:target.id,habitTitle:target.title}:
+              existing?null:{kind:"opportunity_recorded",habitId:target.id,habitTitle:target.title},
             progress:null};
         }
       }else if(command.intent==="record_reflection" && command.target){
@@ -148,8 +154,10 @@ export async function executeAssistantCommand(args:{
       }else if(command.intent==="clarify"){
         result.reply=limitText(command.reply||"请再说具体一点，我不会在不确定时修改记录。");
       }
-      await tx.assistantAction.create({data:{userId,requestId,messageDigest:digest,intent:command.intent,
-        result:JSON.parse(JSON.stringify(result)) as Prisma.InputJsonValue}});
+      if(command.intent!=="check_progress"){
+        await tx.assistantAction.create({data:{userId,requestId,messageDigest:digest,intent:command.intent,
+          result:JSON.parse(JSON.stringify(result)) as Prisma.InputJsonValue}});
+      }
       return result;
     });
   }catch(e){
