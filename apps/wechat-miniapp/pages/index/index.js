@@ -280,7 +280,11 @@ Page({
       this.setData({selectedHabitId:id,progress});
       try{
         const data=await this.api("/api/v1/habits/"+id+"/reflections","GET");
-        this.setData({recentReflections:(data.reflections||[]).slice(0,5)});
+        const labels={DISABLED:"未启用",PENDING:"待分析",PROCESSING:"分析中",
+          COMPLETED:"已分析",FAILED:"分析失败"};
+        this.setData({recentReflections:(data.reflections||[]).slice(0,5).map(x=>({
+          ...x,aiStatusLabel:labels[x.aiStatus]||"未知"
+        }))});
       }catch{this.setData({recentReflections:[]});}
     }catch(e){this.setData({status:e.message||"读取进度失败"});}
   },

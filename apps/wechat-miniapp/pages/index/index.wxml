@@ -116,6 +116,7 @@
       </view>
       <view wx:if="{{progress.reviewDue}}" class="review-note">该复查了：现在开始这个习惯仍然自然吗？</view>
       <view class="small-note">百分比是实验性成长指标，不是习惯形成概率，也不直接增加能力分。</view>
+      <block wx:if="{{showAdvanced}}">
       <view class="section-title">最近记录 · 更正</view>
       <view wx:for="{{recentEvents}}" wx:key="id" class="reflection-item">
         <text class="meta">{{item.opportunityKey}} · {{!item.eligible ? '没有触发机会' : (item.completed ? '已执行' : '有机会未执行')}} · 版本 {{item.revision}}</text>
@@ -138,7 +139,9 @@
         </view>
       </view>
       <text class="meta">更正将留下历史；关联感受的执行记录需要先处理感受记录。</text>
-      <view class="section-title">记录开始行动的感受（选填）</view>
+      </block>
+      <block wx:if="{{showAdvanced}}">
+      <view class="section-title">手动记录行动感受（备用）</view>
       <picker range="{{feelingOptions}}" value="{{feelIndex == -1 ? 0 : feelIndex}}" bindchange="chooseFeeling">
         <view class="picker-control">{{feelIndex == -1 ? '选择最接近的感受' : feelingOptions[feelIndex]}}</view>
       </picker>
@@ -149,6 +152,7 @@
         <text>同意将当前文字发送给 AI 服务商分析（默认关闭）</text>
       </view>
       <button class="primary" disabled="{{creating || (!feedbackNote && feelIndex == -1)}}" bindtap="saveReflection">保存感受</button>
+      </block>
       <button class="progress-button" data-id="{{selectedHabitId}}" bindtap="toggleReview">
         切换当前习惯复查提示
       </button>
@@ -156,7 +160,7 @@
         <view class="section-title">我的近期感受</view>
         <view wx:for="{{recentReflections}}" wx:key="id" class="reflection-item">
           <text class="meta">{{item.note || '已记录一次自然启动等级'}}</text>
-          <text wx:if="{{item.aiConsent}}" class="meta">AI 状态：{{item.aiStatus}}</text>
+          <text wx:if="{{item.aiConsent}}" class="meta">AI 状态：{{item.aiStatusLabel}}</text>
           <view class="reflection-actions">
             <button wx:if="{{item.aiConsent}}" data-id="{{item.id}}" data-action="revoke"
               disabled="{{creating}}" bindtap="controlReflection">撤回 AI 授权</button>

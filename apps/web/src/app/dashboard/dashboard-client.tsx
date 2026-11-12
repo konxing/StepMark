@@ -11,6 +11,7 @@ function stateLabel(eligible:boolean,completed:boolean){
 export default function DashboardClient({email}:{email:string}) {
   const [habits,setHabits]=useState<Habit[]>([]);
   const [showManual,setShowManual]=useState(false);
+  const [showCorrections,setShowCorrections]=useState(false);
   const [dueReviews,setDueReviews]=useState<{habitId:string;title:string;progress:number;reviewReason:string}[]>([]);
   const [title,setTitle]=useState(""),[action,setAction]=useState(""),[cue,setCue]=useState("");
   const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
@@ -120,6 +121,7 @@ export default function DashboardClient({email}:{email:string}) {
       if(!r.ok)throw new Error();
       const report=await r.json() as NonNullable<typeof insights>;
       setSelected(id);setReflectionEventId(eventId);setInsights(report);
+      setShowCorrections(false);
       setHistoryEventId(null);setHistoryRows([]);setHistoryNextOffset(null);
       await refreshEvents(id);
     }catch{setMessage("无法读取记录。");}
@@ -184,7 +186,11 @@ export default function DashboardClient({email}:{email:string}) {
       {insights.latestAutomaticity?<p>最近一次试验性自动化指数：{insights.latestAutomaticity.indexScore.toFixed(1)}/100（不是已验证量表或能力值）。</p>:
         <p>还没有自动化程度的独立测量。完成次数不能证明习惯已经形成。</p>}
     </section>}
-    {selected&&<section className="dashboard-panel">
+    {selected&&<button type="button" className="assistant-advanced-toggle"
+      aria-expanded={showCorrections} onClick={()=>setShowCorrections(x=>!x)}>
+      {showCorrections?"收起历史更正工具":"查看或更正最近执行记录"}
+    </button>}
+    {selected&&showCorrections&&<section className="dashboard-panel">
       <h2>最近记录 · 更正状态</h2>
       <p>误选“已执行 / 没执行 / 没机会”时，可在这里更正。每次更正会保留审计历史，不会重复增加次数。</p>
       {events.length===0?<p>暂无记录。</p>:events.slice(0,14).map(event=><div className="habit-row" key={event.id}>

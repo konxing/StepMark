@@ -21,17 +21,22 @@ export default function AssistantChatPanel({
   const [consent,setConsent]=useState(false);
   const [busy,setBusy]=useState(false);
   const [notice,setNotice]=useState("");
+  const [retry,setRetry]=useState<{message:string;requestId:string}|null>(null);
   async function send(event:React.FormEvent){
     event.preventDefault();
     const message=draft.trim();
     if(busy||message.length<2)return;
     if(!consent){setNotice("请先选择是否同意将当前消息及已有习惯名称发送给配置的第三方 AI 服务商。");return;}
+    const sameRetry=retry?.message===message;
+    const requestId=sameRetry?retry.requestId:crypto.randomUUID();
+    setRetry({message,requestId});
     setBusy(true);setNotice("");setDraft("");
-    setMessages(previous=>[...previous,{id:crypto.randomUUID(),role:"user" as const,text:message}].slice(-16));
+    if(!sameRetry)setMessages(previous=>[...previous,{id:crypto.randomUUID(),
+      role:"user" as const,text:message}].slice(-16));
     try {
       const res=await fetch("/api/v1/assistant",{
         method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({message,requestId:crypto.randomUUID(),localDate:localDay(),consentToAI:true})
+        body:JSON.stringify({message,requestId,localDate:localDay(),consentToAI:true})
       });
       const data=await res.json().catch(()=>null) as (Reply&{error?:{code:string}})|null;
       if(!res.ok){
@@ -42,9 +47,14 @@ export default function AssistantChatPanel({
           "本次请求未确认保存，请检查记录后重试，避免重复登记。");
       }
       if(!data||typeof data.reply!=="string")throw new Error("AI 返回的数据无效，请稍后重试。");
+      setRetry(null);
       setMessages(previous=>[...previous,{id:crypto.randomUUID(),role:"assistant" as const,text:data.reply}].slice(-16));
-      if(data.change||data.progress)await onChanged(data.change?.habitId??data.progress?.habitId??null);
+      if(data.change||data.progress){
+        try{await onChanged(data.change?.habitId??data.progress?.habitId??null);}
+        catch{setNotice("记录已成功处理，但页面统计暂时刷新失败；请重新进入成长进度查看。");}
+      }
     }catch(error){
+      setDraft(message);
       setNotice(error instanceof Error?error.message:"网络错误，请检查连接。");
     }finally{setBusy(false);}
   }
