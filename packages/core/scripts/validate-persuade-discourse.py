@@ -147,6 +147,15 @@ def evaluate(rows,quality):
                 "weightedF1":round(float(f1_score(truth,p,labels=label_set,average="weighted",zero_division=0)),6)}
     result={name:metrics(pred) for name,pred in candidates.items()}
     direct=cluster_accuracy_ci(truth,baseline,prediction,[r["essay"] for r in test])
+    essay_delta=defaultdict(list)
+    for i,r in enumerate(test):
+        essay_delta[r["essay"]].append(int(prediction[i]==truth[i])-int(lp[i]==truth[i]))
+    text_vs_length={"spanWeightedAccuracyGain":round(float(
+        accuracy_score(truth,prediction)-accuracy_score(truth,lp)),6),
+        "essayEqualMeanAccuracyGain":round(float(np.mean(
+          [np.mean(d) for d in essay_delta.values()])),6),
+        "essayClusterBootstrap95":cluster_accuracy_ci(
+          truth,lp,prediction,[r["essay"] for r in test])}
     labels=[]
     precision,recall,f1,support=precision_recall_fscore_support(truth,prediction,labels=label_set,zero_division=0)
     for i,name in enumerate(label_set):
@@ -166,6 +175,7 @@ def evaluate(rows,quality):
                  "testEssays":len(set(r["essay"] for r in test)),
                  "textVocabularySize":len(tfidf.vocabulary_),"noEssayOverlap":True},
       "models":result,"accuracyGainVsPromptMajorityCluster95":direct,
+      "directTextVsLength":text_vs_length,
       "perLabel":labels,"byPrompt":byprompt,
       "individualDataPersisted":False,
       "limitations":"Four-prompt academic subset; no commercial use. Discourse-unit classification on human-annotated English school essays, not overall writing quality, not Chinese speaking ability, not independent new-prompt generalization. Essay-cluster CI exploratory, and training text may share phrases across essays."}
