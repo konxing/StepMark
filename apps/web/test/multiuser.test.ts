@@ -707,3 +707,38 @@ test("training recommendations and attempts remain tenant-scoped, answer-safe an
     assert.equal(await db.practiceAttempt.count({where:{userId:a.id}}),0);
   }finally{await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});}
 });
+
+test("old private diary evidence survives expiry and is flagged stale, not erased from progress",async()=>{
+  const a=await db.user.create({data:{},select:{id:true}});
+  const b=await db.user.create({data:{},select:{id:true}});
+  try{
+    const h=await db.habit.create({data:{userId:a.id,title:"Historic rating",action:"Natural start"}});
+    const other=await db.habit.create({data:{userId:b.id,title:"Other person's diary",action:"Private"}});
+    const old=new Date(Date.now()-190*86400000);
+    await db.habitEvent.create({data:{habitId:h.id,opportunityKey:"old:one",
+      completed:true,eligible:true,occurredAt:old,source:"test"}});
+    await db.habitReflection.create({data:{habitId:h.id,createdAt:old,initiationLevel:4,aiConsent:false}});
+    await db.habitReflection.create({data:{habitId:other.id,createdAt:old,initiationLevel:0,aiConsent:false}});
+    const token=(await issueSession(a.id,"WECHAT")).token;
+    const get=(id:string)=>habitProgressGET(req("/api/v1/habits/"+id+"/progress",
+      "GET",undefined,token,"WECHAT"),{params:Promise.resolve({id})});
+    const first=await get(h.id);
+    assert.equal(first.status,200);
+    const progress=await first.json() as {progress:number;evidenceCount:number;evidenceStale:boolean;stage:string};
+    assert.equal(progress.evidenceCount,1);
+    assert.equal(progress.evidenceStale,true);
+    assert.ok(progress.progress>50);
+    const due=await dueReviewsGET(req("/api/v1/habits/due","GET",undefined,token,"WECHAT"));
+    const summary=await due.json() as {due:{habitId:string}[]};
+    assert.ok(summary.due.some(x=>x.habitId===h.id));
+    assert.ok(!summary.due.some(x=>x.habitId===other.id));
+    assert.equal((await get(other.id)).status,404);
+    await db.habit.update({where:{id:h.id},data:{reviewEnabled:false}});
+    const suppressed=await get(h.id);
+    const after=await suppressed.json() as {progress:number;evidenceStale:boolean;reviewDue:boolean;stage:string};
+    assert.equal(after.progress,progress.progress);
+    assert.equal(after.evidenceStale,true);
+    assert.equal(after.reviewDue,false);
+    assert.equal(after.stage,"needs_fresh_evidence");
+  }finally{await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});}
+});
