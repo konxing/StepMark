@@ -20,7 +20,8 @@ from scipy.optimize import minimize
 SOURCE = {
     "source": "Condon & Revelle (2016), ICAR SAPA, Harvard Dataverse doi:10.7910/DVN/AD9RVY",
     "irw_table": "icar_sapa",
-    "irw_version": 701,
+    "irw_warehouse_metadata_version": 701,
+    "pinned_redivis_table_release": "item_response_warehouse v81.0",
     "data_use": "offline research only; response data, no item stems or answer keys",
     "expected_rows": 1199896,
     "expected_respondents": 95236,
