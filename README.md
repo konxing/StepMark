@@ -177,3 +177,7 @@ License: Apache-2.0. 引入任何第三方认知测验或量表前另行确认�
 - 研究复现：`packages/core/scripts/validate-fiorella.mjs`、`validate-edgren.mjs` 以及各自的独立 Actions 工作流。完整数据来源、哈希、不同量表分层和对比结果：**[研究数据与校验文档](docs/research/DATASETS_AND_VALIDATION.md#11-verified-osf-longitudinal-datasets-and-executed-benchmarks-2026-11-12)**。
 
 **重要：** 新结果不支持给所有用户使用一个固定习惯成长曲线；StepMark 的 0–100 视觉进度仍是实验性产品规则。未用公开参与者数据直接计算任何真实用户的能力值。AI Chat Web 未改动。
+
+### 第三份真实研究数据：触发情境与缺失值
+
+[Edgren b69gp](https://osf.io/b69gp/) 的 16,490 条逐日记录已验证：3,581 条明确没有遇到触发情境、3,328 条遇到一次、2,869 条遇到多次，6,712 条缺失该项回答。**缺失值不等于没有触发情境，没有触发情境也不等于执行失败。** 该研究追踪风险行为减量，不能直接代表正向习惯养成。[可复现运行记录](https://github.com/konxing/StepMark/actions/runs/43218180138)；源码与哈希见研究文档第 11 节。

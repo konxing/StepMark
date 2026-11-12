@@ -252,3 +252,20 @@ OSF project metadata returned `license:null` for the above nodes. An openly down
 ### Mathematical consequence
 
 Keep `habit-progress-v1` and maintenance reminders as *unvalidated visual heuristics*. Do not silently tune `N/55`, evidence caps, or review day thresholds to match the validation test set. The prospective benchmark suggests model **selection by individually measured predictive performance** may help, but calibration requires separate nested validation or an untouched cohort, uncertainty analysis, and a construct-valid link to user-rated *habitual initiation*. Ability scores require wholly separate performance evidence.
+
+### E. Edgren follow-up: separately observed cue exposure (real-data audit)
+
+An additional independent, completed real-data research run for OSF [b69gp](https://osf.io/b69gp/) is available at https://github.com/konxing/StepMark/actions/runs/43218180138 .
+Pinned source: `HABIRUPT_STUDY1_PAPER2_QUANTI_DATA_2025-06-16.csv`, SHA-256 `ccc57856568d7b06669714422918880238162008d4960f98b2ee03eaf5fab464`, 16,490 day-level records and 194 participants. The original codebook records `D2CEXP` (chosen cue exposure) separately from `D2PE` (enactment of a reduction plan); these are **not** interchangeable.
+
+| Actual cue state | Study-day rows |
+|---|---:|
+| No cue encountered (0) | 3,581 |
+| Cue once (1) | 3,328 |
+| Cue multiple times (2) | 2,869 |
+| No cue response recorded (missing) | 6,712 |
+| **Total** | **16,490** |
+
+The 6,712 missing answers must **not** be counted as "no cue" or "missed action". SRBAI is separately missing on 4,723 study days. The study investigates **reduction of risk behaviors**, so a successful reduction plan is not a StepMark positive-habit completion. These results validate source mapping and missingness logic, **not** the StepMark 0–100 progress or proposed review cadence.
+
+Research-only Python script `packages/core/scripts/validate-edgren-cues.py` verifies both a pinned expected SHA-256 and the OSF provider hash. All study records remain ephemeral in GitHub Actions; only aggregate counts are printed. The OSF project metadata lacks a confirmed downstream reuse license, and no raw data were bundled in StepMark.
