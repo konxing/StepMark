@@ -101,6 +101,7 @@ async function main(){
     for(const [measure,records] of groups){
       const result=evaluateAutomaticitySeries(records);
       summaries.push({measure,quality:result.quality,
+        recordedMissingness:result.recordedMissingness,
         models:{
           lastObservation:result.lastObservation,
           constantMean:result.constantMean,
@@ -108,7 +109,9 @@ async function main(){
           squareRoot:result.trendCandidates.square_root,
           logarithmic:result.trendCandidates.logarithmic,
           asymptoticCurve:result.asymptoticCurve,
-          matchedLastForAsymptote:result.matchedLastObservation
+          matchedLastForAsymptote:result.matchedLastObservation,
+          pairedAsymptote:result.pairedAsymptote,
+          pairedTrends:result.pairedTrends
         },
         evaluationType:"person-stratified time-forward predictive check; unlinked self-report scales"});
     }

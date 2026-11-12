@@ -1,5 +1,6 @@
 import {fitHabitCurve,habitCurve} from "./habit.ts";
 import {fitTrend,predictTrend,type TrendShape} from "./trend-benchmarks.ts";
+import {pairedRmseBootstrap,auditRecordedMissingness,type PairedErrorSeries,type PairedRmseAudit,type RecordedMissingnessAudit} from "./research-audit.ts";
 
 export interface AutomaticitySeriesRow {
   participantId:string;
@@ -40,6 +41,10 @@ export interface SeriesValidation {
   /** Matched cohort for trend candidates (separate from asymptotic fit cohort). */
   matchedLastObservationForTrend:BaselineScore;
   trendWinsFraction:Record<TrendShape,number|null>;
+  /** Matched-person cluster bootstrap; positive improvement means smaller candidate error. */
+  pairedAsymptote:PairedRmseAudit;
+  pairedTrends:Record<TrendShape,PairedRmseAudit>;
+  recordedMissingness:RecordedMissingnessAudit;
 }
 function rounded(x:number):number{return Number(x.toFixed(6));}
 function score(errors:readonly number[][]):BaselineScore {
@@ -77,6 +82,8 @@ export function evaluateAutomaticitySeries(
   const trendErrors:Record<TrendShape,number[][]>={linear:[],square_root:[],logarithmic:[]};
   const trendMatchErrors:number[][]=[];
   const trendWinCount:Record<TrendShape,number>={linear:0,square_root:0,logarithmic:0};
+  const trendPairs:Record<TrendShape,PairedErrorSeries[]>={linear:[],square_root:[],logarithmic:[]};
+  const curvePairs:PairedErrorSeries[]=[];
   const lastErrors:number[][]=[],constantErrors:number[][]=[],curveErrors:number[][]=[],matchedErrors:number[][]=[];
   for(const original of byPerson.values()){
     const rows=[...original].sort((a,b)=>a.day-b.day);
@@ -105,6 +112,7 @@ export function evaluateAutomaticitySeries(
       if(!fit)continue;
       const errors=test.map(x=>predictTrend(x.effectiveRepetitions,fit)-x.automaticity!);
       trendErrors[shape].push(errors);
+      trendPairs[shape].push({baseline:lastErr,candidate:errors});
       const mse=(e:readonly number[])=>e.reduce((sum,v)=>sum+v*v,0)/e.length;
       if(mse(errors)<mse(lastErr))trendWinCount[shape]++;
     }
@@ -115,6 +123,7 @@ export function evaluateAutomaticitySeries(
       eligible++;
       const curveErr=test.map(x=>habitCurve(x.effectiveRepetitions,fitted.parameters)-x.automaticity!);
       curveErrors.push(curveErr);matchedErrors.push(lastErr);
+      curvePairs.push({baseline:lastErr,candidate:curveErr});
       const mse=(e:readonly number[])=>e.reduce((s,v)=>s+v*v,0)/e.length;
       if(mse(curveErr)<mse(lastErr))curveWins++;
     }
@@ -140,6 +149,11 @@ export function evaluateAutomaticitySeries(
     matchedLastObservationForTrend:score(trendMatchErrors),
     trendWinsFraction:{linear:trendErrors.linear.length?rounded(trendWinCount.linear/trendErrors.linear.length):null,
       square_root:trendErrors.square_root.length?rounded(trendWinCount.square_root/trendErrors.square_root.length):null,
-      logarithmic:trendErrors.logarithmic.length?rounded(trendWinCount.logarithmic/trendErrors.logarithmic.length):null}
+      logarithmic:trendErrors.logarithmic.length?rounded(trendWinCount.logarithmic/trendErrors.logarithmic.length):null},
+    pairedAsymptote:pairedRmseBootstrap(curvePairs),
+    pairedTrends:{linear:pairedRmseBootstrap(trendPairs.linear),
+      square_root:pairedRmseBootstrap(trendPairs.square_root),
+      logarithmic:pairedRmseBootstrap(trendPairs.logarithmic)},
+    recordedMissingness:auditRecordedMissingness(records)
   };
 }

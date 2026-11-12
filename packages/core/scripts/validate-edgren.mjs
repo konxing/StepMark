@@ -2,6 +2,7 @@ import {createHash} from "node:crypto";
 import {fitHabitCurve,habitCurve} from "../src/habit.ts";
 import {fitTrend,predictTrend} from "../src/trend-benchmarks.ts";
 import {pathToFileURL} from "node:url";
+import {pairedRmseBootstrap,auditRecordedMissingness} from "../src/research-audit.ts";
 
 /**
  * Edgren et al. 2025: actual 0..4 SRBAI longitudinal data describing
@@ -62,6 +63,7 @@ export function compareDecay(parsed){
     const profiles=[...parsed.people.values()].filter(x=>x.group===group);
     const last=[],linear=[],decay=[],matched=[];
     let holdout=0;
+    const decayPairs=[];
     for(const profile of profiles){
       const sorted=[...profile.rows].sort((a,b)=>a.day-b.day);
       for(let i=1;i<sorted.length;i++){
@@ -86,6 +88,7 @@ export function compareDecay(parsed){
       if(curve){
         decay.push(test.map(x=>100-habitCurve(x.day,curve.parameters)-x.automaticity));
         matched.push(lastErrors);
+        decayPairs.push({baseline:lastErrors,candidate:test.map(x=>100-habitCurve(x.day,curve.parameters)-x.automaticity)});
       }
     }
     const gPeople=parsed.byGroup.get(group).size;
@@ -94,7 +97,9 @@ export function compareDecay(parsed){
       observedRatings:profiles.reduce((s,p)=>s+p.rows.filter(x=>x.automaticity!==null).length,0),
       predictedHoldoutRecords:holdout,
       models:{lastObservation:summary(last),linearTime:summary(linear),
-        exponentialDecay:summary(decay),matchedLastForDecay:summary(matched)}});
+        exponentialDecay:summary(decay),matchedLastForDecay:summary(matched),
+        pairedDecay:pairedRmseBootstrap(decayPairs),
+        recordedMissingness:auditRecordedMissingness(profiles.flatMap((p,i)=>p.rows.map(row=>({participantId:String(i),day:row.day,automaticity:row.automaticity}))))}});
   }
   return {status:"REAL_LONGITUDINAL_DECAY_RESEARCH",
     source:"Edgren et al. (2025), https://osf.io/sngu4/",

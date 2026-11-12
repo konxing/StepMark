@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - "packages/core/scripts/validate-edgren.mjs"
+      - "packages/core/src/research-audit.ts"
       - "packages/core/scripts/validate-edgren.test.mjs"
       - ".github/workflows/research-edgren.yml"
   workflow_dispatch:
