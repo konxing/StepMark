@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - "packages/core/scripts/inspect-osf-data.mjs"
+      - "packages/core/scripts/inspect-fiorella.py"
       - ".github/workflows/research-osf-inspect.yml"
   workflow_dispatch:
 permissions:
@@ -17,3 +18,6 @@ jobs:
         with: {node-version: '22'}
       - name: Inspect fixed public research files in ephemeral runner (no participant rows logged)
         run: node packages/core/scripts/inspect-osf-data.mjs
+
+      - name: Validate Fiorella 2026 anonymized daily CSV tables and raw ZIP integrity
+        run: python3 packages/core/scripts/inspect-fiorella.py
