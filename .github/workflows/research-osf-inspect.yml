@@ -1,0 +1,19 @@
+name: Research OSF dataset schema inspection
+on:
+  push:
+    paths:
+      - "packages/core/scripts/inspect-osf-data.mjs"
+      - ".github/workflows/research-osf-inspect.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Inspect fixed public research files in ephemeral runner (no participant rows logged)
+        run: node packages/core/scripts/inspect-osf-data.mjs
