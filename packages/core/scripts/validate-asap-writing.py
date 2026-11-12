@@ -148,6 +148,10 @@ def evaluate(rows):
                 "scoreMin":min(r["score"] for r in rows),"scoreMax":max(r["score"] for r in rows),
                 "vocabularySize":len(vector.vocabulary_),"verifiedNoExactTextLeakage":True},
       "overall":{k:metrics(k) for k in predictions},
+      "directTextVsLength":{"maeImprovement":round(float(
+          (errors["length_ridge"]-errors["tfidf_ridge"]).mean()),6),
+          "pairedBootstrap95":paired_ci(errors["length_ridge"],errors["tfidf_ridge"]),
+          "interpretation":"Exploratory paired essay-level comparison of text features beyond prompt and length."},
       "byPrompt":per_prompt,"byLengthTertile":length_results,
       "rowsOrEssayTextPersisted":False,
       "limits":"Only official TRAIN subset, not official blind test. TF-IDF Ridge is offline ML, not an LLM judge. English adolescent essays are not Chinese spoken-expression ability; do not reuse this output as personal score."}
