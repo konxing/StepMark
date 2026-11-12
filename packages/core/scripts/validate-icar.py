@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Research-only prospective held-out *binary response* benchmark for IRW ICAR SAPA.
+"""Research-only prospective held-out *binary response* benchmark for Dataverse ICAR SAPA.
 
 Uses anonymous ID/item/resp ONLY; never saves respondent-level files in Git.
 Trains MML 1PL and 2PL item parameters with Gaussian quadrature + EM, then
@@ -9,7 +9,6 @@ Calibrated items are ICAR items, NOT StepMark's original logic A/B items.
 import csv
 import hashlib
 import json
-import math
 import sys
 from collections import Counter
 from pathlib import Path
@@ -18,13 +17,10 @@ import numpy as np
 from scipy.optimize import minimize
 
 SOURCE = {
-    "source": "Condon & Revelle (2016), ICAR SAPA, Harvard Dataverse doi:10.7910/DVN/AD9RVY",
-    "irw_table": "icar_sapa",
-    "irw_warehouse_metadata_version": 701,
-    "pinned_redivis_table_release": "item_response_warehouse v81.0",
-    "data_use": "offline research only; response data, no item stems or answer keys",
-    "expected_rows": 1199896,
-    "expected_respondents": 95236,
+    "source": "Condon & Revelle (2016), ICAR SAPA, Harvard Dataverse doi:10.7910/DVN/AD9RVY V3",
+    "file_sha256": "27b22368434e94278d4cfee238770339f8e90da6229ef9ffd95900c4972426e5",
+    "file_bytes": 18796756,
+    "data_use": "offline research only; scored responses, no item stems or answer keys",
     "expected_items": 60,
 }
 GRID = np.linspace(-4, 4, 41)
@@ -98,6 +94,75 @@ def read_verified_data(path, expected=SOURCE):
         "trainingRespondents": len(train),
         "heldoutRespondents": len(holdout),
     }, item_names
+
+
+def read_dataverse_scored(path):
+    """Read source-authenticated *wide* scored ICAR responses without identifiers.
+
+    SHA is rechecked even when a CSV was generated or copied independently.
+    A deterministic row-index subsample is reproducible because the CSV bytes
+    are pinned. Original demography, verbatim answers and extra columns are
+    discarded, never logged, and never used for AI training.
+    """
+    source_path=Path(path)
+    if source_path.stat().st_size != SOURCE["file_bytes"]:
+        raise ValueError("DATAVERSE_BYTES_MISMATCH")
+    digest=hashlib.sha256()
+    with source_path.open("rb") as stream:
+        for chunk in iter(lambda:stream.read(1024*1024),b""):
+            digest.update(chunk)
+    if digest.hexdigest()!=SOURCE["file_sha256"]:
+        raise ValueError("DATAVERSE_SHA256_MISMATCH")
+    with source_path.open(newline="",encoding="utf-8-sig") as fh:
+        reader=csv.DictReader(fh)
+        if reader.fieldnames is None:
+            raise ValueError("DATAVERSE_HEADER_MISSING")
+        import re
+        # Publisher's names LN / MR / VR / R3D are cognitive item prefixes.
+        names=[x for x in reader.fieldnames if re.fullmatch(r"(?:LN|MR|VR|R3D)[A-Za-z0-9_.-]*",x)]
+        if len(names)!=60 or len(names)!=len(set(names)):
+            raise ValueError("DATAVERSE_ICAR_60_ITEM_SCHEMA_CHANGED")
+        mapping={item:idx for idx,item in enumerate(sorted(names))}
+        train,holdout,ids=[],[],[]
+        n=0
+        scored=0
+        included=0
+        for row in reader:
+            if None in row or len(row)!=len(reader.fieldnames):
+                raise ValueError("DATAVERSE_CSV_ROW_INVALID")
+            n+=1
+            if n>105000:
+                raise ValueError("DATAVERSE_UNEXPECTED_N")
+            pid=str(n) # Row position, NOT respondent personal identifier
+            in_sample=stable_number("sample:"+pid)%8==0
+            values=np.full(len(names),np.nan) if in_sample else None
+            answered=0
+            for item in names:
+                value=row[item]
+                if value in ("","NA","NaN","NULL"):
+                    continue
+                if value not in ("0","1","0.0","1.0"):
+                    raise ValueError("DATAVERSE_RESPONSE_NOT_BINARY")
+                answered+=1
+                scored+=1
+                if in_sample:
+                    values[mapping[item]]=float(value)
+            if in_sample and answered>0:
+                included+=1
+                if stable_number("group:"+pid)%4==0:
+                    holdout.append(values)
+                    ids.append(pid)
+                else:
+                    train.append(values)
+    if not (94000<=n<=105000) or scored<1000000 or included<1000:
+        raise ValueError("DATAVERSE_COHORT_UNEXPECTED")
+    if len(train)<500 or len(holdout)<200:
+        raise ValueError("DATAVERSE_SPLIT_TOO_SMALL")
+    return np.asarray(train),np.asarray(holdout),ids,{
+        "sourceRows":n,"sourceScoredResponses":scored,"sourceItems":60,
+        "sampledRespondentsWithResponses":included,
+        "trainingRespondents":len(train),"heldoutRespondents":len(holdout)
+    },sorted(names)
 
 
 def softmax_rows(log_weights):
@@ -244,7 +309,7 @@ def evaluate_models(train, holdout, heldout_ids, names, fitted):
 
 
 def run(path):
-    train, holdout, ids, quality, names = read_verified_data(path)
+    train, holdout, ids, quality, names = read_dataverse_scored(path)
     fitted = {}
     fit_diag = {}
     for label, flag in (("1PL",False),("2PL",True)):
@@ -264,7 +329,7 @@ def run(path):
 
 if __name__ == "__main__":
     if len(sys.argv)!=2:
-        raise SystemExit("Usage: validate-icar.py <verified IRW id,item,resp CSV>")
+        raise SystemExit("Usage: validate-icar.py <verified Harvard Dataverse scored ICAR CSV>")
     try:
         output=run(Path(sys.argv[1]))
         print(json.dumps(output,indent=2,ensure_ascii=False))

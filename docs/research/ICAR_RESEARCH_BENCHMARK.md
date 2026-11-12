@@ -1,15 +1,28 @@
-# ICAR research benchmark: isolated cognitive model validation
+# ICAR SAPA research benchmark: source-pinned original response data
 
-- Source: Condon & Revelle (2016), Selected ICAR Data from the SAPA Project, Harvard Dataverse https://doi.org/10.7910/DVN/AD9RVY. IRW reformatted `icar_sapa` table: https://itemresponsewarehouse.org/tables/icar_sapa/, table described by warehouse metadata version **701**, explicitly pinned to Redivis dataset `item_response_warehouse v81.0`.
-- IRW icar_sapa page reports 1,199,896 binary responses, 95,236 respondents and 60 items. The accompanying IRW build script `data/icar_sapa.R` reconstructs `id,item,resp` and drops unavailable responses. Original data may have different documentation and structure; compare the primary source before interpreting latent factors.
-- **Permissions:** response data are publicly distributed under CC0 (check both Harvard Dataverse v3 and IRW transformed-data license). That **does not** license ICAR **item text, answer keys or forms** for unrestricted website deployment. Never ship those materials to StepMark production.
-- This exploratory script installs `irw==1.4.0` for R, pins `item_response_warehouse v81.0`, rechecks source counts and binary encoding, exports only the three allowed response columns to an ephemeral Actions runner CSV, and deletes that CSV. If counts/version/schema change, it **fails closed**. Research logs print aggregated statistics only, never identifiers, source items, row samples, or identifiable data.
-- The Python benchmark takes a deterministic **respondent-level** one-in-eight sample. Of those respondents, 3/4 train item parameters and 1/4 remain wholly unseen during calibration. Among each held-out respondent's answered items, 25% (at least one) are predicted using the *other* answers as context. Items are ranked by a deterministic cryptographic hash of id/item, independent of outcomes. All models use exactly the same target items.
-- Candidate models: item-frequency baseline with Beta(1,1) smoothing; fixed-discrimination 1PL and free-discrimination 2PL with quadrature marginal maximum likelihood, bounded parameters and weak regularization. Both assume a single latent ability `theta~N(0,1)`; this assumption is unproven for four ICAR subtests. Fit diagnostics are included, and lack of convergence is labeled. The sample is sparse-by-design and internet-recruited; fitted parameters are **NOT** clinical norms.
-- Primary metrics: **person-equal-weight Brier loss** and log loss; matched improvement relative to item-frequency baseline with **person-cluster bootstrap 95% percentile interval**. The descriptive comparison is not a preregistered confirmatory result, and its training/holdout cannot support selecting a new live model and then claiming an independent final test on the same respondents.
-- Absolute prohibition: do not use these ICAR-derived parameter values to calibrate StepMark's unrelated six-item logic A/B forms or assign population percentile/intelligence.
-- Reproduction command: `python -m unittest discover -s packages/core/scripts -p 'test_validate_icar.py' -v`, then run `.github/workflows/research-icar.yml` on a temporary GitHub runner. Real-data numbers are **not reported** until the job is independently confirmed successful.
+## Provenance, rights and scope
 
-**Pin maintenance:** The global IRW v701 manifest requested `item_response_warehouse v80.0`, which the host reported unavailable in the first real-data attempt. The official `icar_sapa` table page reports it as v81.0, so the job explicitly pins that version rather than allowing a silent “latest” fallback. Counts, schema, binary coding and respondent totals are still mandatory gates. This workflow does not yet pin raw CSV SHA-256 because publisher-provided bytes have not been verified independently.
+Primary source: Condon & Revelle (2016), *Selected ICAR Data from the SAPA-Project*, Harvard Dataverse: https://doi.org/10.7910/DVN/AD9RVY, release V3.
 
-Status as of this commit: source metadata and extraction method reviewed; real-data benchmarking result is pending until GitHub Actions finishes. CI synthetic tests do **not** establish psychometric predictive validity.
+- Research-only **original scored response** file: `sapaICARData18aug2010thru20may2013.csv`. Dataverse V3 catalog identifies this scored CSV as publicly released; contains 0/1 per cognitive item. Study article: https://reference-global.com/article/10.5334/jopd.25?tab=article .
+- Fixed original-file SHA-256 `27b22368434e94278d4cfee238770339f8e90da6229ef9ffd95900c4972426e5`, size **18,796,756** bytes, independently reported with the Dataverse V3 original source by https://mindrankiq.com/about/. Workflow **fails closed** if official API returns different bytes, missing metadata, or a different release. Dataset source file's own metadata should be separately reconciled if upstream changes.
+- Only scored 0/1 response values for exactly 60 cognitive items are used (LN, MR, R3D, VR prefixes). No question wording, response keys or identifiable demographic variables are published or passed into StepMark production. **ICAR item materials** retain separate restrictions despite CC0 score data.
+- This data describes non-representative online participants. The ability model assumes a **single latent factor** without empirical verification across four subtests. The model cannot validate StepMark's unrelated six-item logic A/B forms.
+
+## Why the workflow uses primary Dataverse data
+
+The initially proposed IRW reformatted table was described as `item_response_warehouse v81.0` on https://itemresponsewarehouse.org/tables/icar_sapa/. The IRW R client v1.4.0 reported that **both** its v701 manifest's `v80.0` and the published table's `v81.0` were not available from Redivis in isolated GitHub Actions jobs. Repeated attempts therefore never produced a valid research sample. Rather than silently selecting the latest server version, StepMark switches to the publisher's original pinned V3 CSV from Harvard Dataverse. Former IRW extraction helper `fetch-icar-irw.R` is superseded and not invoked.
+
+## Design and metrics
+
+1. All rows are scanned with strict source SHA, format, binary encoding and 60-item checks. Deterministic SHA-based **respondent-row index** subsampling selects one in eight respondents; source file checksum pins row ordering.
+2. 3/4 of sampled respondents fit item parameters and 1/4 are completely untouched in fitting. For held-out people, item targets (approximately 25% of their answered items) are determined by a separate SHA hash of row-index and item label, independent of outcomes. Remaining answers provide a small personal context.
+3. Baselines: item-wise smoothed correct-response rates. Models: 1PL (discrimination fixed to 1) and exploratory 2PL (discrimination estimated by quadrature EM MML with regularization and bounds). These are not official ICAR item calibrations; convergence diagnostics are recorded.
+4. Matched held-out comparisons: participant-equal-weight Brier score and log loss, paired participant-bootstrap 95% intervals for model minus baseline differences. Positive `brierImprovementVsItemRate` means candidate improved over baseline. A 95% interval crossing zero does not show a reliable advantage.
+5. No identifiable respondent row or item text is logged or committed. Temporary CSV is deleted even if validation fails. Do not use this benchmark to declare population norms or generalized increases in user intelligence.
+
+## Reproducing
+
+Run `python -m unittest discover -s packages/core/scripts -p 'test_validate_icar.py' -v` with pinned Numpy/SciPy, then run the isolated GitHub workflow `.github/workflows/research-icar.yml`. Successful synthetic tests do not prove empirical psychometric predictive validity.
+
+As of this revision: the code and source SHA pin are committed; **real-data results may only be stated after confirming the new GitHub Actions job completed successfully**.

@@ -19,6 +19,13 @@ class IcarResearchTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"BINARY"):
                 icar.read_verified_data(file,expected)
 
+    def test_dataverse_wide_import_does_not_accept_unpinned_bytes(self):
+        with tempfile.TemporaryDirectory() as d:
+            file=Path(d)/"raw.csv"
+            file.write_text("LN1,MR1\\n1,0\\n",encoding="utf-8")
+            with self.assertRaisesRegex(ValueError,"DATAVERSE_BYTES_MISMATCH"):
+                icar.read_dataverse_scored(file)
+
     def test_posterior_uses_only_context_and_is_normalized(self):
         a=np.array([1.,1.2,1.4])
         c=np.array([0.1,-0.1,0.2])
