@@ -5,7 +5,7 @@
  * An AI proposal NEVER becomes a user self-report merely because a quote is
  * present. The quote/role/tenant checks protect provenance, not truth.
  */
-import type {TriState,InitiationLevel} from "./habit-opportunity-evidence.ts";
+import type {TriState,HabitOpportunityInitiationLevel} from "./habit-opportunity-evidence.ts";
 
 export interface HabitChatMessage {
   id:string;
@@ -32,7 +32,7 @@ export interface AiHabitClaim {
   eligibleOpportunity:TriState;
   performed:TriState;
   /** AI-deduced 0-4 ratings remain provisional, not a self-report scale. */
-  proposedInitiationLevel:InitiationLevel|null;
+  proposedInitiationLevel:HabitOpportunityInitiationLevel|null;
 }
 export type HabitClaimRejection =
   | "invalid_scoped_input"
@@ -57,7 +57,7 @@ export interface ProvisionalHabitClaim {
   cueEncountered:TriState;
   eligibleOpportunity:TriState;
   performed:TriState;
-  proposedInitiationLevel:InitiationLevel|null;
+  proposedInitiationLevel:HabitOpportunityInitiationLevel|null;
   requiresEventTimeResolution:true;
   /** Never eligible for direct writes, execution rate or habit progression. */
   userReportConfirmed:false;

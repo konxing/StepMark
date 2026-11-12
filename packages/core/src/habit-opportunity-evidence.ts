@@ -7,7 +7,7 @@
  * provisional and cannot silently become self-report ground truth.
  */
 export type TriState = true | false | null;
-export type InitiationLevel = 0|1|2|3|4;
+export type HabitOpportunityInitiationLevel = 0|1|2|3|4;
 export type EvidenceOrigin = "user_explicit" | "ai_interpretation";
 export interface HabitOpportunityEvidence {
   opportunityKey: string;
@@ -19,7 +19,7 @@ export interface HabitOpportunityEvidence {
   /** Was the target action performed? This is NOT equivalent to automaticity. */
   performed: TriState;
   /** Person-rated automaticity of starting action. Missing != zero. */
-  initiationAutomaticity: InitiationLevel|null;
+  initiationAutomaticity: HabitOpportunityInitiationLevel|null;
   source: EvidenceOrigin;
   /**
    * Required for AI interpreted evidence: extract quote tied to an existing
@@ -45,13 +45,13 @@ export interface HabitOpportunityEvidenceAudit {
   /** User's direct ratings only, not automatically inferred AI scores. */
   directAutomaticityRatings:number;
   /** Newest explicitly rated initiation level; null means unobserved. */
-  latestDirectInitiationLevel:InitiationLevel|null;
+  latestDirectHabitOpportunityInitiationLevel:HabitOpportunityInitiationLevel|null;
   /** Descriptive only: null if no known eligible behavior outcomes. */
   observedAdherence:number|null;
   note:string;
 }
 const isTri=(x:unknown):x is TriState=> x===true || x===false || x===null;
-const isRating=(x:unknown):x is InitiationLevel|null=>x===null ||
+const isRating=(x:unknown):x is HabitOpportunityInitiationLevel|null=>x===null ||
  (typeof x==="number" && Number.isInteger(x) && x>=0 && x<=4);
 /** All records refer to a single habit within one owner's isolated collection. */
 export function auditHabitOpportunities(
@@ -64,7 +64,7 @@ export function auditHabitOpportunities(
   let eligibleButPerformanceUnknown=0,eligibilityUnknown=0,explicitlyNoOpportunity=0;
   let cueEncountered=0,cueNotEncountered=0,cueUnknown=0;
   let directAutomaticityRatings=0;
-  let lastRating:-1|InitiationLevel=-1,lastRatingTime=-Infinity;
+  let lastRating:-1|HabitOpportunityInitiationLevel=-1,lastRatingTime=-Infinity;
   for(const r of events){
     if(typeof r.opportunityKey!=="string" || r.opportunityKey.length>128 ||
       !/^[A-Za-z0-9_.:-]{1,128}$/.test(r.opportunityKey) ||
@@ -116,7 +116,7 @@ export function auditHabitOpportunities(
     confirmedEligibleOpportunities,performedEligible,missedEligible,
     eligibleButPerformanceUnknown,eligibilityUnknown,explicitlyNoOpportunity,
     cueEncountered,cueNotEncountered,cueUnknown,
-    directAutomaticityRatings,latestDirectInitiationLevel:lastRating===-1?null:lastRating,
+    directAutomaticityRatings,latestDirectHabitOpportunityInitiationLevel:lastRating===-1?null:lastRating,
     observedAdherence:known?Number((performedEligible/known).toFixed(6)):null,
     note:"Descriptive, eligible-and-observed events only. AI interpretations and absent reports do not count as missed performance or zero automaticity. No validated habit-formation probability is computed."
   };

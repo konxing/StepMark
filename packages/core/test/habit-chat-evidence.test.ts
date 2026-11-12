@@ -79,12 +79,12 @@ test("future, hypothetical, negative and third-party quotes carry caution, not f
 });
 test("contradictory observation and AI inferred automaticity fail closed",()=>{
   const {message,claim}=data("今天练羽毛球");
-  for(const patch of [
+  for(const patch of ([
     {performed:false,proposedInitiationLevel:4},
     {eligibleOpportunity:false,performed:true},
     {performed:"yes" as never},
     {proposedInitiationLevel:5 as never}
-  ]){
+  ] satisfies Partial<AiHabitClaim>[])){
     assert.deepEqual(prepareAiHabitChatClaim("owner-1",habit,message,
       {...claim,...patch}),{accepted:false,reason:"invalid_measurement"});
   }
