@@ -15,6 +15,7 @@ PROJECT = "b69gp"
 NAME = "HABIRUPT_STUDY1_PAPER2_QUANTI_DATA_2025-06-16.csv"
 GROUPS = ("SED", "SNA", "ALC", "TOB")
 MAX_SIZE = 3_000_000
+EXPECTED_SHA256 = "ccc57856568d7b06669714422918880238162008d4960f98b2ee03eaf5fab464"
 
 def open_json(url):
     req = urllib.request.Request(url, headers={"Accept": "application/vnd.api+json",
@@ -38,6 +39,8 @@ def get_data():
         raise RuntimeError("FILE_TOO_LARGE")
     sha = hashlib.sha256(data).hexdigest()
     provider_hash = item["attributes"].get("extra", {}).get("hashes", {}).get("sha256")
+    if sha != EXPECTED_SHA256:
+        raise RuntimeError("PINNED_SOURCE_VERSION_CHANGED")
     if not provider_hash or provider_hash.lower() != sha:
         raise RuntimeError("SOURCE_HASH_MISMATCH")
     return data, sha
