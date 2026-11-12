@@ -27,7 +27,7 @@ export default function AssistantChatPanel({
     if(busy||message.length<2)return;
     if(!consent){setNotice("请先选择是否同意将当前消息及已有习惯名称发送给配置的第三方 AI 服务商。");return;}
     setBusy(true);setNotice("");setDraft("");
-    setMessages(previous=>[...previous,{id:crypto.randomUUID(),role:"user",text:message}].slice(-16));
+    setMessages(previous=>[...previous,{id:crypto.randomUUID(),role:"user" as const,text:message}].slice(-16));
     try {
       const res=await fetch("/api/v1/assistant",{
         method:"POST",headers:{"Content-Type":"application/json"},
@@ -42,7 +42,7 @@ export default function AssistantChatPanel({
           "本次请求未确认保存，请检查记录后重试，避免重复登记。");
       }
       if(!data||typeof data.reply!=="string")throw new Error("AI 返回的数据无效，请稍后重试。");
-      setMessages(previous=>[...previous,{id:crypto.randomUUID(),role:"assistant",text:data.reply}].slice(-16));
+      setMessages(previous=>[...previous,{id:crypto.randomUUID(),role:"assistant" as const,text:data.reply}].slice(-16));
       if(data.change||data.progress)await onChanged(data.change?.habitId??data.progress?.habitId??null);
     }catch(error){
       setNotice(error instanceof Error?error.message:"网络错误，请检查连接。");

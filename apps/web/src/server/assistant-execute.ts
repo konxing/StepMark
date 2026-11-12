@@ -17,7 +17,7 @@ export async function executeAssistantCommand(args:{
   command:SafeAssistantCommand;model:string
 }):Promise<AssistantResult>{
   const {userId,requestId,message,command,model}=args;
-  const localDate=validatedClientLocalDate(args.localDate);
+  const localDate=validateClientLocalDate(args.localDate);
   const digest=createHash("sha256").update(message).digest("hex");
   const db=getDb();
   const key={userId_requestId:{userId,requestId}};
@@ -126,14 +126,18 @@ export async function executeAssistantCommand(args:{
           tx.habitReflection.findMany({where:{habitId:target.id},orderBy:{createdAt:"desc"},
             take:80,select:{createdAt:true,initiationLevel:true,aiStatus:true,aiLevel:true,aiConfidence:true}})
         ]);
-        const observations:InitiationEvidence[]=notes.flatMap(r=>{
-          if(r.initiationLevel!==null)return [{atMs:r.createdAt.getTime(),
-            level:r.initiationLevel as 0|1|2|3|4,source:"self_report" as const,confidence:1}];
-          if(r.aiStatus==="COMPLETED"&&r.aiLevel!==null&&r.aiConfidence!==null)
-            return [{atMs:r.createdAt.getTime(),
-              level:r.aiLevel as 0|1|2|3|4,source:"ai_interpretation" as const,confidence:r.aiConfidence}];
-          return [];
-        });
+        const observations:InitiationEvidence[]=[];
+        for(const r of notes){
+          if(r.initiationLevel!==null){
+            observations.push({atMs:r.createdAt.getTime(),
+              level:r.initiationLevel as 0|1|2|3|4,
+              source:"self_report",confidence:1});
+          }else if(r.aiStatus==="COMPLETED"&&r.aiLevel!==null&&r.aiConfidence!==null){
+            observations.push({atMs:r.createdAt.getTime(),
+              level:r.aiLevel as 0|1|2|3|4,
+              source:"ai_interpretation",confidence:r.aiConfidence});
+          }
+        }
         const status=calculateHabitProgress({completedRepetitions:completed,
           eligibleOpportunities:eligible,completedOpportunities:completed,
           observations,nowMs:Date.now(),lastCompletedAtMs:last?.occurredAt.getTime()??null,
