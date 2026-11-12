@@ -5,6 +5,7 @@ on:
     paths:
       - "packages/core/scripts/inventory-osf-habirupt-2026.py"
       - "packages/core/scripts/inspect-osf-habirupt-2026.py"
+      - "packages/core/scripts/summarize-habirupt-2026.py"
       - ".github/workflows/research-habirupt-2026.yml"
 permissions:
   contents: read
@@ -18,3 +19,5 @@ jobs:
         run: python3 packages/core/scripts/inventory-osf-habirupt-2026.py
       - name: Verify pinned RCT data files and print schema/README only
         run: python3 packages/core/scripts/inspect-osf-habirupt-2026.py
+      - name: Compute pinned RCT aggregated quality metrics only
+        run: python3 packages/core/scripts/summarize-habirupt-2026.py
