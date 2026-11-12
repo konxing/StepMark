@@ -58,7 +58,7 @@ test("missing and zero rating have different meanings",()=>{
 });
 test("duplicate events and invalid types fail closed",()=>{
   assert.throws(()=>auditHabitOpportunities([row("a"),row("a")]),/repeated/);
-  assert.throws(()=>auditHabitOpportunities([row("a",{cueEncountered:undefined})]),/invalid cue/);
+  assert.throws(()=>auditHabitOpportunities([row("a",{cueEncountered:undefined} as unknown as Partial<HabitOpportunityEvidence>)]),/invalid cue/);
   assert.throws(()=>auditHabitOpportunities([row("a",{initiationAutomaticity:10 as never})]),/invalid cue/);
   assert.equal(auditHabitOpportunities([]).observedAdherence,null);
 });
