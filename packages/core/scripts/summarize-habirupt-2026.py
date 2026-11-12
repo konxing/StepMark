@@ -3,6 +3,7 @@
 import csv,io,json,runpy
 from collections import defaultdict
 from pathlib import Path
+from missingness_bounds import bounded_change_summary,contrast_to_reference
 helpers=runpy.run_path(str(Path(__file__).parent/"inspect-osf-habirupt-2026.py"))
 catalog={a["attributes"]["name"]:a for a in helpers["open_json"](helpers["API"])["data"]}
 def rows(name):
@@ -32,6 +33,7 @@ def main():
   arm=u["intervention_arm"]
   groups[arm]["participants"]+=1
   a,b=num(u["D7_SRBAI"]),num(u["D91_SRBAI"])
+  groups[arm].setdefault("allPairs",[]).append((a,b))
   if a is not None and b is not None:groups[arm]["pairedChanges"].append(b-a)
  for r in diary:
   if r["id_users"] not in byid:raise ValueError("UNLINKED_DIARY")
@@ -42,6 +44,7 @@ def main():
   if value is None:g["missing"]+=1
   else:g["observed"]+=1;g["sum"]+=value
  result={}
+ bounds={arm:bounded_change_summary(g["allPairs"]) for arm,g in groups.items()}
  for arm,g in sorted(groups.items()):
   changes=g["pairedChanges"]
   result[arm]={"participants":g["participants"],"studyDayRows":g["rows"],
@@ -49,10 +52,14 @@ def main():
     "missingFraction":round(g["missing"]/g["rows"],4),
     "observedMeanSRBAI0to4":round(g["sum"]/g["observed"],4) if g["observed"] else None,
     "pairedBaselineEndN":len(changes),
-    "descriptiveEndMinusBaseline":round(sum(changes)/len(changes),4) if changes else None}
+    "descriptiveEndMinusBaseline":round(sum(changes)/len(changes),4) if changes else None,
+    "missingOutcomeIdentification":bounds[arm]}
  print(json.dumps({"status":"RESEARCH_ONLY_PINNED_RCT_DESCRIPTIVE",
    "source":"https://osf.io/z7tby/","people":len(users),"rows":len(diary),
-   "groups":result,"participantRowsPrinted":False,"commercialReusePermission":"NOT_VERIFIED",
-   "warning":"Unadjusted descriptive groups, not causal RCT effects; incomplete follow-up and sampling matter."},
+   "groups":result,
+   "groupContrastsVsControl":{arm:contrast_to_reference(bounds[arm],bounds["control"])
+     for arm in sorted(groups) if arm!="control"},
+   "participantRowsPrinted":False,"commercialReusePermission":"NOT_VERIFIED",
+   "warning":"Unadjusted descriptive groups and extreme-case missing-outcome bounds. The bounds are not CIs, missing mechanisms are unresolved, and group change contrasts are not adjusted causal effects."},
    sort_keys=True))
 if __name__=="__main__":main()
