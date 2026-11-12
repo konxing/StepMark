@@ -1,4 +1,4 @@
-name: Inventory additional 2026 HABIRUPT public data (metadata only)
+name: HABIRUPT 2026 pinned longitudinal research audit
 on:
   workflow_dispatch:
   push:
@@ -12,7 +12,7 @@ on:
 permissions:
   contents: read
 jobs:
-  metadata:
+  descriptive-audit:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     steps:

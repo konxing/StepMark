@@ -299,3 +299,54 @@ Across all 313 participants, `SRBAI` is observed on 13,922 of 26,605 possible st
 - OSF project license metadata identifies a license record, but the exact downstream/commercial reuse grant has **not** been reviewed; external files remain research-only, ephemeral.
 - Executable provenance and group summary live in `packages/core/scripts/inventory-osf-habirupt-2026.py`, `inspect-osf-habirupt-2026.py`, `summarize-habirupt-2026.py`; CI workflow `.github/workflows/research-habirupt-2026.yml`.
 
+
+## 13. Missing-outcome sensitivity and attrition audit for the 2026 RCT (2026-11-12)
+
+**Actual execution:** https://github.com/konxing/StepMark/actions/runs/43247185186 (conservative bounds) and https://github.com/konxing/StepMark/actions/runs/43247537200 (prospectively specified first/middle/last study windows and duplicate-day validation). Input is the same checksum-pinned research-only data from §12, and no participant-level data are added to StepMark.
+
+### Why complete-case group changes are insufficient
+
+The original RCT paper notes the limits imposed by self-reported behavior and variable intervention adherence. The source-level daily records are 26,605 rows, with 13,922 present SRBAI ratings (47.67% missing). Randomization does **not** mean outcomes are missing randomly. The National Academies report and subsequent methods literature recommend sensitivity analyses instead of automatic last-observation-carry-forward as a primary method:
+- NRC, *The Prevention and Treatment of Missing Data in Clinical Trials* (2010), https://doi.org/10.17226/12955
+- *Addressing missing data in randomized clinical trials: A causal inference perspective*, https://pmc.ncbi.nlm.nih.gov/articles/PMC7337281/
+
+### Explicit worst/best-case finite-sample bounds
+
+For a participant with baseline \(A_i\) and endpoint \(B_i\) on the observed 0–4 SRBAI scale, bound each missing value by its legal scale limits; a missing score is not imputed as zero:
+\[
+\begin{aligned}
+\Delta_i^L &= (B_i\ \text{if known, else }0) - (A_i\ \text{if known, else }4),\\
+\Delta_i^U &= (B_i\ \text{if known, else }4) - (A_i\ \text{if known, else }0),\\
+[\Delta_g^L,\Delta_g^U]&=\left[\frac1{n_g}\sum_i\Delta_i^L,\frac1{n_g}\sum_i\Delta_i^U\right].
+\end{aligned}
+\]
+The arithmetic difference in group mean changes vs control \(c\) has bounds \([\Delta_g^L-\Delta_c^U,\Delta_g^U-\Delta_c^L]\). These intervals assume no missing-outcome distribution; they are **not** statistical confidence intervals or an adjusted/intention-to-treat causal effect estimand.
+
+| Random allocation | Complete-case mean end-minus-baseline | All-assigned identification bounds (0–4) |
+|---|---:|---:|
+| Control (50) | −0.946 | [−1.520, −0.080] |
+| Inhibition (88) | −1.343 | [−2.062, +0.120] |
+| Substitution (88) | −1.557 | [−1.975, −0.430] |
+| Reduced accessibility (87) | −1.206 | [−1.776, −0.166] |
+
+For all three active groups, the *difference in change* bounds compared with control include zero: inhibition [−1.982,+1.640], substitution [−1.895,+1.091], reduced accessibility [−1.695,+1.354]. Thus group ordering by complete-case change alone is not identified without further missingness assumptions. This analysis makes **no claim that the original paper's prespecified early-week modeling is invalid**: it addresses a different, crude endpoint contrast.
+
+### Actual repeated-measure missingness across predetermined periods
+
+| Arm | Days 0–6 missing | Days 28–55 missing | Days 78–84 missing |
+|---|---:|---:|---:|
+| Control | 22.00% | 40.07% | 51.71% |
+| Inhibition | 29.71% | 59.74% | 70.29% |
+| Substitution | 24.19% | 46.71% | 54.22% |
+| Reduced accessibility | 23.97% | 50.57% | 58.29% |
+
+These periods were coded explicitly *before* reading the newly printed results, not optimized to create the largest differences. Missing daily SRBAI ratings cannot be treated as a lack of cue exposure, loss of a habit or a missed positive behavior. The strong attrition trend makes the missingness mechanism an important concern but does not prove MNAR.
+
+### Software validation and product consequences
+
+- `packages/core/scripts/missingness_bounds.py`: deterministic bounded-outcome algebra and group-contrast interval; unit tests include fully observed, partially observed, invalid, and no-information cases.
+- `packages/core/scripts/summarize-habirupt-2026.py`: all-assigned group bounds, explicit complete-case counts, period-specific missingness and duplicate (participant, study day) rejection.
+- `.github/workflows/research-habirupt-2026.yml`: separate research-only reproducibility run, pinned SHA-256 inputs, no row-level logs, no production API access.
+- **Product policy:** It would be misleading for StepMark to reduce an individual's habit-progress score solely because they stopped filling diaries; schedule a low-burden review, display stale/insufficient evidence and let users decide whether to continue. Do not artificially lower automaticity without an actual rating. A missed report does not equal zero ability or zero automaticity.
+- **Remaining work:** rigorous sensitivity model under MAR and multiple plausible MNAR deviations, participant-level intervals clustered by individual, fair cross-group measurement comparisons, and genuinely external validation of personal progress and optimal review cadence. All new model-selection thresholds must be chosen on training data rather than this evaluation set. Do not use the research data in a live tenant or claim commercial re-use rights.
+
