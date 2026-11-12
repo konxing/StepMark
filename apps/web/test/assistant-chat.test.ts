@@ -6,6 +6,7 @@ import {authorizeAssistantCommand,verifiedInitiationEvidence,
 import {executeAssistantCommand} from "../src/server/assistant-execute";
 import {getDb} from "../src/server/db";
 import {POST as assistantPOST} from "../src/app/api/v1/assistant/route";
+import {GET as exportGET} from "../src/app/api/v1/account/export/route";
 import {issueSession,SESSION_COOKIE} from "../src/server/security";
 import {NextRequest} from "next/server";
 const db=getDb();
@@ -27,6 +28,9 @@ test("AI output is a proposal, not arbitrary database authorization",()=>{
     "今天睡前阅读做了吗？",[own]).intent,"clarify");
   assert.equal(authorizeAssistantCommand(
     template("record_opportunity",{habitId:own.id,status:"done",when:"today"}),
+    "昨天完成了睡前阅读",[own]).intent,"clarify");
+  assert.equal(authorizeAssistantCommand(
+    template("record_opportunity",{habitId:own.id,status:"done",when:null}),
     "昨天完成了睡前阅读",[own]).intent,"clarify");
   assert.equal(authorizeAssistantCommand(
     template("record_opportunity",{habitId:own.id,status:"done",when:"yesterday"}),
@@ -126,6 +130,22 @@ test("multiuser chat action receipts are idempotent and never authorize foreign 
     assert.equal(progress.change,null);
     assert.ok(progress.progress!.percent>=0&&progress.progress!.percent<=100);
     assert.equal(await db.assistantAction.count({where:{userId:a.id}}),2);
+    const token=(await issueSession(a.id,"WECHAT")).token;
+    const exportRes=await exportGET(new NextRequest(
+      "http://localhost:3000/api/v1/account/export?kind=assistant_actions&offset=0",{
+        headers:{authorization:"Bearer "+token}
+      }));
+    assert.equal(exportRes.status,200);
+    const exportData=await exportRes.json() as {items:Record<string,unknown>[]};
+    assert.equal(exportData.items.length,2);
+    assert.ok(exportData.items.every(x=>!Object.hasOwn(x,"messageDigest")));
+    assert.ok(exportData.items.every(x=>!Object.hasOwn(x,"message")));
+    const talk=authorizeAssistantCommand(template("chat",{reply:"你好，先说说你的目标。"}),
+      "我想跟你聊聊习惯",[{id:habitId,title:"睡前阅读"}]);
+    await executeAssistantCommand({userId:a.id,requestId:randomUUID(),localDate:localDate(),
+      message:"我想跟你聊聊习惯",command:talk,model:"test-v1"});
+    assert.equal(await db.assistantAction.count({where:{userId:a.id}}),2,
+      "ordinary chat must not persist a conversation transcript");
   }finally{await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});}
 });
 test("unauthorized assistant HTTP calls cannot trigger provider access",async()=>{
