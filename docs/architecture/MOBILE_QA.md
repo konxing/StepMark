@@ -31,3 +31,9 @@
 ## 剩余风险
 
 微信真机渲染与无障碍、商用 API 服务商数据处理条款、服务端公网压测、聊天长期上下文/历史管理、实际模型回答质量尚需独立验收。当前的 AI 对话是 **单轮受控命令**，不是开放式全权限智能体；未配置模型和用户同意时不应称其已经可使用。
+
+## Critical account synchronization caveat
+
+The current mini-program uses WeChat OpenID identity while the website uses email login. Until an explicit, secure account-linking flow is built, the same human may have **different** StepMark user IDs in the two clients. A mismatch in visible habits across those accounts is therefore expected, not something to fix by disabling user isolation. See `ACCOUNT_LINKING_PLAN.md` for the required threat model and acceptance criteria.
+
+For display checking today, compare API results **only within the same authenticated canonical user** (for example, via direct controlled test sessions in CI), not two independently created identities.
