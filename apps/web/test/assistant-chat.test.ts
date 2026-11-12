@@ -49,6 +49,9 @@ test("AI output is a proposal, not arbitrary database authorization",()=>{
   assert.equal(authorizeAssistantCommand(
     template("create_habit",{title:"高效阅读",action:"睡前阅读10页"}),
     "你觉得我是否应该添加一个习惯？",[own]).intent,"clarify");
+  assert.equal(authorizeAssistantCommand(
+    template("create_habit",{title:"每天阅读",action:"睡前阅读10页"}),
+    "帮我添加一个每天阅读的习惯",[own]).intent,"clarify");
 });
 test("model-selected title must be unambiguous among multiple owned habits",()=>{
   const list=[{id:randomUUID(),title:"睡前阅读"},{id:randomUUID(),title:"每日运动"}];

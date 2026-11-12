@@ -45,6 +45,12 @@ export function authorizeAssistantCommand(raw:unknown,userText:string,habits:rea
        !v.action?.trim()||v.title.trim().length<2||v.action.trim().length<2||
        v.confidence<0.7)
       return clarification("我可以帮你创建习惯。请明确说出要养成的行为，例如“帮我添加一个睡前阅读10页的习惯”。");
+    // Never invent quantitative goals: an LLM must not turn "read daily"
+    // into "read 10 pages" unless the user actually stated 10.
+    const userNumbers=new Set(userText.match(/\\d+(?:\\.\\d+)?/g)??[]);
+    const proposedNumbers=(v.title+" "+v.action+" "+(v.cue??"")).match(/\\d+(?:\\.\\d+)?/g)??[];
+    if(proposedNumbers.some(n=>!userNumbers.has(n)))
+      return clarification("我不会替你编造次数或时长，请直接说明希望每天做多少。");
     return {...v,title:v.title.trim(),action:v.action.trim(),cue:v.cue?.trim()||null,target:null};
   }
   if(!target)return clarification("请说清楚是哪一项习惯，比如直接提到它的名字。");
