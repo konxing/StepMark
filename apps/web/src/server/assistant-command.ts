@@ -23,6 +23,14 @@ const doneWords=/(做了|完成了|已完成|执行了|打卡了|打卡|读了|�
 const missedWords=/(没做|没完成|没有完成|未执行|没执行|没打卡|忘记|忘了|没有做)/u;
 const noCueWords=/(没机会|没有机会|没有触发|未遇到|没遇到|没出现触发|没有出现)/u;
 const reflectionWords=/(感觉|感受|自然|不用思考|没想|纠结|犹豫|抗拒|费力|顺手|轻松|自然而然)/u;
+/**
+ * Never let the AI's confident intent label turn a conditional example,
+ * future plan, somebody else's actions, or a no-record instruction into a
+ * durable habit event. This is a conservative reject-only guard, not NLP.
+ */
+const nonActualEventWords=/(如果|假如|假设|假定|例如|比如|举个例子|打算|计划|明天|后天|下周|下个月|将来|以后会|可能|也许|希望明天|我准备|模拟|演示|测试一下|先不要记录|别记录|不用记录|不要记)/u;
+const thirdPartyActor=/(?:我的?朋友|我的?同事|同学|老师|别人|他|她|他们|她们)[^。！？!?]{0,24}(?:完成了|做了|执行了|阅读了|跑了|练了|练习了|没做|没完成)/u;
+
 
 function clarification(message:string):SafeAssistantCommand {
   return {intent:"clarify",habitId:null,title:null,action:null,cue:null,
@@ -62,6 +70,10 @@ export function authorizeAssistantCommand(raw:unknown,userText:string,habits:rea
       return clarification("为了避免把记录写进错误的习惯，请在这句话里直接说出完整习惯名称。");
   }
   if(v.intent==="check_progress")return {...v,target};
+  if(!userText.includes(target.title))
+    return clarification("为了避免把消息误写到另一项习惯，请在这句话里直接说出习惯的完整名称。");
+  if(nonActualEventWords.test(userText)||thirdPartyActor.test(userText))
+    return clarification("这段文字可能是在描述计划、假设或他人的行为，我不会自动登记为你已发生的记录。请明确说出自己今天或昨天实际做了什么。");
   if(question.test(userText))
     return clarification("这句看起来是在提问，我不会把它自动写成已执行记录。需要记录的话，请直接说“我今天完成了某某习惯”。");
   if((userText.includes("昨天")&&v.when!=="yesterday")||
@@ -69,6 +81,9 @@ export function authorizeAssistantCommand(raw:unknown,userText:string,habits:rea
      (userText.includes("今天")&&v.when==="yesterday"))
     return clarification("日期不够确定。请说明这次是今天还是昨天的记录。");
   if(v.intent==="record_opportunity"){
+    if(!v.when || (v.when==="today"&&!userText.includes("今天")) ||
+       (v.when==="yesterday"&&!userText.includes("昨天")))
+      return clarification("我不会把未说明日期的消息默认记录为今天。请明确说出今天还是昨天发生的事情。");
     if(!v.status||v.confidence<0.75)return clarification("我不确定你是否完成了这次行动，请说清楚“已完成”“有机会未做”或“没有触发机会”。");
     if(v.status==="done"&&(!doneWords.test(userText)||missedWords.test(userText)))
       return clarification("我没有找到明确的“已经执行”证据，请直接告诉我是否完成了。");

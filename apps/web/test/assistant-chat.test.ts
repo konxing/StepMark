@@ -53,6 +53,27 @@ test("AI output is a proposal, not arbitrary database authorization",()=>{
     template("create_habit",{title:"每天阅读",action:"睡前阅读10页"}),
     "帮我添加一个每天阅读的习惯",[own]).intent,"clarify");
 });
+test("chat cannot misrecord hypothetical, future or third-party achievements",()=>{
+  const habit={id:randomUUID(),title:"睡前阅读"};
+  const plans=[
+    ["假设昨天完成了睡前阅读","yesterday"],
+    ["明天打算完成睡前阅读","today"],
+    ["我的朋友今天完成了睡前阅读","today"],
+    ["今天完成了睡前阅读，但先不要记录","today"],
+    ["完成了睡前阅读","today"],
+    ["今天做完了其他运动","today"],
+  ] as const;
+  for(const [message,when] of plans){
+    const outcome=authorizeAssistantCommand(template("record_opportunity",{
+      habitId:habit.id,status:"done",when
+    }),message,[habit]);
+    assert.equal(outcome.intent,"clarify",message);
+  }
+  const expected=authorizeAssistantCommand(template("record_opportunity",{
+    habitId:habit.id,status:"done",when:"today"
+  }),"今天完成了睡前阅读",[habit]);
+  assert.equal(expected.intent,"record_opportunity");
+});
 test("model-selected title must be unambiguous among multiple owned habits",()=>{
   const list=[{id:randomUUID(),title:"睡前阅读"},{id:randomUUID(),title:"每日运动"}];
   assert.equal(authorizeAssistantCommand(template("record_opportunity",{
