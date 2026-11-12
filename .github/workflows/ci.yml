@@ -48,6 +48,8 @@ jobs:
         run: |
           node --check apps/wechat-miniapp/app.js
           node --check apps/wechat-miniapp/pages/index/index.js
+      - name: Mini-program structural and mobile layout contract checks
+        run: node --test apps/wechat-miniapp/scripts/verify-layout.test.mjs
       - name: Deploy committed database migrations to clean PostgreSQL
         run: npm run db:deploy --workspace @stepmark/web
       - name: Seed original demonstration tasks
