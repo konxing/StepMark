@@ -1,9 +1,8 @@
-import {createHash} from "node:crypto";
 import {Prisma} from "@/generated/prisma/client";
 import {calculateHabitProgress,type InitiationEvidence} from "@stepmark/core";
 import {getDb} from "./db";
 import {ApiError} from "./security";
-import {observationDay,type SafeAssistantCommand,validateClientLocalDate,verifiedInitiationEvidence} from "./assistant-command";
+import {observationDay,type SafeAssistantCommand,validateClientLocalDate,verifiedInitiationEvidence,assistantMessageDigest} from "./assistant-command";
 
 export type AssistantResult={
   reply:string;
@@ -23,7 +22,7 @@ export async function executeAssistantCommand(args:{
   if(command.intent==="chat"||command.intent==="clarify")
     return {reply:limitText(command.reply||"我没有改动任何记录。"),
       change:null,progress:null};
-  const digest=createHash("sha256").update(message).digest("hex");
+  const digest=assistantMessageDigest(message);
   const db=getDb();
   const key={userId_requestId:{userId,requestId}};
   const old=await db.assistantAction.findUnique({where:key,select:{messageDigest:true,result:true}});

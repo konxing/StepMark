@@ -1,3 +1,4 @@
+import {createHmac} from "node:crypto";
 import {z} from "zod";
 
 export type OwnedHabit = {id:string;title:string};
@@ -96,4 +97,11 @@ export function observationDay(localDate:string,when:"today"|"yesterday"|null){
   const date=new Date(localDate+"T12:00:00.000Z");
   if(when==="yesterday")date.setUTCDate(date.getUTCDate()-1);
   return date.toISOString().slice(0,10);
+}
+
+/** Keyed hash avoids offline guessing of short, predictable diary messages. */
+export function assistantMessageDigest(message:string):string {
+  const key=process.env.AI_ASSISTANT_DIGEST_SECRET||process.env.RATE_LIMIT_SECRET;
+  if(!key||key.length<24)throw new Error("ASSISTANT_DIGEST_SECRET_NOT_CONFIGURED");
+  return createHmac("sha256",key).update(message,"utf8").digest("hex");
 }

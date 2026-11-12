@@ -5,7 +5,7 @@ import {ApiError,enforceRateLimit,errorResponse,principalFromRequest} from "@/se
 
 export const runtime="nodejs";
 /** Small owner-scoped pages prevent large JSON responses and avoid exposing secrets. */
-const kindSchema=z.enum(["habits","events","corrections","reflections","practice","automaticity","assessments","estimates","judgements"]);
+const kindSchema=z.enum(["habits","events","corrections","reflections","practice","automaticity","assessments","estimates","judgements","assistant_actions"]);
 export async function GET(request:NextRequest){
   try{
     const principal=await principalFromRequest(request);
@@ -32,6 +32,9 @@ export async function GET(request:NextRequest){
           where:{event:{habit:{userId:principal.userId}}},...paging,
           select:{id:true,eventId:true,revision:true,previousEligible:true,previousCompleted:true,
             updatedEligible:true,updatedCompleted:true,source:true,correctedAt:true}});break;
+      case "assistant_actions":
+        data=await db.assistantAction.findMany({where:{userId:principal.userId},...paging,
+          select:{id:true,requestId:true,intent:true,result:true,createdAt:true}});break;
       case "reflections":
         data=await db.habitReflection.findMany({where:{habit:{userId:principal.userId}},...paging,
           select:{id:true,habitId:true,eventId:true,note:true,initiationLevel:true,

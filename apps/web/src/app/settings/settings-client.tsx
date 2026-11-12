@@ -1,6 +1,6 @@
 "use client";
 import {useState} from "react";
-const types=["habits","events","corrections","reflections","automaticity","assessments","practice","estimates","judgements"] as const;
+const types=["habits","events","corrections","reflections","automaticity","assessments","practice","estimates","judgements","assistant_actions"] as const;
 export default function SettingsClient({email}:{email:string}){
   const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
   const [password,setPassword]=useState(""),[confirmation,setConfirmation]=useState("");

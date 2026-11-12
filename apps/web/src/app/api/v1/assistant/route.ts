@@ -1,11 +1,10 @@
-import {createHash} from "node:crypto";
 import {getDb} from "@/server/db";
 import {NextRequest,NextResponse} from "next/server";
 import {z} from "zod";
 import {listOwnHabits} from "@/server/habit-service";
 import {ApiError,boundedJson,enforceRateLimit,errorResponse,principalFromRequest,requireSameOrigin} from "@/server/security";
 import {assistantProviderConfig,proposeAssistantCommand} from "@/server/assistant-provider";
-import {authorizeAssistantCommand,validateClientLocalDate} from "@/server/assistant-command";
+import {authorizeAssistantCommand,validateClientLocalDate,assistantMessageDigest} from "@/server/assistant-command";
 import {executeAssistantCommand} from "@/server/assistant-execute";
 export const runtime="nodejs";
 const requestSchema=z.object({
@@ -21,7 +20,7 @@ export async function POST(request:NextRequest){
     const body=await boundedJson(request,requestSchema,4096);
     try{validateClientLocalDate(body.localDate);}catch{throw new ApiError(400,"INVALID_LOCAL_DATE");}
     // Return an identical completed request without paying for a second model call.
-    const digest=createHash("sha256").update(body.message).digest("hex");
+    const digest=assistantMessageDigest(body.message);
     const earlier=await getDb().assistantAction.findUnique({
       where:{userId_requestId:{userId:principal.userId,requestId:body.requestId}},
       select:{messageDigest:true,result:true}
