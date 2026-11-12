@@ -1,0 +1,17 @@
+name: Edgren cue-exposure field audit (research only)
+on:
+  push:
+    paths:
+      - "packages/core/scripts/validate-edgren-cues.py"
+      - ".github/workflows/research-edgren-cues.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify OSF study cue-exposure dictionary and publish aggregate-only quality report
+        run: python3 packages/core/scripts/validate-edgren-cues.py
