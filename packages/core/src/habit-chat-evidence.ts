@@ -70,7 +70,7 @@ export type HabitClaimPreparation =
 const keyPattern=/^[A-Za-z0-9_.:-]{1,128}$/;
 const isKey=(v:unknown):v is string=>typeof v==="string"&&keyPattern.test(v);
 const tri=(v:unknown):v is TriState=>v===true||v===false||v===null;
-const rating=(v:unknown):v is InitiationLevel|null=>v===null ||
+const rating=(v:unknown):v is HabitOpportunityInitiationLevel|null=>v===null ||
  (typeof v==="number"&&Number.isInteger(v)&&v>=0&&v<=4);
 const validName=(v:unknown):v is string=>
  typeof v==="string"&&v.length>=1&&v.length<=100&&v.trim().length>0;
