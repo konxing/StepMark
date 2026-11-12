@@ -76,6 +76,8 @@ node apps/web/scripts/perf-http.mjs                   # 需要先启动本机服
 
 **习惯完成率 ≠ 习惯自动化 ≠ 能力。** 任务原始分不是标准化能力分；跨时间比较须有独立测试、量表校准及误差分析。详见 [研究公式](docs/research/RESEARCH_AND_FORMULAS.md)。
 
+**公开数据研究进展（2026-11-13）：** 已用真实 OSF 习惯数据、Harvard Dataverse ICAR 认知作答及 ASAP 2.0 人工评分英语作文执行独立离线验证，并使用 PERSUADE 2.0 四题教学子集研究论证标签识别。结果与明确的失败/适用边界见 [P2 真实写作与论证验证](docs/research/P2_WRITING_AND_ARGUMENT_RESULTS_2026-11-13.md) 和 [ICAR 认知研究结果](docs/research/ICAR_VALIDATION_RESULTS_2026-11-13.md)。PERSUADE 2.0 数据仅允许遵守其 **CC BY-NC-SA 4.0 非商业许可** 的研究用途；不得并入商业生产模型。**所有研究模型均未作为正式能力分数上线。**
+
 ## 未来与 AI Chat Web 的对接
 
 保留 `ExternalIdentity` 用户映射及独立身份边界；将通过授权的 OIDC / 后端互信令牌读取有用户同意的能力摘要。**尚未改动 AI Chat Web。**
