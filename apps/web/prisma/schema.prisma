@@ -57,6 +57,7 @@ model User {
   practiceAttempts PracticeAttempt[]
   estimates  AbilityEstimate[]
   auditLogs  AuditLog[]
+  assistantActions AssistantAction[]
 }
 
 model Credential {
@@ -315,5 +316,22 @@ model AuditLog {
   createdAt DateTime @default(now())
   details   Json?
   user      User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([userId, createdAt])
+}
+
+/**
+ * Durable idempotency for chat-authorized commands. No raw conversation text is
+ * stored in this table. AI may propose only whitelisted actions, never SQL.
+ */
+model AssistantAction {
+  id            String @id @default(uuid()) @db.Uuid
+  userId        String @db.Uuid
+  requestId     String @db.Uuid
+  messageDigest String @db.VarChar(64)
+  intent        String @db.VarChar(40)
+  result        Json
+  createdAt     DateTime @default(now())
+  user          User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, requestId])
   @@index([userId, createdAt])
 }
