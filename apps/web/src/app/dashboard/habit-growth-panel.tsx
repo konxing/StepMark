@@ -2,7 +2,7 @@
 import {useCallback,useEffect,useState} from "react";
 type Progress={progress:number;repetitionSignal:number;automaticitySignal:number|null;
   completedRepetitions:number;evidenceCount:number;reviewDue:boolean;nextReviewAt:string|null;
-  stage:string;policyVersion:string;reviewEnabled:boolean;reviewReason:string};
+  stage:string;policyVersion:string;reviewEnabled:boolean;reviewReason:string;evidenceStale:boolean;lastRatingAt:string|null};
 type Reflection = {id:string;eventId:string|null;note:string|null;initiationLevel:number|null;
   aiConsent:boolean;aiStatus:string;aiLevel:number|null;aiQuote:string|null;createdAt:string};
 const options=[
@@ -90,7 +90,7 @@ export default function HabitGrowthPanel({habitId,eventId}:{habitId:string;event
     <h2>习惯成长进度</h2>
     {result ? <>
       <div className="progress-head"><strong>{result.progress.toFixed(1)}%</strong>
-        <span>{result.reviewDue?"建议复查":result.stage==="maintaining"?"较稳定·维护观察":result.stage==="developing"?"形成中":"收集证据"}</span>
+        <span>{result.evidenceStale?"证据已过时·保留历史进度":result.reviewDue?"建议复查":result.stage==="maintaining"?"较稳定·维护观察":result.stage==="developing"?"形成中":"收集证据"}</span>
       </div>
       <div className="growth-track" role="progressbar" aria-label="实验性习惯成长进度"
         aria-valuemin={0} aria-valuemax={100} aria-valuenow={result.progress}>
@@ -98,6 +98,9 @@ export default function HabitGrowthPanel({habitId,eventId}:{habitId:string;event
       </div>
       <p>已执行 {result.completedRepetitions} 次 · 行动自动化信号：{result.automaticitySignal===null?"尚无证据":result.automaticitySignal.toFixed(1)}
         · 感受反馈 {result.evidenceCount} 次</p>
+      {result.evidenceStale&&<p className="review-prompt">
+        过去的感受证据已超过 45 天。这是上次有证据支持的进度，并非当前状态的可靠判断；缺少记录不会自动扣分。
+      </p>}
       {result.reviewDue&&<p className="review-prompt">{result.reviewReason==="recent_difficulty"?"最近开始行动似乎更费力了，做一次简短复查吧。":"该做一次低负担复查了：现在开始行动，还是和之前一样自然吗？"}</p>}
       {result.nextReviewAt&&<small>预计下次应用内复查：{new Date(result.nextReviewAt).toLocaleDateString("zh-CN")}</small>}
       <button type="button" className="text-button" disabled={busy} onClick={toggleReview}>{result.reviewEnabled?"关闭应用内复查":"开启应用内复查"}</button>

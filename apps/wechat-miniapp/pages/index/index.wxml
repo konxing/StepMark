@@ -77,6 +77,9 @@
       <view class="progress-percentage">{{progress.progress}}%</view>
       <view class="progress-track"><view class="progress-fill" style="width:{{progress.progress}}%;"></view></view>
       <text class="meta">已执行 {{progress.completedRepetitions}} 次，感受证据 {{progress.evidenceCount}} 条</text>
+      <view wx:if="{{progress.evidenceStale}}" class="review-note">
+        最近 45 天没有新的有效感受评分。显示的是历史证据支持的进度，不代表当前状态；缺少记录不扣分。
+      </view>
       <view wx:if="{{progress.reviewDue}}" class="review-note">该复查了：现在开始这个习惯仍然自然吗？</view>
       <view class="small-note">百分比是实验性成长指标，不是习惯形成概率，也不直接增加能力分。</view>
       <view class="section-title">最近记录 · 更正</view>

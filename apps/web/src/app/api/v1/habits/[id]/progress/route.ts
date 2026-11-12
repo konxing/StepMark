@@ -22,7 +22,7 @@ export async function GET(request:NextRequest,ctx:{params:Promise<{id:string}>})
       db.habitEvent.count({where:{habitId:id,eligible:true}}),
       db.habitEvent.findFirst({where:{habitId:id,completed:true},orderBy:{occurredAt:"desc"},
         select:{occurredAt:true}}),
-      db.habitReflection.findMany({where:{habitId:id,createdAt:{gte:new Date(Date.now()-120*86400000)}},
+      db.habitReflection.findMany({where:{habitId:id},
         orderBy:{createdAt:"desc"},take:80,
         select:{createdAt:true,initiationLevel:true,aiLevel:true,aiConfidence:true,aiStatus:true}})
     ]);

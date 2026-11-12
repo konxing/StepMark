@@ -22,7 +22,7 @@ export interface HabitProgressInput {
   seed?:string;
   reviewEnabled?:boolean;
 }
-export type HabitStage = "collecting_evidence"|"developing"|"maintaining"|"review_due";
+export type HabitStage = "collecting_evidence"|"developing"|"maintaining"|"review_due"|"needs_fresh_evidence";
 export interface HabitProgress {
   policyVersion:typeof HABIT_PROGRESS_POLICY_VERSION;
   progress:number;
@@ -33,6 +33,8 @@ export interface HabitProgress {
   completedRepetitions:number;
   evidenceCount:number;
   evidenceSpanDays:number;
+  evidenceStale:boolean;
+  lastRatingAt:string|null;
   mostRecentAutomaticity:number|null;
   reviewDue:boolean;
   nextReviewAt:string|null;
@@ -81,15 +83,23 @@ export function calculateHabitProgress(input:HabitProgressInput):HabitProgress {
   }
   const n=completedRepetitions;
   const repetitionSignal=100*(-Math.expm1(-n/55)); // demo shape, NOT a norm
-  const recent=unique.filter(x=>nowMs-x.atMs<=90*DAY);
+  // Keep bounded historical evidence rather than silently forgetting it after
+  // 90 days; a missing diary is not a negative automaticity report.
+  const recent=unique;
   const count=recent.length;
   const oldest=count?recent[count-1]!.atMs:null;
   const span=count>1 ? (recent[0]!.atMs-oldest!)/DAY : 0;
+  const latest=recent[0];
+  const daysSinceLastRating=latest?Math.max(0,(nowMs-latest.atMs)/DAY):null;
+  // 45 days is a transparent UI freshness threshold, not a scientific norm.
+  const evidenceStale=daysSinceLastRating!==null && daysSinceLastRating>45;
   let automaticitySignal:number|null=null;
   if(count){
     let weighted=0,weights=0;
     for(const o of recent){
-      const ageDays=Math.max(0,(nowMs-o.atMs)/DAY);
+      // Relative age makes unchanged historical evidence mathematically stable
+      // as wall-clock time passes; a new actual rating can still move the score.
+      const ageDays=Math.max(0,(latest!.atMs-o.atMs)/DAY);
       const weight=Math.pow(0.5,ageDays/35)*(o.source==="self_report"?1:between(o.confidence,0.65,1)*0.8);
       weighted+=levelStrength[o.level]*weight;
       weights+=weight;
@@ -102,7 +112,6 @@ export function calculateHabitProgress(input:HabitProgressInput):HabitProgress {
   const raw=0.45*repetitionSignal+0.55*(automaticitySignal??0);
   const progress=Number(between(raw,0,cap).toFixed(1));
   const evidenceLevel=count===0?"insufficient":count===1?"limited":count===2||span<14?"moderate":"repeated";
-  const latest=recent[0];
   const lastRating=latest?levelStrength[latest.level]:null;
   const stable=evidenceLevel==="repeated" && n>=20 && progress>=80 &&
     lastRating!==null && lastRating>=70;
@@ -117,15 +126,17 @@ export function calculateHabitProgress(input:HabitProgressInput):HabitProgress {
   const interval=Math.max(5,baseInterval+(stable?reviewJitter(input.seed??""):0));
   const nextReviewMs=lastAnchor===null?null:lastAnchor+interval*DAY;
   const due=input.reviewEnabled!==false && nextReviewMs!==null && nowMs>=nextReviewMs;
-  const stage:HabitStage=due?"review_due":stable?"maintaining":
+  const stage:HabitStage=due?"review_due":evidenceStale?"needs_fresh_evidence":stable?"maintaining":
     count===0?"collecting_evidence":"developing";
   return {
     policyVersion:HABIT_PROGRESS_POLICY_VERSION,
     progress,repetitionSignal:Number(repetitionSignal.toFixed(1)),
     automaticitySignal:automaticitySignal===null?null:Number(automaticitySignal.toFixed(1)),
     evidenceLevel,stage,completedRepetitions:n,evidenceCount:count,
-    evidenceSpanDays:Number(span.toFixed(1)),mostRecentAutomaticity:lastRating,
+    evidenceSpanDays:Number(span.toFixed(1)),evidenceStale,
+    lastRatingAt:latest?new Date(latest.atMs).toISOString():null,
+    mostRecentAutomaticity:lastRating,
     reviewDue:due,reviewReason,nextReviewAt:input.reviewEnabled===false||nextReviewMs===null?null:new Date(nextReviewMs).toISOString(),
-    note:"Progress is a configurable visual indicator, not probability of habit formation; changes in ability require independent tests."
+    note:"Last-evidenced historical progress, not current habit formation probability. If evidence is stale, seek a fresh rating; never interpret missing diary entries as zero automaticity. Ability changes require independent tests."
   };
 }

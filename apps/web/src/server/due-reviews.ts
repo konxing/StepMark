@@ -11,7 +11,7 @@ export async function listDueHabitReviews(userId:string,now:Date=new Date()){
     where:{userId,archivedAt:null,reviewEnabled:true},
     orderBy:[{createdAt:"desc"},{id:"desc"}],take:100,
     select:{id:true,title:true,reviewEnabled:true,
-      reflections:{where:{createdAt:{gte:new Date(now.getTime()-120*86400000)}},
+      reflections:{
         orderBy:{createdAt:"desc"},take:60,
         select:{createdAt:true,initiationLevel:true,aiLevel:true,aiConfidence:true,aiStatus:true}}}
   });

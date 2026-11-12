@@ -64,3 +64,27 @@ test("a sudden initiation difficulty schedules earlier review without erasing ex
   assert.ok(new Date(change.nextReviewAt!).getTime()-now<=7*DAY);
   assert.ok(change.progress>0 && change.completedRepetitions===96);
 });
+
+test("missing feedback alone never reduces last-evidenced visual progress",()=>{
+  const shared=[evidence(1,4),evidence(13,4),evidence(25,4)];
+  const start=base(90,shared);
+  const future=calculateHabitProgress({
+    completedRepetitions:90,eligibleOpportunities:90,completedOpportunities:90,
+    nowMs:now+150*DAY,observations:shared,lastCompletedAtMs:now-1*DAY,
+    seed:"fixed-user"
+  });
+  assert.equal(future.progress,start.progress);
+  assert.equal(future.automaticitySignal,start.automaticitySignal);
+  assert.equal(future.evidenceCount,start.evidenceCount);
+  assert.equal(future.evidenceStale,true);
+  assert.equal(future.reviewDue,true);
+  assert.equal(future.stage,"review_due");
+  const optedOut=calculateHabitProgress({
+    completedRepetitions:90,eligibleOpportunities:90,completedOpportunities:90,
+    nowMs:now+150*DAY,observations:shared,lastCompletedAtMs:now-1*DAY,
+    reviewEnabled:false,seed:"fixed-user"
+  });
+  assert.equal(optedOut.progress,start.progress);
+  assert.equal(optedOut.reviewDue,false);
+  assert.equal(optedOut.stage,"needs_fresh_evidence");
+});
