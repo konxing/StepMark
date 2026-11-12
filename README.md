@@ -116,7 +116,7 @@ License: Apache-2.0. 引入任何第三方认知测验或量表前另行确认�
 - `node packages/core/scripts/validate-habitapp.mjs`：在可信研究环境按固定版本下载约 59 KB CSV，检查来源并只输出聚合指标；不把原始参与者数据放入项目或生产数据库。
 - 独立 GitHub Actions `research-data.yml`：实际运行公开数据校验，**与主应用构建 CI 分离**，避免公共研究服务器临时不可用影响用户功能。
 - `packages/core/src/validation.ts`：长期自动化指数的时间前推检验，对每个参与者用前 70% 观测拟合、后 30% 测试，比较常数/最近观察/渐近曲线的真实预测误差、缺失率和个体覆盖率。
-- `node --import tsx packages/core/scripts/evaluate-longitudinal.mjs --input /private/data.csv --manifest /private/rights.json`：本地离线数据适配器；要求真实的独立自动化指标、许可和来源确认、SHA256 匹配，不对外上传参与者原始数据。**它尚未对 OSF 纵向样本运行实证验证**，因为本环境未取得该研究的数据文件。
+- `node --import tsx packages/core/scripts/evaluate-longitudinal.mjs --input /private/data.csv --manifest /private/rights.json`：本地离线数据适配器；要求真实的独立自动化指标、许可和来源确认、SHA256 匹配，不对外上传参与者原始数据。**更新于 2026-11-12：已通过独立 GitHub Actions 取得两套 OSF 纵向自动化数据并完成研究用途的时间前推验证，详见研究文档第 11 节；仍未校准产品习惯进度条。**
 
 注意：**真实行为次数配对分析已经完成，但它不能校准 StepMark 的 0–100 习惯进度。** 正式调节该进度的参数，需要独立的长期习惯自动化数据，不能用没有对应量表的健身或实验次数去拟合。
 
@@ -167,3 +167,13 @@ License: Apache-2.0. 引入任何第三方认知测验或量表前另行确认�
 - Transparent **heuristic** intervals for successive independent correct retrievals: 1, 3, 7, 14, 28 UTC days. Wrong, hinted or legacy-unknown attempts restart next-day review. These values are **product defaults, not a validated psychological equation or individual optimum**; they do not estimate memory retention probability.
 - Browser and WeChat training interfaces now expose hints **only on request**; `POST /api/v1/practice` records `hintUsed`. Prior attempts without hint evidence use `NULL` (unknown), NOT "no hint". User export `kind=practice` includes assistance. **A/B forms and ability scores remain unchanged.**
 - The system never requires a daily check-in or sends automatic reminder notifications. `GET /api/v1/practice` returns the next suggested UTC review date when no item is due. Database migration `20261112105000_practice_hint_used` is required on upgrades.
+
+## OSF 真实纵向数据校验进展（2026-11-12）
+
+**研究基准已完成两套真实纵向数据的独立验证，软件本身尚未完成心理学效度认证。**
+- **Fiorella 2026（习惯形成）：** 从 https://osf.io/zty5s/ 下载经 SHA-256 核验的匿名研究 ZIP，读取 **175 人 / 9,416 条逐日记录**。按四题/两题/单题自动化评分方式分开，用个人前 70% 的记录预测后 30%，比较最近一次评分、线性、平方根、对数及渐近模型。详见 [运行结果](https://github.com/konxing/StepMark/actions/runs/43216575378)。
+- **Edgren 2025（习惯减弱）：** 从 https://osf.io/sngu4/ 取得 **194 人 / 16,490 条**研究数据；11,767 条有自动化评分、4,723 条缺失。按四类行为进行未来测量误差比较，数值和建模边界见 [运行结果](https://github.com/konxing/StepMark/actions/runs/43217109227)。
+- **研究数据隔离：** 所有原始参与者记录只在独立、临时 GitHub Actions 环境里下载并处理；不提交 CSV/ZIP 到仓库，不进入应用数据库，不向用户前端提供参与者级数据。数据复用许可需独立核实。
+- 研究复现：`packages/core/scripts/validate-fiorella.mjs`、`validate-edgren.mjs` 以及各自的独立 Actions 工作流。完整数据来源、哈希、不同量表分层和对比结果：**[研究数据与校验文档](docs/research/DATASETS_AND_VALIDATION.md#11-verified-osf-longitudinal-datasets-and-executed-benchmarks-2026-11-12)**。
+
+**重要：** 新结果不支持给所有用户使用一个固定习惯成长曲线；StepMark 的 0–100 视觉进度仍是实验性产品规则。未用公开参与者数据直接计算任何真实用户的能力值。AI Chat Web 未改动。

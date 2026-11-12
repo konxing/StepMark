@@ -40,7 +40,7 @@ Study data and core R scripts: https://osf.io/sngu4/
 
 91-day study including daily e-diaries and cue-related behavior; article reports N=194 participants and models habit strength trajectories. This is much closer to validating heterogeneity, temporal change and review cadence than HabitApp's event-count CSV.
 
-**Access status:** The OSF landing page/API returned HTTP 403 or inaccessible in our current research environment; neither participant-level schema nor dataset-specific reuse license was inspected or verified, and no analysis has been run on these files. Do not imply validation completed. Before use inspect data dictionaries, licensing, missingness and the **exact formulation** of the automaticity instrument; habit *decay* should not be fitted using a monotone *formation* curve as if it were growth.
+**Updated 2026-11-12:** Direct access from the chat environment failed, but an isolated GitHub Actions research runner accessed OSF, verified the original CSV checksum and ran descriptive time-forward decay validation. The individual-level data were not committed or uploaded. See §11 for sample sizes and actual metrics. **OSF project-specific reuse license remains unverified.** Before use inspect data dictionaries, licensing, missingness and the **exact formulation** of the automaticity instrument; habit *decay* should not be fitted using a monotone *formation* curve as if it were growth.
 
 ## 3. Behavior formation external data (not downloaded)
 
@@ -195,3 +195,60 @@ successfully fetched and validated the exact pinned CSV (2,800 respondents). Des
 | O | 2,726 | 0.6025 | 0.2199 |
 
 The separate test `verifyPinnedBfiRegression` now refuses changed complete-case N, raw alpha or min corrected item-total coefficient on **future real-data reruns**. This is a reproducibility check of measurement arithmetic, not proof of a five-factor model, population representativeness, diagnostic validity, or effects of StepMark training. This is an online SAPA convenience cohort, not a probability sample of the general population.
+
+## 11. Verified OSF longitudinal datasets and executed benchmarks (2026-11-12)
+
+**Status: actual observational data were downloaded to isolated GitHub Actions runners, checked against pinned SHA-256 values, analyzed without printing individual-level rows, and discarded after the jobs.** This replaces the earlier "OSF 403" access note, which only described the chat environment. External-study source code and data are not installed in the production Web or WeChat app, and no third-party study participant data were stored in StepMark PostgreSQL.
+
+### A. Fiorella 2026: formation / 175 participants / 9,416 diary observations
+
+- Fiorella, L. (2026), *From Intention to Automaticity: Daily Evidence of Habit Formation in Students' Everyday Lives*, https://doi.org/10.1007/s10648-026-10235-3 .
+- OSF project: https://osf.io/zty5s/ .
+- Public deidentified ZIP: `OSF_review_package.zip`, **27,830,816 bytes**, pinned SHA-256 `4eb4b87fd50390fe095f4119add927ec7fe8195b5e05b091a30123058cbe4e09`.
+- Verified ZIP includes raw-derived deidentified `data/habit_daily_analysis_public.csv` and model-ready `model_outputs/manuscript_mixed_models/automaticity_growth_model.csv`; it does **not** include confidential original surveys or names. Package README states revision 2 dated 2026-10-26. Three independent rating conventions must not be merged as if psychometrically equivalent: 4-item mean (76 people/4,494 records), decide + perform 2-item mean (52/2,468), and decide single-item (47/2,454).
+- The `automaticity_score` field is 1–7. For **research-only numerical comparison** it is linearly transformed to a 0–100 reporting range, `(score-1)/6*100`; no equating, reliability or population calibration is implied.
+- `cumulative_prior_behavior_count` is the recorded repetition count at each diary entry. For each participant, use earlier 70% of observed diaries to fit; evaluate later 30% for held-out forecasting; equal weight per participant.
+- Independent runnable research workflow: https://github.com/konxing/StepMark/actions/runs/43216575378 . Source `packages/core/scripts/validate-fiorella.mjs`, implemented models: last observed, participant training mean, linear, square-root, logarithmic, increasing asymptote; `packages/core/src/trend-benchmarks.ts` plus `src/validation.ts`.
+
+**Actual holdout RMSE (normalized 0–100; lower = better):**
+
+| Automaticity measurement | People / test records | Last observation | Linear | Square root | Logarithmic | Asymptote (eligible-only) | Matched last observation |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Four-item average | 76 / 1,384 | 13.537 | 16.043 | 15.949 | 17.545 | 13.857 (66) | **13.688** (66) |
+| Decide/perform average | 52 / 765 | 14.607 | 14.894 | 13.163 | 14.610 | **11.377** (41) | 13.808 (41) |
+| Decide single item | 47 / 759 | **16.180** | 17.192 | 17.958 | 19.742 | 16.561 (37) | **14.548** (37) |
+
+Curves fail to fit for some persons. **Only compare the asymptote with the matched-last column** for those same people; never rank asymptote vs full-group models on different subsets. These are a preliminary prediction benchmark, not the authors' hierarchical mixed-effects analysis or a confirmatory cross-study test. A best candidate chosen on these holdouts still needs an untouched independent validation set. These scores do not establish the meaning or calibration of StepMark's separate `habit-progress-v1` indicator.
+
+### B. Edgren et al. 2025: decay / 194 participants / 16,490 study-day records
+
+- Edgren et al., *The temporal trajectories of habit decay in daily life: An intensive longitudinal study on four health-risk behaviors*, https://doi.org/10.1111/aphw.12612 .
+- OSF https://osf.io/sngu4/ ; `SRBAI_TS_141223.csv`, pinned SHA-256 `a18c12c2d4208e6d5aa43f0e7f32617bfe92efffdb3016b1cbfa3f091fb36808` (327,671 bytes).
+- Official data dictionary: 5 columns (pseudonymous respondent ID, behavior group, study day 7–91, 0–4 SRBAI composite, rescaled day). 11,767 observed scores, 4,723 NA (**28.64% missing; not zero**). Groups: SED (46), SNA (57), ALC (52), TOB (39).
+- This is an intervention context tracking **decay of harmful habits**, NOT growth from zero. Time-based linear and decreasing exponential research models use **study days**, not inferred completed repetitions; fitting an increasing habit-formation curve directly would be invalid.
+- Run: https://github.com/konxing/StepMark/actions/runs/43217109227 . Source `packages/core/scripts/validate-edgren.mjs`.
+
+**Matched-subgroup holdout RMSE, same participants for last-observation vs decay model:**
+
+| Harmful behavior group | Fitted persons | Last observation | Exponential decay |
+|---|---:|---:|---:|
+| Sedentary | 44 | 14.067 | **11.775** |
+| Unhealthy snacking | 49 | **10.813** | 11.810 |
+| Alcohol use | 47 | 11.852 | **11.428** |
+| Tobacco use | 33 | **16.070** | 17.528 |
+
+The opposite results across behavior groups demonstrate heterogeneity. They **do not** prove a personally optimized StepMark review interval, a clinically validated habit-decay model, or that the study intervention caused any particular improvement. Missingness and selected-fit subsets require sensitivity analysis.
+
+### C. Edgren follow-up: cue-exposure semantics (schema verified; further analysis pending)
+
+- OSF https://osf.io/b69gp/ , archive metadata and `Readme_QUANTI_DATA_INFO.txt` were verified in independent Actions run https://github.com/konxing/StepMark/actions/runs/43215701896 .
+- Official dictionary describes four SRBAI items (0–4), `D2CEXP` cue encounter (0=no, 1=once, 2=several times), conditional behavior-performance questions, context stability, intention, reward and stress. Main quantitative data CSV has 16,490 study-day rows and was listed as 1,981,957 bytes; its row-level model analysis and exact checksum are **not yet completed**.
+- This supports the *need to distinguish* no cue, cue without performance, and cue with performance in StepMark, but does not empirically validate the current UI thresholds.
+
+### Data protection and licensing
+
+OSF project metadata returned `license:null` for the above nodes. An openly downloadable file is **not** proof of permission to redistribute it or use the data to train a commercial AI. The workflows are research-only and ephemeral; do not add raw participant CSV/ZIP files, IDs, diary texts, passwords or service tokens to the main source tree, application database or public logs. The browser/mobile application never fetches OSF. Before any non-research reuse: verify study-specific rights, ethics and measurement permissions.
+
+### Mathematical consequence
+
+Keep `habit-progress-v1` and maintenance reminders as *unvalidated visual heuristics*. Do not silently tune `N/55`, evidence caps, or review day thresholds to match the validation test set. The prospective benchmark suggests model **selection by individually measured predictive performance** may help, but calibration requires separate nested validation or an untouched cohort, uncertainty analysis, and a construct-valid link to user-rated *habitual initiation*. Ability scores require wholly separate performance evidence.
