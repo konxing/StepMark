@@ -46,3 +46,31 @@ test("duplicates, decreasing counts and invalid scales are rejected before scori
   assert.throws(()=>evaluateAutomaticitySeries([{...a,automaticity:101}]),/invalid/);
   assert.throws(()=>evaluateAutomaticitySeries([{...a,participantId:"A name with spaces"}]),/identifying/);
 });
+
+test("independent linear trajectories outperform square-root and log over withheld time",()=>{
+  const rows=Array.from({length:45},(_,day)=>({
+    participantId:"linear01",day,effectiveRepetitions:day,automaticity:10+1.5*day
+  }));
+  const out=evaluateAutomaticitySeries(rows);
+  assert.equal(out.methodVersion,"time-split-v2");
+  assert.ok(out.trendCandidates.linear.rmse!<out.trendCandidates.square_root.rmse!);
+  assert.ok(out.trendCandidates.linear.rmse!<out.trendCandidates.logarithmic.rmse!);
+  assert.equal(out.trendCandidates.linear.participants,1);
+});
+test("decreasing automaticity need not be forced into an increasing asymptote",()=>{
+  const rows=Array.from({length:36},(_,day)=>({
+    participantId:"decay01",day,effectiveRepetitions:day,automaticity:90-1.4*day
+  }));
+  const out=evaluateAutomaticitySeries(rows);
+  assert.ok(out.trendCandidates.linear.rmse!<1e-9);
+  assert.equal(out.asymptoticCurve.rmse,null);
+});
+test("constant exposure means trend slopes cannot be invented",()=>{
+  const rows=Array.from({length:35},(_,day)=>({
+    participantId:"cue_absent",day,effectiveRepetitions:2,automaticity:20+(day%2)*2
+  }));
+  const out=evaluateAutomaticitySeries(rows);
+  assert.equal(out.trendCandidates.linear.rmse,null);
+  assert.equal(out.trendCandidates.square_root.rmse,null);
+  assert.equal(out.trendCandidates.logarithmic.rmse,null);
+});

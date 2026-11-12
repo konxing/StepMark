@@ -8,3 +8,4 @@ export * from "./adaptive.ts";
 export * from "./longitudinal.ts";
 export * from "./habit-progress.ts";
 export * from "./validation.ts";
+export * from "./trend-benchmarks.ts";
