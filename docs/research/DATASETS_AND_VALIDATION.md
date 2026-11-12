@@ -269,3 +269,33 @@ Pinned source: `HABIRUPT_STUDY1_PAPER2_QUANTI_DATA_2025-06-16.csv`, SHA-256 `ccc
 The 6,712 missing answers must **not** be counted as "no cue" or "missed action". SRBAI is separately missing on 4,723 study days. The study investigates **reduction of risk behaviors**, so a successful reduction plan is not a StepMark positive-habit completion. These results validate source mapping and missingness logic, **not** the StepMark 0–100 progress or proposed review cadence.
 
 Research-only Python script `packages/core/scripts/validate-edgren-cues.py` verifies both a pinned expected SHA-256 and the OSF provider hash. All study records remain ephemeral in GitHub Actions; only aggregate counts are printed. The OSF project metadata lacks a confirmed downstream reuse license, and no raw data were bundled in StepMark.
+
+## 12. Additional 2026 randomized longitudinal SRBAI dataset — acquisition and descriptive audit (2026-11-12)
+
+- Edgren, Baretta & Inauen (2026), *Habit degradation strategies promote faster early reductions in unhealthy snacking habit strength in intensive longitudinal randomised controlled trial*, Communications Psychology: https://doi.org/10.1038/s44271-026-00432-9
+- OSF primary analysis repository: https://osf.io/z7tby/
+- An independently triggered GitHub Actions research workflow **successfully accessed and checksummed the source files, read the codebooks, and computed descriptive aggregates**: https://github.com/konxing/StepMark/actions/runs/43246144122
+- Pinned `SRBAI_TS_2025-18-08.csv` (716,599 bytes), SHA-256 `622c0f673ac2d260fd3b582a5921ab1f6d3ca3b10fa2b5869d38af6edcdc7543`; 26,605 intervention-day rows, four SRBAI questions (each 0–4), composite 0–4, day 0–84.
+- Pinned `GroupLevel_AnalysisVariables_2025-08-18.csv` (53,596 bytes), SHA-256 `58fb369f745ef8205e4512cbdfc8e23694799c370abcb7b1ce7d1f7d766ec282`; 313 participants, randomized arms, baseline/final SRBAI and strategy variables.
+- Both official README/codebooks were checked by SHA-256. The automated scripts download within a disposable CI runner only; **no participant-level rows are printed or committed**.
+- The source describes a randomized study of *reducing unhealthy snacking*, not forming a healthy habit. It is a research benchmark for longitudinal measurement, missingness, and experimental strategy heterogeneity; it does **not** validate StepMark's habit-progress-v1 percentage or review intervals.
+
+### Observed research-only quality statistics
+
+| Randomized arm | Participants | SRBAI observed / study-day rows | Missing fraction | Paired baseline/final N | Unadjusted end–baseline change (0–4) |
+|---|---:|---:|---:|---:|---:|
+| Control | 50 | 2,595 / 4,250 | 38.94% | 32 | -0.9457 |
+| Inhibition | 88 | 3,300 / 7,480 | 55.88% | 40 | -1.3426 |
+| Substitution | 88 | 4,167 / 7,480 | 44.29% | 54 | -1.5567 |
+| Reduced accessibility (discontinuation) | 87 | 3,860 / 7,395 | 47.80% | 52 | -1.2063 |
+
+Across all 313 participants, `SRBAI` is observed on 13,922 of 26,605 possible study-day rows (12,683 missing, **47.67%**). These are *raw descriptive* changes computed only from participants with both a baseline and last-week value. **They are NOT randomized treatment effect estimates**: missing endpoints are substantial and differ between groups; the paper's planned models and intention-to-treat estimands must be evaluated separately. Even random allocation does not make these complete-case unadjusted means causal or generalizable.
+
+### Engineering consequence
+
+- Source integrity and documented variables are now independently verified; no licensed/personal research data is redistributed.
+- Keep automaticity outcomes separate from raw attendance and from the StepMark self-reported one-item initiation signal. Do not equate measures without empirical validation.
+- Real missingness of 39–56% by arm makes missing-data sensitivity analysis (MAR/MNAR scenarios and attrition effects) essential before claiming improved prediction accuracy. Missing is not a zero automaticity rating.
+- OSF project license metadata identifies a license record, but the exact downstream/commercial reuse grant has **not** been reviewed; external files remain research-only, ephemeral.
+- Executable provenance and group summary live in `packages/core/scripts/inventory-osf-habirupt-2026.py`, `inspect-osf-habirupt-2026.py`, `summarize-habirupt-2026.py`; CI workflow `.github/workflows/research-habirupt-2026.yml`.
+
