@@ -45,7 +45,7 @@ export interface HabitOpportunityEvidenceAudit {
   /** User's direct ratings only, not automatically inferred AI scores. */
   directAutomaticityRatings:number;
   /** Newest explicitly rated initiation level; null means unobserved. */
-  latestDirectHabitOpportunityInitiationLevel:HabitOpportunityInitiationLevel|null;
+  latestDirectInitiationLevel:HabitOpportunityInitiationLevel|null;
   /** Descriptive only: null if no known eligible behavior outcomes. */
   observedAdherence:number|null;
   note:string;
@@ -116,7 +116,7 @@ export function auditHabitOpportunities(
     confirmedEligibleOpportunities,performedEligible,missedEligible,
     eligibleButPerformanceUnknown,eligibilityUnknown,explicitlyNoOpportunity,
     cueEncountered,cueNotEncountered,cueUnknown,
-    directAutomaticityRatings,latestDirectHabitOpportunityInitiationLevel:lastRating===-1?null:lastRating,
+    directAutomaticityRatings,latestDirectInitiationLevel:lastRating===-1?null:lastRating,
     observedAdherence:known?Number((performedEligible/known).toFixed(6)):null,
     note:"Descriptive, eligible-and-observed events only. AI interpretations and absent reports do not count as missed performance or zero automaticity. No validated habit-formation probability is computed."
   };
