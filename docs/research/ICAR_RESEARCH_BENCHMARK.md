@@ -25,4 +25,4 @@ The initially proposed IRW reformatted table was described as `item_response_war
 
 Run `python -m unittest discover -s packages/core/scripts -p 'test_validate_icar.py' -v` with pinned Numpy/SciPy, then run the isolated GitHub workflow `.github/workflows/research-icar.yml`. Successful synthetic tests do not prove empirical psychometric predictive validity.
 
-As of this revision: the code and source SHA pin are committed; **real-data results may only be stated after confirming the new GitHub Actions job completed successfully**.
+**Verified execution, 2026-11-13:** the original-source ICAR benchmark and the direct paired 2PL-versus-1PL rerun both completed successfully. See [ICAR_VALIDATION_RESULTS_2026-11-13.md](./ICAR_VALIDATION_RESULTS_2026-11-13.md) for exact metrics and appropriate limits. This does not certify StepMark's own A/B items.
