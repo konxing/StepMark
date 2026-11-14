@@ -13,9 +13,22 @@
 1. Read only a pinned, complete versioned file from Zenodo. Parse named `id`, `day`, `compliance`, `study_burden` columns; reject unexpected schema, invalid numeric categories and changed upstream checksum.
 2. Count `compliance=1`, `0` and `NA` separately. Report the observed compliance fraction only over rows whose coding is explicitly 0/1. The existence of a scheduled but **unrecorded** beep is not assumed and cannot be counted as a negative response.
 3. Split early/late at 7 study days, with an explicit 0- or 1-indexed global day origin validated from the data; report study-day groups and response burden summaries. Within-person contrasts require at least one known value in both groups. These comparisons are descriptive and do not estimate the effect of questionnaire length or sampling frequency.
-4. The CI run uses only Python standard library in a disposable runner, prints aggregate counts and SHA-256, never commits any real participant records or prints identifiers.
-5. Any missingness label/scale ambiguity makes the run fail rather than silently reverse-code data.
+4. The CI run uses only Python standard library in a disposable runner, prints aggregate counts and SHA-256, never commits any real participant records or prints identifiers. A frozen 2,000-draw subject-cluster percentile bootstrap gives an exploratory interval on the **within-person** first-to-last difference. All 14 days for a person remain in the same resample unit; it is not evidence of causation.
+5. Any missingness label/scale ambiguity makes the run fail rather than silently reverse-code data. The terms `codedComplianceYes/No` identify values from the harmonized released dataset, **not** independently verified device receipts. Many schedules might already be represented by harmonizer-created rows; we cannot infer other silent calendar omissions.
 
 The existence of this source does not establish that users benefit from 3 versus 9 prompts, an optimal interval, habit formation speed or a valid StepMark automaticity score. For UX decisions, separately pre-register randomized prompt-load tests and account for explicit eligibility, scheduled prompts and nonresponse.
 
-Real run: https://github.com/konxing/StepMark/actions/workflows/research-openesm-burden.yml (inspect outcome; if source download fails the research gate remains **not validated**).
+## First executed external benchmark (2026-11-14)
+
+Actual successful source download and checksum audit: https://github.com/konxing/StepMark/actions/runs/43604378283
+
+- SHA-256 of pinned TSV: `00be9005c3b0361c16a0506f96da3c1245f3564fd6c748eeaf6db4a24dc5a041`.
+- 282 participants, **11,844 harmonized rows** (42 per participant).
+- Day 1–7: coded compliance 1 on 4,430 / 5,922 records = **74.8058%**; 1,492 coded zero.
+- Day 8–14: coded compliance 1 on 4,181 / 5,922 = **70.6011%**; 1,741 coded zero.
+- 282 participants contributed paired early/late counts, with the unweighted mean within-person rate difference (second minus first) of **−0.042047** (−4.20 percentage points). Different ratio/averaging methods should not be silently combined, even though here each participant has the same nominal number of records.
+- Burden item observed 1,487 early vs 1,420 late entries; conditional means 2.228648 vs 2.371127 (1–5 scale). **Do not treat 1,487/5,922 as the rate at which participants answered burden questions** before verifying which questionnaire forms actually contained that item.
+
+No assignment-based causal effect has been estimated. These figures do not prove that reduced question frequency improves adherence or that StepMark must change its reminder cadence. The newer participant-resampling interval must be taken from its subsequent workflow execution, not fabricated from the preliminary run.
+
+Research pipeline: https://github.com/konxing/StepMark/actions/workflows/research-openesm-burden.yml

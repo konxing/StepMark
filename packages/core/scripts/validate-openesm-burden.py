@@ -11,6 +11,7 @@ import hashlib
 import io
 import json
 import math
+import random
 import sys
 from collections import defaultdict
 from urllib.request import Request, urlopen
@@ -43,6 +44,24 @@ def read_code(value: str, *, binary: bool = False) -> int | None:
     if binary and number not in (0, 1):
         raise ValueError("nonbinary compliance code")
     return number
+
+def paired_bootstrap_mean_delta(values: list[float], *, iterations: int = 2000, seed: int = 20261114):
+    """Participant-cluster percentile interval. Descriptive sampling uncertainty only."""
+    n = len(values)
+    if n < 20:
+        return None
+    rng = random.Random(seed)
+    samples = sorted(sum(values[rng.randrange(n)] for _ in range(n)) / n
+                     for _ in range(iterations))
+    def percentile(q):
+        position = (iterations - 1) * q
+        index = math.floor(position)
+        f = position - index
+        return round(samples[index] * (1 - f) +
+                     samples[min(index + 1, iterations - 1)] * f, 6)
+    return {"method": "participant-cluster-percentile-v1",
+            "iterations": iterations, "seed": seed,
+            "low": percentile(.025), "high": percentile(.975)}
 
 def audit_tsv(raw: bytes, *, verify_hash: bool = True) -> dict:
     if not isinstance(raw, bytes) or not raw or len(raw) > MAX_BYTES:
@@ -86,7 +105,9 @@ def audit_tsv(raw: bytes, *, verify_hash: bool = True) -> dict:
     groups = [{"rows": 0, "known": 0, "yes": 0, "no": 0,
                "burden_count": 0, "burden_total": 0} for _ in range(2)]
     people: dict[str, list[list[int]]] = defaultdict(lambda: [[0, 0], [0, 0]])
+    rows_per_person: dict[str, int] = defaultdict(int)
     for subject, day, compliance, burden in items:
+        rows_per_person[subject] += 1
         i = 0 if day - earliest < 7 else 1
         g = groups[i]
         g["rows"] += 1
@@ -102,12 +123,13 @@ def audit_tsv(raw: bytes, *, verify_hash: bool = True) -> dict:
     def report(g: dict) -> dict:
         return {
             "recordedRows": g["rows"],
-            "explicitComplianceYes": g["yes"],
-            "explicitComplianceNo": g["no"],
+            "codedComplianceYes": g["yes"],
+            "codedComplianceNo": g["no"],
             "complianceUnknownOnRecordedRows": g["rows"] - g["known"],
             "knownComplianceRate": round(g["yes"] / g["known"], 6) if g["known"] else None,
             "burdenRecorded": g["burden_count"],
             "meanRecordedBurden": round(g["burden_total"] / g["burden_count"], 6) if g["burden_count"] else None,
+            "burdenRatingCoverageOfRecordedRows": round(g["burden_count"] / g["rows"], 6) if g["rows"] else None,
         }
     pairs = []
     for rows in people.values():
@@ -119,12 +141,15 @@ def audit_tsv(raw: bytes, *, verify_hash: bool = True) -> dict:
         "provenance": {**SOURCE, "sha256": source_sha256},
         "recordedRows": len(items),
         "participantCount": len(people),
+        "recordedRowsPerParticipant": {
+            "min": min(rows_per_person.values()), "max": max(rows_per_person.values())},
         "firstSevenStudyDays": report(groups[0]),
         "lastSevenStudyDays": report(groups[1]),
         "participantsWithPairedKnownCompliance": len(pairs),
         "meanWithinParticipantLastMinusFirstRecordedCompliance":
             round(sum(pairs)/len(pairs), 6) if pairs else None,
-        "scope": "Counts cover existing recorded rows ONLY. No raw beep timestamps: unrecorded scheduled prompts are unknown, and cannot be inserted as zeros. Changes are descriptive, not causal, not StepMark habit automaticity and not validated prompt-frequency optimization.",
+        "pairedParticipantDeltaBootstrap95": paired_bootstrap_mean_delta(pairs),
+        "scope": "Coded 0/1 in the harmonized dataset are not independently verified raw notification receipts. Aggregate rates reflect the published scheduled-row encoding, not direct observation of each beep. Other unrepresented times must not be silently filled as missed. Burden ratings may be asked only on some forms; their absence does not imply participant failure. Participant-cluster bootstrap is descriptive, not a randomized causal estimate, a norm, an optimal prompt frequency or a StepMark habit automaticity validation.",
     }
 
 def main():

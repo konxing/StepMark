@@ -20,6 +20,9 @@ class BurdenTests(unittest.TestCase):
             "a\t8\t0\t4","b\t1\t0\t2","b\t8\t1\t3"),verify_hash=False)
         self.assertEqual(result["recordedRows"],5)
         self.assertEqual(result["participantCount"],2)
+        self.assertEqual(result["recordedRowsPerParticipant"],{"min":2,"max":3})
+        self.assertEqual(result["firstSevenStudyDays"]["codedComplianceYes"],1)
+        self.assertEqual(result["lastSevenStudyDays"]["codedComplianceNo"],1)
         self.assertEqual(result["firstSevenStudyDays"]["complianceUnknownOnRecordedRows"],1)
         self.assertEqual(result["participantsWithPairedKnownCompliance"],2)
         self.assertEqual(result["meanWithinParticipantLastMinusFirstRecordedCompliance"],0)
@@ -32,6 +35,14 @@ class BurdenTests(unittest.TestCase):
                     b"wrong\tschema\n"):
             with self.assertRaises(ValueError):
                 module.audit_tsv(raw,verify_hash=False)
+    def test_cluster_bootstrap_is_deterministic_and_gated(self):
+        x=[-0.1,-0.2,0.0,0.1]*10
+        first=module.paired_bootstrap_mean_delta(x)
+        self.assertEqual(first,module.paired_bootstrap_mean_delta(x))
+        self.assertEqual(first["iterations"],2000)
+        self.assertLessEqual(first["low"],sum(x)/len(x))
+        self.assertGreaterEqual(first["high"],sum(x)/len(x))
+        self.assertIsNone(module.paired_bootstrap_mean_delta([0.1]*3))
     def test_implicit_calendar_nonresponse_not_fabricated(self):
         result=module.audit_tsv(tsv("a\t1\t1\t1","a\t14\t1\t5"),verify_hash=False)
         self.assertEqual(result["recordedRows"],2)
