@@ -29,6 +29,12 @@ Actual successful source download and checksum audit: https://github.com/konxing
 - 282 participants contributed paired early/late counts, with the unweighted mean within-person rate difference (second minus first) of **−0.042047** (−4.20 percentage points). Different ratio/averaging methods should not be silently combined, even though here each participant has the same nominal number of records.
 - Burden item observed 1,487 early vs 1,420 late entries; conditional means 2.228648 vs 2.371127 (1–5 scale). **Do not treat 1,487/5,922 as the rate at which participants answered burden questions** before verifying which questionnaire forms actually contained that item.
 
-No assignment-based causal effect has been estimated. These figures do not prove that reduced question frequency improves adherence or that StepMark must change its reminder cadence. The newer participant-resampling interval must be taken from its subsequent workflow execution, not fabricated from the preliminary run.
+No assignment-based causal effect has been estimated. These figures do not prove that reduced question frequency improves adherence or that StepMark must change its reminder cadence. ## Subsequent paired-cluster validation (completed)
+
+The second independent Actions research run finished successfully: https://github.com/konxing/StepMark/actions/runs/43604631018
+
+Each of 282 participants contributes a single early-to-late fraction difference. A deterministic 2,000-draw **participant-level paired percentile bootstrap** (seed 20261114) produced an interval of **[−0.060626, −0.022792]** around the unweighted within-person change **−0.042047**. Repeated observations from the same participant stay together. This describes sampling variation of the observed individuals under the bootstrap assumptions; it is *not* a randomized treatment contrast, an age-adjusted population inference or a causal burden effect. Do not infer an optimal reminder interval for StepMark from it.
+
+**Critical data semantics:** the 11,844 rows are the *harmonized* scheduled study rows, not independently verified individual notifications. A `compliance=0` code follows the release's coding; it is not necessarily a directly observed phone-beep failure. The `study_burden` item is absent on many rows and may not be asked on each questionnaire variant; do not divide burden ratings by 5,922 and call it a survey response fraction. To compare study arms or questionnaire versions, the original assignment and form codebooks must be linked and prespecified.
 
 Research pipeline: https://github.com/konxing/StepMark/actions/workflows/research-openesm-burden.yml

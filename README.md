@@ -214,3 +214,11 @@ HABIRUPT 2026 真实 RCT 的 313 人、26,605 条逐日记录已在独立 CI 完
 **手机适配：** 小程序已将聊天放在首页最前面，次要表单与专项训练折叠，加入安全区、窄屏输入框和纵向聊天区。静态 WXML、数据绑定、微信请求方法与移动样式约束加入 CI。**通过静态检查不等于微信真机视觉验收**，发布前请按 `docs/architecture/MOBILE_QA.md` 实际测试。
 
 **维护和隐私：** 新迁移 `20261112170000_assistant_actions` 必须使用 `db:deploy` 应用；将 `npm run db:prune --workspace @stepmark/web` 配置成可信服务器的每日定时任务，过期删除 30 天前操作回执。账户导出包括本人短期回执（不包含消息摘要），账户删除时级联移除。聊天外传涉及第三方个人数据处理，正式上线前需完成法律告知、撤回及数据保留策略。
+
+
+## 2026-11-14 evidence-safety and external validation upgrade
+
+- `habit-progress-v2` prevents even high-confidence AI-coded diary text from silently counting as a user's direct initiation rating, increasing habit progress or delaying a maintenance review. Web and WeChat now distinguish direct feedback from provisional AI annotations; no personal data were deleted. [Policy and regression tests](docs/research/HABIT_PROGRESS_V2_AI_EVIDENCE_2026-11-14.md).
+- New research-only [prospective forecast calibration evaluator](docs/research/FORECAST_CALIBRATION_AUDIT_2026-11-14.md): pre-outcome frozen reference, event-level de-duplication, Brier skill, uncapped log-loss failure flags, fixed bins, out-of-time diagnostics and byte-pinned local CSV adapter. It is **not** an online prediction-ability test or validated percentile.
+- Successfully executed a new CC BY-NC 4.0 [openESM Hasselhorn Study 2](docs/research/OPENESM_BURDEN_BENCHMARK_2026-11-14.md) **noncommercial** longitudinal aggregate benchmark: 282 participants, 11,844 harmonized rows; coded compliance 74.81% (week 1) versus 70.60% (week 2). Participant-level paired late-minus-early difference −0.0420 with exploratory 2,000-draw bootstrap interval [−0.0606, −0.0228]. No participant-level records are stored in this repository, and **no causal conclusion** about user prompt frequency is drawn.
+- The new research tools do not change live capability estimates or the database schema. No claim of psychological assessment validity, population norms or automatic habit-formation probability is made.

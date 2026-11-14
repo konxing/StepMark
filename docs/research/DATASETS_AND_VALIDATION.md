@@ -350,3 +350,18 @@ These periods were coded explicitly *before* reading the newly printed results, 
 - **Product policy:** It would be misleading for StepMark to reduce an individual's habit-progress score solely because they stopped filling diaries; schedule a low-burden review, display stale/insufficient evidence and let users decide whether to continue. Do not artificially lower automaticity without an actual rating. A missed report does not equal zero ability or zero automaticity.
 - **Remaining work:** rigorous sensitivity model under MAR and multiple plausible MNAR deviations, participant-level intervals clustered by individual, fair cross-group measurement comparisons, and genuinely external validation of personal progress and optimal review cadence. All new model-selection thresholds must be chosen on training data rather than this evaluation set. Do not use the research data in a live tenant or claim commercial re-use rights.
 
+
+
+## 14. Additional openESM longitudinal respondent burden benchmark (executed 2026-11-14)
+
+Unlike the habit automaticity cohorts above, this is **not** an automaticity dataset. Hasselhorn et al. (2022), https://doi.org/10.3758/s13428-021-01683-6, openESM Study 2 https://openesmdata.org/datasets/0025_hasselhorn/ , versioned Zenodo v2.0.0 https://zenodo.org/records/22953033 , CC BY-NC 4.0 (noncommercial research only).
+
+- Real, pinned TSV in isolated runner: **282 participants / 11,844 harmonized day-response rows**, 42 per person. Source MD5 `87c1fd9570dc694a8c537ea6c35e7e26`; independently computed SHA-256 `00be9005c3b0361c16a0506f96da3c1245f3564fd6c748eeaf6db4a24dc5a041`.
+- Published coded compliance (not verified raw push receipt): first 7 days **4,430/5,922 = 74.81%**, last 7 days **4,181/5,922 = 70.60%**. Within-person mean late-minus-early = **−0.042047**, participant-paired 2,000-draw exploratory bootstrap interval **[−0.060626, −0.022792]**.
+- Burden responses occur on only a subset of coded rows; absence may be due to form design rather than refusal. The study's planned intervention groups have **not** been causally contrasted in this StepMark audit.
+- Dataset rights, pinned version, source integrity, missing semantics and aggregated-only outputs: [openESM burden benchmark](./OPENESM_BURDEN_BENCHMARK_2026-11-14.md); [successful real-data CI](https://github.com/konxing/StepMark/actions/runs/43604631018).
+- Product impact: no immediate change to reminder cadence, AI scoring or habit progress. This research reveals why respondent load and selective reporting must be measured before deploying adaptive prompts.
+
+## 15. Prospective prediction-calibration research gate (2026-11-14)
+
+A strict, independent measurement primitive and rights-checked local CSV adapter have been added. They verify frozen pre-resolution reference forecasts, one event per outcome, Brier skill, log loss (including contradicted absolute certainty) and calibration bins. The public habit/ICAR/ESM datasets **do not** contain the same prospective, resolved prediction target, so the module is only validated with deterministic synthetic tests, not an empirical forecasting cohort. See [forecast calibration research audit](./FORECAST_CALIBRATION_AUDIT_2026-11-14.md) for rights, timestamps, leakage and validation gates.
