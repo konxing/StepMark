@@ -1,0 +1,23 @@
+name: Research only - openESM Study 2 noncommercial survey burden
+on:
+  push:
+    paths:
+      - "packages/core/scripts/validate-openesm-burden.py"
+      - "packages/core/scripts/test_validate_openesm_burden.py"
+      - ".github/workflows/research-openesm-burden.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research-burden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Synthetic parser, missingness, wrong-license/source integrity gates
+        run: python packages/core/scripts/test_validate_openesm_burden.py
+      - name: Pinned noncommercial real-data aggregate audit
+        run: python packages/core/scripts/validate-openesm-burden.py --pinned-remote
