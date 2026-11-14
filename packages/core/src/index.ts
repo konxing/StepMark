@@ -11,3 +11,4 @@ export * from "./validation.ts";
 export * from "./trend-benchmarks.ts";
 export * from "./habit-opportunity-evidence.ts";
 export * from "./habit-chat-evidence.ts";
+export * from "./adherence-sensitivity.ts";

@@ -1,3 +1,4 @@
+import {auditAdherenceSensitivity,type AdherenceSensitivityAudit} from "./adherence-sensitivity.ts";
 /**
  * Research-grade opportunity semantics for habit formation.
  *
@@ -48,6 +49,8 @@ export interface HabitOpportunityEvidenceAudit {
   latestDirectInitiationLevel:HabitOpportunityInitiationLevel|null;
   /** Descriptive only: null if no known eligible behavior outcomes. */
   observedAdherence:number|null;
+  /** Research-only conservative missingness bounds, not a confidence interval. */
+  adherenceSensitivity:AdherenceSensitivityAudit;
   note:string;
 }
 const isTri=(x:unknown):x is TriState=> x===true || x===false || x===null;
@@ -75,6 +78,8 @@ export function auditHabitOpportunities(
        !isTri(r.performed) || !isRating(r.initiationAutomaticity) ||
        (r.source!=="user_explicit" && r.source!=="ai_interpretation"))
       throw new RangeError("invalid cue, opportunity, performance or rating");
+    if(r.eligibleOpportunity===false && r.performed===true)
+      throw new RangeError("performed action contradicts explicitly absent eligible opportunity");
     if(r.initiationAutomaticity!==null && r.performed!==true)
       throw new RangeError("event-level automaticity rating requires observed performed action");
     if(r.source==="ai_interpretation"){
@@ -109,6 +114,8 @@ export function auditHabitOpportunities(
       }
     }
   }
+  const sensitivity=auditAdherenceSensitivity({performedEligible,missedEligible,
+    eligibleButPerformanceUnknown,eligibilityUnknown});
   const known=performedEligible+missedEligible;
   return {
     version:"habit-opportunity-evidence-v1",events:events.length,
@@ -118,6 +125,7 @@ export function auditHabitOpportunities(
     cueEncountered,cueNotEncountered,cueUnknown,
     directAutomaticityRatings,latestDirectInitiationLevel:lastRating===-1?null:lastRating,
     observedAdherence:known?Number((performedEligible/known).toFixed(6)):null,
+    adherenceSensitivity:sensitivity,
     note:"Descriptive, eligible-and-observed events only. AI interpretations and absent reports do not count as missed performance or zero automaticity. No validated habit-formation probability is computed."
   };
 }

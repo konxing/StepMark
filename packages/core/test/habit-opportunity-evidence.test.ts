@@ -62,3 +62,27 @@ test("duplicate events and invalid types fail closed",()=>{
   assert.throws(()=>auditHabitOpportunities([row("a",{initiationAutomaticity:10 as never})]),/invalid cue/);
   assert.equal(auditHabitOpportunities([]).observedAdherence,null);
 });
+
+test("adherence ranges expose uncertainty without treating unknown as failure",()=>{
+  const a=auditHabitOpportunities([
+    row("s1",{eligibleOpportunity:true,performed:true}),
+    row("f1",{eligibleOpportunity:true,performed:false}),
+    row("q1",{eligibleOpportunity:true,performed:null}),
+    row("u1",{eligibleOpportunity:null,performed:null}),
+    row("ai1",{eligibleOpportunity:true,performed:true,source:"ai_interpretation",
+      userMessageId:"m1",supportingQuote:"I clearly did the task"})
+  ]);
+  assert.equal(a.observedAdherence,.5);
+  assert.equal(a.adherenceSensitivity.knownEligibleOutcomeCoverage,0.666667);
+  assert.deepEqual(a.adherenceSensitivity.knownEligibleIdentificationBounds,
+    {low:0.333333,high:0.666667});
+  assert.deepEqual(a.adherenceSensitivity.recordedEventConservativeBounds,
+    {low:.25,high:.75});
+  assert.equal(a.adherenceSensitivity.unknownEligibility,1);
+  assert.equal(a.adherenceSensitivity.status,"unresolved");
+});
+test("contradictory performed actions with no eligible opportunity fail closed",()=>{
+  assert.throws(()=>auditHabitOpportunities([row("impossible",{
+    eligibleOpportunity:false,performed:true
+  })]),/contradicts/);
+});
