@@ -13,7 +13,7 @@ export async function listDueHabitReviews(userId:string,now:Date=new Date()){
     select:{id:true,title:true,reviewEnabled:true,
       reflections:{
         orderBy:{createdAt:"desc"},take:60,
-        select:{createdAt:true,initiationLevel:true,aiLevel:true,aiConfidence:true,aiStatus:true}}}
+        select:{createdAt:true,initiationLevel:true}}}
   });
   const ids=habits.map(h=>h.id);
   if(!ids.length)return {due:[],totalDue:0};
@@ -44,9 +44,6 @@ export async function listDueHabitReviews(userId:string,now:Date=new Date()){
       if(x.initiationLevel!==null){
         observations.push({atMs:x.createdAt.getTime(),level:x.initiationLevel as 0|1|2|3|4,
           source:"self_report",confidence:1});
-      }else if(x.aiStatus==="COMPLETED"&&x.aiLevel!==null){
-        observations.push({atMs:x.createdAt.getTime(),level:x.aiLevel as 0|1|2|3|4,
-          source:"ai_interpretation",confidence:x.aiConfidence??0});
       }
     }
     const status=calculateHabitProgress({

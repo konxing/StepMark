@@ -88,3 +88,27 @@ test("missing feedback alone never reduces last-evidenced visual progress",()=>{
   assert.equal(optedOut.reviewDue,false);
   assert.equal(optedOut.stage,"needs_fresh_evidence");
 });
+
+test("high-confidence AI diary labels never modify growth or review timing",()=>{
+  const person=[evidence(2,2),evidence(16,4),evidence(30,4)];
+  const data={completedRepetitions:90,completedOpportunities:90,eligibleOpportunities:90,
+    nowMs:now,lastCompletedAtMs:now-2*DAY,seed:"fixed-user"};
+  const direct=calculateHabitProgress({...data,observations:person});
+  const extra=calculateHabitProgress({...data,observations:[
+    {atMs:now-DAY/2,level:4,source:"ai_interpretation" as const,confidence:1},
+    {atMs:now-DAY,level:0,source:"ai_interpretation" as const,confidence:.99},...person]});
+  assert.equal(extra.policyVersion,"habit-progress-v2");
+  assert.equal(extra.aiAnnotationCount,2);
+  assert.equal(extra.evidenceCount,3);
+  assert.equal(extra.progress,direct.progress);
+  assert.equal(extra.automaticitySignal,direct.automaticitySignal);
+  assert.equal(extra.reviewReason,direct.reviewReason);
+  assert.equal(extra.nextReviewAt,direct.nextReviewAt);
+  const aiOnly=calculateHabitProgress({...data,observations:[
+    {atMs:now,level:4,source:"ai_interpretation",confidence:1}]});
+  assert.equal(aiOnly.evidenceCount,0);
+  assert.equal(aiOnly.aiAnnotationCount,1);
+  assert.equal(aiOnly.automaticitySignal,null);
+  assert.ok(aiOnly.progress<=45);
+  assert.equal(aiOnly.reviewReason,"low_evidence");
+});

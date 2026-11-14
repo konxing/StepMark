@@ -742,3 +742,36 @@ test("old private diary evidence survives expiry and is flagged stale, not erase
     assert.equal(after.stage,"needs_fresh_evidence");
   }finally{await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});}
 });
+
+test("AI-only habit ratings never inflate growth or suppress due reviews",async()=>{
+  const owner=await db.user.create({data:{},select:{id:true}});
+  const foreign=await db.user.create({data:{},select:{id:true}});
+  try{
+    const habit=await db.habit.create({data:{userId:owner.id,title:"AI label exclusion",action:"Read"}});
+    const other=await db.habit.create({data:{userId:foreign.id,title:"Private",action:"Read"}});
+    await db.habitEvent.create({data:{habitId:habit.id,opportunityKey:"old",
+      eligible:true,completed:true,occurredAt:new Date(Date.now()-50*86400000),source:"test"}});
+    for(const [habitId,level] of [[habit.id,4],[other.id,0]] as const){
+      await db.habitReflection.create({data:{habitId,createdAt:new Date(),
+        note:"Started automatically",aiConsent:true,aiStatus:"COMPLETED",
+        aiLevel:level,aiConfidence:1,aiQuote:"Started automatically",
+        aiModelId:"test",aiPromptVersion:"v1"}});
+    }
+    const token=(await issueSession(owner.id,"WECHAT")).token;
+    const response=await habitProgressGET(req("/api/v1/habits/"+habit.id+"/progress",
+      "GET",undefined,token,"WECHAT"),{params:Promise.resolve({id:habit.id})});
+    assert.equal(response.status,200);
+    const result=await response.json() as {policyVersion:string;progress:number;
+      automaticitySignal:number|null;aiAnnotationCount:number;evidenceCount:number;reviewDue:boolean};
+    assert.equal(result.policyVersion,"habit-progress-v2");
+    assert.equal(result.evidenceCount,0);
+    assert.equal(result.aiAnnotationCount,1);
+    assert.equal(result.automaticitySignal,null);
+    assert.ok(result.progress<=45);
+    assert.equal(result.reviewDue,true);
+    const due=await dueReviewsGET(req("/api/v1/habits/due","GET",undefined,token,"WECHAT"));
+    const body=await due.json() as {due:{habitId:string}[]};
+    assert.ok(body.due.some(x=>x.habitId===habit.id));
+    assert.ok(!body.due.some(x=>x.habitId===other.id));
+  }finally{await db.user.deleteMany({where:{id:{in:[owner.id,foreign.id]}}});}
+});

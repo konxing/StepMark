@@ -1,7 +1,7 @@
 "use client";
 import {useCallback,useEffect,useState} from "react";
 type Progress={progress:number;repetitionSignal:number;automaticitySignal:number|null;
-  completedRepetitions:number;evidenceCount:number;reviewDue:boolean;nextReviewAt:string|null;
+  completedRepetitions:number;evidenceCount:number;aiAnnotationCount:number;reviewDue:boolean;nextReviewAt:string|null;
   stage:string;policyVersion:string;reviewEnabled:boolean;reviewReason:string;evidenceStale:boolean;lastRatingAt:string|null};
 type Reflection = {id:string;eventId:string|null;note:string|null;initiationLevel:number|null;
   aiConsent:boolean;aiStatus:string;aiLevel:number|null;aiQuote:string|null;createdAt:string};
@@ -96,15 +96,16 @@ export default function HabitGrowthPanel({habitId,eventId}:{habitId:string;event
         aria-valuemin={0} aria-valuemax={100} aria-valuenow={result.progress}>
         <div className="growth-fill" style={{width:result.progress+"%"}}/>
       </div>
-      <p>已执行 {result.completedRepetitions} 次 · 行动自动化信号：{result.automaticitySignal===null?"尚无证据":result.automaticitySignal.toFixed(1)}
-        · 感受反馈 {result.evidenceCount} 次</p>
+      <p>已执行 {result.completedRepetitions} 次 · 本人启动感受信号：{result.automaticitySignal===null?"尚无直接自评":result.automaticitySignal.toFixed(1)}
+        · 本人有效反馈 {result.evidenceCount} 次</p>
+      {result.aiAnnotationCount>0&&<p className="progress-caveat">最近记录有 {result.aiAnnotationCount} 条 AI 暂定解读，未参与进度和复查判断。</p>}
       {result.evidenceStale&&<p className="review-prompt">
         过去的感受证据已超过 45 天。这是上次有证据支持的进度，并非当前状态的可靠判断；缺少记录不会自动扣分。
       </p>}
       {result.reviewDue&&<p className="review-prompt">{result.reviewReason==="recent_difficulty"?"最近开始行动似乎更费力了，做一次简短复查吧。":"该做一次低负担复查了：现在开始行动，还是和之前一样自然吗？"}</p>}
       {result.nextReviewAt&&<small>预计下次应用内复查：{new Date(result.nextReviewAt).toLocaleDateString("zh-CN")}</small>}
       <button type="button" className="text-button" disabled={busy} onClick={toggleReview}>{result.reviewEnabled?"关闭应用内复查":"开启应用内复查"}</button>
-      <p className="progress-caveat">此百分比是产品成长指标，不是科学验证的“养成概率”；它不会直接改变任何能力分。</p>
+      <p className="progress-caveat">此百分比基于本人明确感受的实验性指标，不是科学验证的“养成概率”；AI 暂定解读不加分，也不会直接改变能力分。</p>
     </>:<p>正在计算进度…</p>}
     <div className="growth-form">
       <strong>这一次开始行动时的感受（选填）</strong>

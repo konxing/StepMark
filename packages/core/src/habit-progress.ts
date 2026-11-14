@@ -3,7 +3,7 @@
  * heuristic, NOT a probability of habit formation nor a validated SRBAI score.
  * Observed repetitions and automaticity are deliberately kept separate.
  */
-export const HABIT_PROGRESS_POLICY_VERSION = "habit-progress-v1";
+export const HABIT_PROGRESS_POLICY_VERSION = "habit-progress-v2";
 export type InitiationLevel = 0|1|2|3|4;
 export type ReflectionSource = "self_report"|"ai_interpretation";
 export interface InitiationEvidence {
@@ -32,6 +32,8 @@ export interface HabitProgress {
   stage:HabitStage;
   completedRepetitions:number;
   evidenceCount:number;
+  /** AI-coded diary interpretations in the bounded input; never scored. */
+  aiAnnotationCount:number;
   evidenceSpanDays:number;
   evidenceStale:boolean;
   lastRatingAt:string|null;
@@ -66,6 +68,7 @@ export function calculateHabitProgress(input:HabitProgressInput):HabitProgress {
   // Intra-day repeated feedback must not inflate confidence.
   const observations=[...input.observations].sort((a,b)=>b.atMs-a.atMs);
   const unique:InitiationEvidence[]=[];
+  let aiAnnotationCount=0;
   const dates=new Set<string>();
   for(const o of observations){
     if (!Number.isFinite(o.atMs) || o.atMs>nowMs+5*60*1000 || o.atMs<0 ||
@@ -74,7 +77,12 @@ export function calculateHabitProgress(input:HabitProgressInput):HabitProgress {
         (o.source!=="self_report" && o.source!=="ai_interpretation")) {
       throw new RangeError("invalid subjective evidence");
     }
-    if (o.source==="ai_interpretation" && o.confidence<0.65)continue;
+    // An LLM's confidence is not validated measurement reliability. Never
+    // turn an inferred diary label into a person's own self-reported rating.
+    if(o.source==="ai_interpretation"){
+      aiAnnotationCount++;
+      continue;
+    }
     const key=new Date(o.atMs).toISOString().slice(0,10);
     if(dates.has(key))continue;
     dates.add(key);
@@ -100,7 +108,7 @@ export function calculateHabitProgress(input:HabitProgressInput):HabitProgress {
       // Relative age makes unchanged historical evidence mathematically stable
       // as wall-clock time passes; a new actual rating can still move the score.
       const ageDays=Math.max(0,(latest!.atMs-o.atMs)/DAY);
-      const weight=Math.pow(0.5,ageDays/35)*(o.source==="self_report"?1:between(o.confidence,0.65,1)*0.8);
+      const weight=Math.pow(0.5,ageDays/35);
       weighted+=levelStrength[o.level]*weight;
       weights+=weight;
     }
@@ -133,10 +141,11 @@ export function calculateHabitProgress(input:HabitProgressInput):HabitProgress {
     progress,repetitionSignal:Number(repetitionSignal.toFixed(1)),
     automaticitySignal:automaticitySignal===null?null:Number(automaticitySignal.toFixed(1)),
     evidenceLevel,stage,completedRepetitions:n,evidenceCount:count,
+    aiAnnotationCount,
     evidenceSpanDays:Number(span.toFixed(1)),evidenceStale,
     lastRatingAt:latest?new Date(latest.atMs).toISOString():null,
     mostRecentAutomaticity:lastRating,
     reviewDue:due,reviewReason,nextReviewAt:input.reviewEnabled===false||nextReviewMs===null?null:new Date(nextReviewMs).toISOString(),
-    note:"Last-evidenced historical progress, not current habit formation probability. If evidence is stale, seek a fresh rating; never interpret missing diary entries as zero automaticity. Ability changes require independent tests."
+    note:"Only explicit self-reported initiation ratings contribute to exploratory progress and review scheduling. AI diary interpretations remain provisional regardless of confidence. Missing diaries never count as zero; ability changes require independent tests."
   };
 }
