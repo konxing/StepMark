@@ -44,6 +44,8 @@ jobs:
         run: node --import tsx --test packages/core/scripts/evaluate-longitudinal.test.mjs
       - name: Research item-response provenance, isolation and misleading-score regression tests
         run: node --test packages/core/scripts/evaluate-reasoning.test.mjs
+      - name: Offline forecast calibration and source-rights regression tests
+        run: node --import tsx --test packages/core/scripts/evaluate-resolved-forecasts.test.mjs
       - name: WeChat JavaScript syntax check
         run: |
           node --check apps/wechat-miniapp/app.js
