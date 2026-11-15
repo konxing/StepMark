@@ -54,6 +54,10 @@ A byte-exact checkout of MaRs-IB `ndawlab/mars-irt` Git commit `04eecdaf77d0ee65
 
 This status is **not** a finding that MaRs-IB is invalid: it only indicates the program's deliberately conservative sample threshold for this particular slice of a larger published study. Researchers already conducted formal IRT calibration and independent validation on other data. The current exercise separately confirms that StepMark's new descriptive audit can ingest a real item-level source, preserve explicit unknown responses, and run without logging individual participants. It does **not** validate any StepMark questions, person-level scores, or population norms.
 
+## Source protocol checks for response-time confounding
+
+The originally pinned public file also includes `all_loaded`, `minimum_resolution`, and `browser_interactions`. These fields are now strictly parsed and summarized in the isolated runner so that a technically problematic trial is not silently interpreted as slower cognition. Preliminary independent inspection found 64/4092 `all_loaded=0` rows, 0/4092 `minimum_resolution=0` rows, and 22/4092 records with nonzero `browser_interactions`. Final figures should be confirmed against the new CI run. These are *operational flags*, not automatic respondent exclusion, and the source data still lack device-validated response-time comparability.
+
 ## Additional sources for the next research iteration
 
 - [NIMH OpenCogData catalogue](https://github.com/nimh-dsst/OpenCogData): specifically lists public **trial/item-level** human Stroop, delay-discounting, and bandit-task datasets. This is a *directory*, not a licensed unified data file. Use for attention control and decision-making **only after independently checking the original dataset and its permission**.

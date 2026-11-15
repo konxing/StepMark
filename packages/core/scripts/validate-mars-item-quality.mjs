@@ -30,7 +30,11 @@ export function parsePinnedMarsShortformCsv(raw){
        !["","NA","1.0","0.0"].includes(a[9])||
        (a[9]===""||a[9]==="NA")!== (a[10]===""||a[10]==="NA")||
        (a[10]!==""&&a[10]!=="NA"&&
-         (!Number.isFinite(Number(a[10]))||Number(a[10])<=0||Number(a[10])>3600)))
+         (!Number.isFinite(Number(a[10]))||Number(a[10])<=0||Number(a[10])>3600))||
+       !["0","1"].includes(a[11])||
+       !["0","1"].includes(a[12])||
+       !/^(?:0|[1-9][0-9]*)(?:\.0)?$/.test(a[13])||
+       Number(a[13])>1000)
       throw new Error("SOURCE_ROW_INVALID");
     // Keep raw participant identifiers only in RAM. Never log/write/persist.
     rows.push({
@@ -41,6 +45,29 @@ export function parsePinnedMarsShortformCsv(raw){
   }
   if(!rows.length)throw new Error("SOURCE_EMPTY");
   return rows;
+}
+/**
+ * Capture operational factors before studying response time. These flags do
+ * not automatically mean a participant is invalid, and are not a device
+ * calibration. Never print participants, browser strings or raw records.
+ */
+export function summarizeMarsTechnicalQuality(raw){
+  const body=raw.toString("utf8").trim().split(/\r?\n/);
+  if(body.shift()!==HEADER||body.length>50000)throw new Error("SOURCE_SCHEMA_CHANGED");
+  let incompleteLoad=0,lowResolution=0,interactionRows=0;
+  for(const line of body){
+    const a=line.split(",");
+    if(a.length!==14||!["0","1"].includes(a[11])||
+       !["0","1"].includes(a[12])||
+       !/^(?:0|[1-9][0-9]*)(?:\.0)?$/.test(a[13])||
+       Number(a[13])>1000)throw new Error("SOURCE_TECHNICAL_FLAGS_INVALID");
+    if(a[11]==="0")incompleteLoad++;
+    if(a[12]==="0")lowResolution++;
+    if(Number(a[13])>0)interactionRows++;
+  }
+  return {recordedRows:body.length,allLoadedFalseRows:incompleteLoad,
+    minimumResolutionFalseRows:lowResolution,nonzeroBrowserInteractionsRows:interactionRows,
+    caution:"Technical flags can confound latency and missingness; report them instead of ignoring them. They do not certify clock precision or device comparability."};
 }
 export function verifyGitBlob(data){
   const computed=createHash("sha1").update("blob "+data.length+"\0").update(data).digest("hex");
@@ -58,9 +85,10 @@ async function main(){
   const sha256=verifyGitBlob(data);
   const rows=parsePinnedMarsShortformCsv(data);
   const audit=auditRecordedBinaryItems(rows);
+  const technicalQuality=summarizeMarsTechnicalQuality(data);
   process.stdout.write(JSON.stringify({
     status:"real_data_descriptive_only",source:UPSTREAM,sourceSha256:sha256,
-    audit,participantLevelRecordsPersisted:false,
+    audit,technicalQuality,participantLevelRecordsPersisted:false,
     warning:"This is item-analysis of MaRs-IB short forms, not calibration/validation of the unrelated StepMark six-item logic forms. No demographic DIF, latent theta or general ability growth claims."
   },null,2)+"\n");
 }
