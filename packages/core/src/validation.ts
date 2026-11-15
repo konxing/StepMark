@@ -133,7 +133,7 @@ export function evaluateAutomaticitySeries(
     status:"descriptive_out_of_time_comparison",
     methodVersion:"time-split-v2",
     split:"first 70% observed timepoints per participant train, later 30% test",
-    note:"Candidate curves are retrospective research comparisons with person-specific time-forward holdouts, not calibrated habit probabilities. Never choose a live model on this test set. Do not combine incomparable measure versions or treat intention as confirmed cue exposure.",
+    note:"Curves and repetition-trend models predict later automaticity conditional on REALIZED future cumulative repetitions, which are unknown at genuine forecasting time. Therefore these are retrospective exposure-conditioned comparisons, not leakage-free prospective predictions or validated habit probabilities. Use the separate time-only benchmark for a no-future-exposure comparison; neither should select a live policy on a reused test cohort.",
     quality:{
       participants:byPerson.size,rows:n,observedAutomaticity:n-totalMissing,
       missingAutomaticity:totalMissing,missingFraction:rounded(totalMissing/n),

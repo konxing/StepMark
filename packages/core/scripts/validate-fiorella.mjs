@@ -4,6 +4,7 @@ import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {execFileSync} from "node:child_process";
 import {evaluateAutomaticitySeries} from "../src/validation.ts";
+import {evaluateTimeOnlyAutomaticityHoldout} from "../src/time-only-holdout.ts";
 
 /**
  * REAL observational research benchmark, no personal records are committed,
@@ -100,7 +101,9 @@ async function main(){
     const summaries=[];
     for(const [measure,records] of groups){
       const result=evaluateAutomaticitySeries(records);
+      const timeOnly=evaluateTimeOnlyAutomaticityHoldout(records);
       summaries.push({measure,quality:result.quality,
+        timeOnlyNoFutureExposure:timeOnly,
         recordedMissingness:result.recordedMissingness,
         models:{
           lastObservation:result.lastObservation,
@@ -113,7 +116,7 @@ async function main(){
           pairedAsymptote:result.pairedAsymptote,
           pairedTrends:result.pairedTrends
         },
-        evaluationType:"person-stratified time-forward predictive check; unlinked self-report scales"});
+        evaluationType:"original curves: retrospective conditioned on future realized exposure; timeOnlyNoFutureExposure: dates known but no future exposure input; unlinked self-report scales"});
     }
     process.stdout.write(JSON.stringify({
       status:"EXTERNAL_REAL_RESEARCH_DATA_ANALYZED",
@@ -121,7 +124,7 @@ async function main(){
       archiveSha256:sha256,
       participantLevelDataPersisted:false,
       licensedForRedistribution:false,
-      caution:"Study observational; individual trend comparison is not a mixed-effect model replication or validated StepMark 0–100 habit progress. Measure cohorts are not pooled. Do not select the best model on the same held-out data for product use.",
+      caution:"Original exposure-conditioned curves use observed future cumulative repetitions and are NOT a deployable ahead-of-time forecast. The separately reported time-only model never reads those counts, but is still retrospectively evaluated on observed diary dates. Study observational; measure cohorts not pooled. Do not select a live model on the same held-out cohort.",
       groups:summaries
     },null,2)+"\n");
   }finally{await rm(dir,{recursive:true,force:true});}

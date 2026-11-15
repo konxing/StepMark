@@ -4,6 +4,8 @@ on:
     paths:
       - "packages/core/scripts/validate-fiorella.mjs"
       - "packages/core/src/validation.ts"
+      - "packages/core/src/time-only-holdout.ts"
+      - "packages/core/test/time-only-holdout.test.ts"
       - "packages/core/src/research-audit.ts"
       - ".github/workflows/research-fiorella.yml"
   workflow_dispatch:
