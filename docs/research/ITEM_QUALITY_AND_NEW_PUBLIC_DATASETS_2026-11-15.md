@@ -36,4 +36,30 @@ Zorowitz et al. (2023/2024), https://doi.org/10.3758/s13428-023-02067-8, calibra
 4. Keep response-time analysis stratified by verified device/browser and administration protocol; online latency is not a device-invariant proxy for neural reaction speed.
 5. Do not push a change to live StepMark `abilityEstimate` or `habit-progress-v2` on the basis of this unrelated MaRs-IB experiment.
 
-**Validation status:** Source pinned and audit code added; new workflow result must be checked before claiming real-data execution was successful.
+## Executed external validation benchmark (2026-11-15)
+
+The independent research workflow **completed successfully**: https://github.com/konxing/StepMark/actions/runs/43722381695
+
+A byte-exact checkout of MaRs-IB `ndawlab/mars-irt` Git commit `04eecdaf77d0ee657c65351eab5ed9e744b1ce14` and source file `04_Validation/data/shortform/mars.csv` passed Git blob SHA-1 `9742d6f7c13a44d146821d8c91b7fbb706a3efa6`; computed SHA-256 `eb22235965b5e331e7376f113edbb0bd09be6ddc3bc03f75460e691684cbf6d5`.
+
+| Observed result | Audit output |
+| --- | --- |
+| Distinct participants | **341**, across three different short forms |
+| Recorded person-item events | **4,092**, with **56** explicitly missing accuracy responses |
+| Form 1 | **114** people, 12 items, 1,368 event rows (21 missing) |
+| Form 2 | **113** people, 12 items, 1,356 event rows (18 missing) |
+| Form 3 | **114** people, 12 items, 1,368 event rows (17 missing) |
+| Across 36 observed items | accuracy fraction range approximately **0.441–0.886**, corrected item-rest r approximately **0.071–0.459**, using each individual's other observed items *within their own form* |
+| Frozen research gate result | **`insufficient_evidence`**, not `descriptive_only`, because no single form reached the operational 200-person sample gate |
+
+This status is **not** a finding that MaRs-IB is invalid: it only indicates the program's deliberately conservative sample threshold for this particular slice of a larger published study. Researchers already conducted formal IRT calibration and independent validation on other data. The current exercise separately confirms that StepMark's new descriptive audit can ingest a real item-level source, preserve explicit unknown responses, and run without logging individual participants. It does **not** validate any StepMark questions, person-level scores, or population norms.
+
+## Additional sources for the next research iteration
+
+- [NIMH OpenCogData catalogue](https://github.com/nimh-dsst/OpenCogData): specifically lists public **trial/item-level** human Stroop, delay-discounting, and bandit-task datasets. This is a *directory*, not a licensed unified data file. Use for attention control and decision-making **only after independently checking the original dataset and its permission**.
+- [Open cognitive battery tutorial, 2026](https://pmc.ncbi.nlm.nih.gov/articles/PMC13600046/): inhibition, working memory and processing speed tasks. Task implementations are candidates for nonverbal cognitive experiments; must check source-code and stimuli reuse rights and cross-device latency.
+- [Repeated-session multimodal benchmark, Scientific Data 2026](https://www.nature.com/articles/s41597-026-08125-y): 30 adults, three sessions and seven cognitive/motor tasks, with BIDS, EEG/fNIRS and behavior. Can support repeatability checks in the research lab, **not** normative web reaction-time scoring.
+- [NEURAL-2 speech and gesture retest](https://pmc.ncbi.nlm.nih.gov/articles/PMC12614922/): adult discourse and gesture observations, useful as a *methodological exemplar* for independent rater agreement and retest reliability. Aphasia/aging recruitment and English language prevent treating this as a typical Chinese adult expression norm.
+- [Practice-effect adjustment, Basner et al. 2020](https://scispace.com/papers/cognition-test-battery-adjusting-for-practice-and-stimulus-51p8yhm2oe?utm_source=chatgpt&utm_medium=tool): repeated cognitive-task practice can cause improvement that should not be mistaken for ability changes.
+
+All listed additional sources are **candidates only**; the real-data completed claim applies exclusively to the MaRs-IB file above. Neither source code nor sensitive participant files from these candidates were copied into StepMark.
