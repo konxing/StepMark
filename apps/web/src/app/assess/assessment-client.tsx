@@ -6,6 +6,7 @@ type Dimension={code:string;label:string;total:number;attempted:number;correct:n
 type Review={taskId:string;taskVersion:string;skillCode:string|null;prompt:string;
   selectedKey:string|null;correctKey:string|null;explanation:string;correct:boolean};
 type FormSummary={code:string;title:string;phase:string;status:string;total:number;attempted:number;
+  integrityStatus:"verified"|"legacy_unverified"|"mismatch";legacyAttemptCount:number;
   correct:number|null;completedAt:string|null;availableAt:string|null;dimensions:Dimension[];reviews:Review[]};
 type Overview={forms:FormSummary[];comparison:{
   baselineCorrect:number;retestCorrect:number;total:number;rawDifferencePoints:number;daysApart:number;
@@ -153,6 +154,9 @@ export default function AssessmentClient(){
         </div>)}
       </div>
       <p className="progress-caveat">每种题型仅有 2 题，不能据此稳定判定某项能力强弱。这里记录的只是错误线索。</p>
+      {current.legacyAttemptCount>0&&<p className="progress-caveat">
+        本卷有 {current.legacyAttemptCount} 条较早的答题记录没有题目内容指纹；成绩仍保留，但无法追溯核验题目是否曾被同版本修改。
+      </p>}
       <h3>逐题证据与解析</h3>
       {current.reviews.map((r,i)=><article className="assessment-review" key={r.taskId}>
         <strong>第 {i+1} 题 · {skills[r.skillCode??""]??"推理"} · {r.correct?"答对":"未答对"}</strong>

@@ -98,3 +98,12 @@ Fixed an alternate-path answer-disclosure issue. Independent logic A/B forms int
 - A mismatched `taskVersion` and current form version now make the overview unavailable rather than misleadingly showing old raw scores with new item answers; retroactively altered content under an unchanged version is still impossible to detect without signed/frozen task snapshots. Operational rule: published form items must be immutable.
 - Postgres integration covers submission 1–5 (including export), completing item 6, independent tenant history and review gating.
 - **Data access tradeoff:** in-progress assessment correctness fields are available upon form completion; individual chosen answers and timestamps remain exportable earlier. Explicit user access requests requiring full immediate scoring disclosure should be handled separately with the limitation that such disclosure may invalidate that assessment instance.
+
+## 2026-11-15 — Published task content integrity without schema migration
+
+The existing `taskVersion` guard catches a version mismatch but cannot detect accidental edits to a published multiple-choice item when its version label is unchanged. A modified answer key could cause the original accepted score to disagree with the review displayed later.
+
+- New form submissions persist `evidence.taskContentSha256`, a SHA-256 over deterministically key-sorted complete JSON task content (including answer key and explanations). The form overview checks this digest against the **current** task before declaring a form completed, allowing the review to show its answer key, or unlocking the B form. A mismatch marks the form `unavailable` and keeps score history/export deferred.
+- Old attempts with **no** digest remain readable and are marked `legacy_unverified`; prior history is neither erased nor presented as verified fingerprints. Browser explicitly warns when a completed form contains legacy attempts.
+- The digest is not an authentication signature. A sufficiently privileged DB editor can change both task content and stored digest. Operationally, **published tasks must be immutable**; versioning and immutable publication snapshots are still recommended before scientific norming.
+- Deterministic unit tests check field-order independence, unchanged-version answer-key modifications, version drift and input rejection. No schema migration: Prisma's existing `AssessmentAttempt.evidence` JSON stores the fingerprint.

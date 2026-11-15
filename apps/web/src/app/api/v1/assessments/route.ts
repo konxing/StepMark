@@ -4,6 +4,7 @@ import {evaluateSingleChoice} from "@stepmark/core";
 import {getDb} from "@/server/db";
 import {ApiError,boundedJson,enforceRateLimit,errorResponse,principalFromRequest,requireSameOrigin} from "@/server/security";
 import {getLogicFormOverview,isLogicFormCode} from "@/server/assessment-forms";
+import {taskContentDigest} from "@/server/assessment-integrity";
 export const runtime="nodejs";
 export async function GET(request:NextRequest){
   try{
@@ -52,7 +53,8 @@ export async function POST(request:NextRequest){
       attempt=await db.assessmentAttempt.create({data:{
         userId:p.userId,taskId:task.id,taskVersion:task.version,
         evidenceKind:"OBJECTIVE",rawScore:result.taskScore,
-        evidence:{selectedKey,correct:result.isCorrect,scorerVersion:result.scorerVersion}
+        evidence:{selectedKey,correct:result.isCorrect,scorerVersion:result.scorerVersion,
+          ...(task.formCode?{taskContentSha256:taskContentDigest(task.content)}:{})}
       },select:{id:true,createdAt:true}});
     }catch(error){
       const existing=await db.assessmentAttempt.findFirst({where:{userId:p.userId,taskId:task.id},

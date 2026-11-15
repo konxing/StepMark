@@ -1,4 +1,5 @@
 import {getDb} from "./db";
+import {verifyTaskAttemptEvidence} from "./assessment-integrity";
 
 /**
  * Original, independent, deliberately UNCALIBRATED short forms.
@@ -47,7 +48,12 @@ export async function getLogicFormOverview(userId:string,now=new Date()){
     // Old attempts cannot be silently re-scored against a replaced form item.
     // A form with mismatched attempt versions is unavailable until reviewed,
     // not "completed" with potentially contradictory answer explanations.
-    const attemptVersionsValid=done.every(t=>attemptById.get(t.id)!.taskVersion===t.version);
+    const integrity=done.map(t=>verifyTaskAttemptEvidence({
+      taskVersion:t.version,attemptVersion:attemptById.get(t.id)!.taskVersion,
+      content:t.content,evidence:attemptById.get(t.id)!.evidence
+    }));
+    const attemptVersionsValid=integrity.every(x=>x!=="mismatch");
+    const legacyAttemptCount=integrity.filter(x=>x==="legacy_unverified").length;
     const trustworthyBank=validBank&&attemptVersionsValid;
     const complete=trustworthyBank && done.length===FORM_SIZE;
     const completedAt=complete?new Date(Math.max(...done.map(t=>
@@ -57,7 +63,10 @@ export async function getLogicFormOverview(userId:string,now=new Date()){
     const previousDone=previousItems.filter(t=>attemptById.has(t.id));
     const previousValid=previousItems.length===FORM_SIZE &&
       previousItems.every((t,i)=>t.formOrder===i+1&&t.version==="logic-form-1" &&
-        (!attemptById.has(t.id)||attemptById.get(t.id)!.taskVersion===t.version)) &&
+        (!attemptById.has(t.id)||verifyTaskAttemptEvidence({
+          taskVersion:t.version,attemptVersion:attemptById.get(t.id)!.taskVersion,
+          content:t.content,evidence:attemptById.get(t.id)!.evidence
+        })!=="mismatch")) &&
       SKILLS.every(s=>previousItems.filter(t=>t.skillCode===s.code).length===2);
     const lastPrevious=previousDone.length===FORM_SIZE && previousValid?
       Math.max(...previousDone.map(t=>attemptById.get(t.id)!.createdAt.getTime())):null;
@@ -84,6 +93,8 @@ export async function getLogicFormOverview(userId:string,now=new Date()){
         correct:a.rawScore===100};
     }):[];
     return {code:form.code,title:form.title,phase:form.phase,status,total:trustworthyBank?FORM_SIZE:0,
+      integrityStatus:!attemptVersionsValid?"mismatch":legacyAttemptCount>0?"legacy_unverified":"verified",
+      legacyAttemptCount,
       attempted:done.length,correct,completedAt,availableAt:status==="locked"?readyAt:null,
       dimensions,reviews};
   });
@@ -103,5 +114,6 @@ export async function getLogicFormOverview(userId:string,now=new Date()){
   return {construct:"reasoning.logic",forms,
     comparison:comparison?{...comparison,practiceAttemptsBetweenForms}:null,
     interpretation:"Raw independent-form performance only. Forms are not equated, " +
-      "item counts are small, and a higher result is not validated ability growth."};
+      "item counts are small, and a higher result is not validated ability growth. " +
+      "New submissions have canonical content fingerprints; earlier records without them remain unverified legacy evidence."};
 }
