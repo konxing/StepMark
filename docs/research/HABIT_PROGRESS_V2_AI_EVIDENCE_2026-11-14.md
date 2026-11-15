@@ -21,3 +21,7 @@ A subsequent audit found a subtle selection failure: the progress endpoint fetch
 - Added PostgreSQL multiuser integration regression for 105 newer AI records, one 65-day-old self-rating, equal progress between dashboard and due-review API, and no cross-user count leakage.
 - No schema migration; the existing `(habitId,createdAt)` index supports owner-scoped time ordering. Both queries are bounded by a published product cap; if an individual has >120 direct ratings on the same day or concentrated period, longer-range day coverage still needs a dedicated deduplication query. Avoid claiming exhaustive lifetime evidence.
 - The historical score may increase relative to the previous flawed selection if direct evidence is newly visible. This is evidence retrieval correction, not a psychological effect.
+
+## v2.2 conversational parity (2026-11-15)
+
+`executeAssistantCommand(check_progress)` was still using a `take:80` mixed-reflection query after the dashboard correction. AI-only notes could cause the conversational answer to disagree with the dashboard. It now uses the same owner-scoped database-side self-report filter and deterministic 120-row ordering. Added a real PostgreSQL test with 95 newer AI annotations, an old direct rating, a second tenant and a read-only AI check-progress command. No new AI request or DB migration.

@@ -267,3 +267,47 @@ test("real assistant HTTP route: mocked LLM only proposes, server writes owner-o
     await db.user.deleteMany({where:{id:{in:[user.id,other.id]}}});
   }
 });
+
+test("conversational check_progress agrees with dashboard even after AI-only note flood",async()=>{
+  const a=await db.user.create({data:{},select:{id:true}});
+  const other=await db.user.create({data:{},select:{id:true}});
+  try{
+    const habit=await db.habit.create({data:{userId:a.id,title:"长期阅读",action:"晚上看书"}});
+    const privateHabit=await db.habit.create({data:{userId:other.id,title:"不要泄露",action:"私人"}});
+    const old=new Date(Date.now()-70*86400000);
+    await db.habitEvent.create({data:{habitId:habit.id,opportunityKey:"past",eligible:true,
+      completed:true,occurredAt:old,source:"test"}});
+    await db.habitReflection.create({data:{habitId:habit.id,createdAt:old,
+      initiationLevel:4,aiConsent:false}});
+    await db.habitReflection.createMany({data:Array.from({length:95},(_,i)=>({
+      habitId:habit.id,createdAt:new Date(Date.now()-i*60000),
+      aiConsent:true,aiStatus:"COMPLETED" as const,aiLevel:0,aiConfidence:1,
+      aiModelId:"test",aiPromptVersion:"v1"
+    }))});
+    await db.habitReflection.create({data:{habitId:privateHabit.id,
+      initiationLevel:0,aiConsent:false}});
+    const command=authorizeAssistantCommand(template("check_progress",{habitId:habit.id}),
+      "查看长期阅读的习惯进度",[{id:habit.id,title:habit.title}]);
+    assert.equal(command.intent,"check_progress");
+    const result=await executeAssistantCommand({
+      userId:a.id,requestId:randomUUID(),message:"查看长期阅读的习惯进度",
+      command,localDate:localDate(),model:"test-only"
+    });
+    assert.ok(result.progress);
+    const token=(await issueSession(a.id,"WECHAT")).token;
+    const route=await (await import("../src/app/api/v1/habits/[id]/progress/route")).GET(
+      new NextRequest("http://localhost:3000/api/v1/habits/"+habit.id+"/progress",{
+        headers:{authorization:"Bearer "+token}}),{params:Promise.resolve({id:habit.id})}
+    );
+    assert.equal(route.status,200);
+    const dashboard=await route.json() as {progress:number;evidenceCount:number;
+      evidenceStale:boolean;aiAnnotationCount:number};
+    assert.equal(dashboard.evidenceCount,1);
+    assert.equal(dashboard.aiAnnotationCount,95);
+    assert.ok(dashboard.progress>40);
+    assert.equal(result.progress!.percent,dashboard.progress);
+    assert.equal(result.progress!.evidenceStale,dashboard.evidenceStale);
+    assert.equal(await db.assistantAction.count({where:{userId:a.id}}),0,
+      "read-only chat progress must not persist text or receipts");
+  }finally{await db.user.deleteMany({where:{id:{in:[a.id,other.id]}}});}
+});

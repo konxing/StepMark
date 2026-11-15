@@ -128,8 +128,12 @@ export async function executeAssistantCommand(args:{
           tx.habitEvent.count({where:{habitId:target.id,eligible:true}}),
           tx.habitEvent.findFirst({where:{habitId:target.id,completed:true},
             orderBy:{occurredAt:"desc"},select:{occurredAt:true}}),
-          tx.habitReflection.findMany({where:{habitId:target.id},orderBy:{createdAt:"desc"},
-            take:80,select:{createdAt:true,initiationLevel:true,aiStatus:true,aiLevel:true,aiConfidence:true}})
+          // Use exactly the same evidence definition as /progress and due reviews.
+          // Filtering after take() would let many AI-only entries evict older
+          // person-reported ratings from a conversational progress check.
+          tx.habitReflection.findMany({where:{habitId:target.id,initiationLevel:{not:null}},
+            orderBy:[{createdAt:"desc"},{id:"desc"}],take:120,
+            select:{createdAt:true,initiationLevel:true}})
         ]);
         const observations:InitiationEvidence[]=[];
         for(const r of notes){
@@ -137,10 +141,6 @@ export async function executeAssistantCommand(args:{
             observations.push({atMs:r.createdAt.getTime(),
               level:r.initiationLevel as 0|1|2|3|4,
               source:"self_report",confidence:1});
-          }else if(r.aiStatus==="COMPLETED"&&r.aiLevel!==null&&r.aiConfidence!==null){
-            observations.push({atMs:r.createdAt.getTime(),
-              level:r.aiLevel as 0|1|2|3|4,
-              source:"ai_interpretation",confidence:r.aiConfidence});
           }
         }
         const status=calculateHabitProgress({completedRepetitions:completed,
