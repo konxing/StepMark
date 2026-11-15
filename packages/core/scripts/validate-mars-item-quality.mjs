@@ -1,6 +1,8 @@
 import {createHash} from "node:crypto";
 import {pathToFileURL} from "node:url";
 import {auditRecordedBinaryItems} from "../src/item-quality-audit.ts";
+import {evaluateHeldoutItemRates} from "../src/research-item-holdout.ts";
+import {evaluateResearchDatasetRights} from "../src/research-dataset-rights.ts";
 /**
  * Pinned MaRs-IB 2023 validation study — standalone research; only aggregates
  * leave the ephemeral CI runner. Not the StepMark item bank, not a norm.
@@ -83,12 +85,36 @@ async function main(){
   if(Number(response.headers.get("content-length")||0)>600000)throw new Error("SOURCE_OVERSIZED");
   const data=Buffer.from(await response.arrayBuffer());
   const sha256=verifyGitBlob(data);
+  const rightsManifest={
+    datasetId:"mars-ib-shortform-2023",sourceUrl:"https://github.com/ndawlab/mars-irt",
+    sourceVersion:UPSTREAM.revision,retrievedOn:"2026-11-16",
+    licenseId:"MIT scoped to archived repository's validation CSV",
+    licenseUrl:"https://github.com/ndawlab/mars-irt/blob/"+UPSTREAM.revision+"/LICENSE",
+    rightsVerified:true,access:"open",evidence:"checksum_verified",
+    sha256:"eb22235965b5e331e7376f113edbb0bd09be6ddc3bc03f75460e691684cbf6d5",
+    participantLevel:true,itemLevel:true,longitudinal:false,
+    population:"Adult online reasoning validation sample",language:"nonverbal",
+    permissions:{localNoncommercialResearch:"allowed",commercialProduct:"unverified",
+      rawRedistribution:"prohibited",aggregatePublication:"allowed"},
+    notes:"Scoped to read-only, ephemeral noncommercial source CSV analysis. MIT repository license does not grant unrestricted rights to separate stimuli, third-party content or commercial participant-data training."
+  };
+  const localRights=evaluateResearchDatasetRights(rightsManifest,{
+    kind:"local_analysis",actualSha256:sha256,isolated:true,termsAccepted:false});
+  if(!localRights.allowed)throw new Error("SOURCE_RIGHTS_GATE_BLOCKED");
+  const publishRights=evaluateResearchDatasetRights(rightsManifest,{
+    kind:"publish_aggregates",minCellSize:10,containsParticipantRows:false});
+  if(!publishRights.allowed)throw new Error("SOURCE_AGGREGATE_PUBLICATION_BLOCKED");
   const rows=parsePinnedMarsShortformCsv(data);
   const audit=auditRecordedBinaryItems(rows);
+  const personHeldout=evaluateHeldoutItemRates(rows);
   const technicalQuality=summarizeMarsTechnicalQuality(data);
   process.stdout.write(JSON.stringify({
     status:"real_data_descriptive_only",source:UPSTREAM,sourceSha256:sha256,
-    audit,technicalQuality,participantLevelRecordsPersisted:false,
+    audit,technicalQuality,personHeldout,
+    provenanceGate:{localResearchAllowed:localRights.allowed,aggregatePublicationAllowed:publishRights.allowed,
+      commercialProductAllowed:evaluateResearchDatasetRights(rightsManifest,{kind:"commercial_product"}).allowed,
+      rawRedistributionAllowed:evaluateResearchDatasetRights(rightsManifest,{kind:"redistribute_raw"}).allowed},
+    participantLevelRecordsPersisted:false,
     warning:"This is item-analysis of MaRs-IB short forms, not calibration/validation of the unrelated StepMark six-item logic forms. No demographic DIF, latent theta or general ability growth claims."
   },null,2)+"\n");
 }

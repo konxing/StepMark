@@ -3,6 +3,8 @@ on:
   push:
     paths:
       - "packages/core/src/item-quality-audit.ts"
+      - "packages/core/src/research-item-holdout.ts"
+      - "packages/core/src/research-dataset-rights.ts"
       - "packages/core/scripts/validate-mars-item-quality.mjs"
       - "packages/core/scripts/validate-mars-item-quality.test.mjs"
       - ".github/workflows/research-mars-item-quality.yml"

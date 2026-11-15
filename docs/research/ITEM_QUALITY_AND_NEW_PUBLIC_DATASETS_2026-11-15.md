@@ -71,3 +71,7 @@ All listed additional sources are **candidates only**; the real-data completed c
 ## Final verification record (2026-11-15)
 
 The updated source-status research run [43722820977](https://github.com/konxing/StepMark/actions/runs/43722820977) and associated full-project CI [43722820946](https://github.com/konxing/StepMark/actions/runs/43722820946) both succeeded. The latest study still yields `insufficient_evidence` for per-form psychometric calibration despite successful data parsing and reproducible descriptive statistics. Technical-status flags are not used for excluding individuals or predicting ability. No live StepMark score parameters or database schema were modified.
+
+## 2026-11-16 independent-person baseline and runtime rights gate
+
+Added a research-only [person held-out prediction audit](./RESEARCH_ITEM_HOLDOUT_V1_2026-11-16.md), and connected its source and aggregate reporting to a byte-pinned rights manifest. Future MaRs-IB research CI will report per-form baseline predictive performance without pooling forms or inferring StepMark user abilities. Its values should be taken from the successful CI output, not predicted in advance.
