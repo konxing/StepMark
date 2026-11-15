@@ -623,6 +623,33 @@ test("independent logic forms require elapsed retest time and expose only owned 
       .filter(x=>itemsA.some(t=>t.id===x.taskId));
     assert.equal(exportedItems.length,6);
     assert.ok(exportedItems.every(x=>!x.scoreDeferred&&typeof x.evidence.correct==="boolean"));
+    assert.ok(exportedItems.every(x=>
+      typeof x.evidence.taskContentSha256==="string"&&
+      /^[0-9a-f]{64}$/.test(String(x.evidence.taskContentSha256))));
+    // In-place content drift with an unchanged item version is simulated by
+    // a single-user fingerprint mismatch. No shared seed/task is modified.
+    const row=await db.assessmentAttempt.findFirstOrThrow({
+      where:{userId:a.id,taskId:itemsA[0]!.id},select:{id:true,evidence:true}
+    });
+    const originalEvidence=row.evidence as {selectedKey:string;correct:boolean;
+      scorerVersion:string;taskContentSha256:string};
+    await db.assessmentAttempt.update({where:{id:row.id},data:{
+      evidence:{...originalEvidence,taskContentSha256:"0".repeat(64)}
+    }});
+    const mismatched=await (await overview(token)).json() as {forms:{
+      status:string;reviews:unknown[];integrityStatus:string}[]};
+    assert.equal(mismatched.forms[0]!.status,"unavailable");
+    assert.equal(mismatched.forms[0]!.integrityStatus,"mismatch");
+    assert.deepEqual(mismatched.forms[0]!.reviews,[]);
+    const masked=await (await assessGET(req("/api/v1/assessments","GET",
+      undefined,token,"WECHAT"))).json() as {attempts:{
+      taskId:string;rawScore:number|null;scoreDeferred:boolean}[]};
+    assert.ok(masked.attempts.filter(x=>itemsA.some(t=>t.id===x.taskId))
+      .every(x=>x.rawScore===null&&x.scoreDeferred));
+    await db.assessmentAttempt.update({where:{id:row.id},
+      data:{evidence:originalEvidence}});
+    assert.equal((await (await overview(token)).json() as {
+      forms:{status:string}[]}).forms[0]!.status,"completed");
     const otherHistory=await assessGET(req("/api/v1/assessments","GET",undefined,other,"WECHAT"));
     assert.deepEqual((await otherHistory.json() as {attempts:unknown[]}).attempts,[]);
 
