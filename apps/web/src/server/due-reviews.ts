@@ -12,7 +12,10 @@ export async function listDueHabitReviews(userId:string,now:Date=new Date()){
     orderBy:[{createdAt:"desc"},{id:"desc"}],take:100,
     select:{id:true,title:true,reviewEnabled:true,
       reflections:{
-        orderBy:{createdAt:"desc"},take:60,
+        // Filter in SQL, not after take(): AI-only and unrated notes cannot
+        // crowd direct ratings out of the due-review schedule.
+        where:{initiationLevel:{not:null}},
+        orderBy:[{createdAt:"desc"},{id:"desc"}],take:120,
         select:{createdAt:true,initiationLevel:true}}}
   });
   const ids=habits.map(h=>h.id);

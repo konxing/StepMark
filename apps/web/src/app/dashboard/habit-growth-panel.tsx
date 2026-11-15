@@ -98,7 +98,7 @@ export default function HabitGrowthPanel({habitId,eventId}:{habitId:string;event
       </div>
       <p>已执行 {result.completedRepetitions} 次 · 本人启动感受信号：{result.automaticitySignal===null?"尚无直接自评":result.automaticitySignal.toFixed(1)}
         · 本人有效反馈 {result.evidenceCount} 次</p>
-      {result.aiAnnotationCount>0&&<p className="progress-caveat">最近记录有 {result.aiAnnotationCount} 条 AI 暂定解读，未参与进度和复查判断。</p>}
+      {result.aiAnnotationCount>0&&<p className="progress-caveat">历史记录有 {result.aiAnnotationCount} 条仅 AI 暂定解读，未参与进度和复查判断。</p>}
       {result.evidenceStale&&<p className="review-prompt">
         过去的感受证据已超过 45 天。这是上次有证据支持的进度，并非当前状态的可靠判断；缺少记录不会自动扣分。
       </p>}

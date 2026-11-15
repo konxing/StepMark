@@ -775,3 +775,49 @@ test("AI-only habit ratings never inflate growth or suppress due reviews",async(
     assert.ok(!body.due.some(x=>x.habitId===other.id));
   }finally{await db.user.deleteMany({where:{id:{in:[owner.id,foreign.id]}}});}
 });
+
+test("many newer unrated and AI diary rows cannot crowd out historical direct ratings",async()=>{
+  const owner=await db.user.create({data:{},select:{id:true}});
+  const neighbor=await db.user.create({data:{},select:{id:true}});
+  try{
+    const habit=await db.habit.create({data:{userId:owner.id,title:"History priority",action:"Read"}});
+    const other=await db.habit.create({data:{userId:neighbor.id,title:"Other diary",action:"Read"}});
+    const old=new Date(Date.now()-65*86400000);
+    await db.habitEvent.create({data:{habitId:habit.id,opportunityKey:"old",eligible:true,
+      completed:true,occurredAt:old,source:"test"}});
+    await db.habitReflection.create({data:{habitId:habit.id,createdAt:old,
+      initiationLevel:4,aiConsent:false}});
+    await db.habitReflection.createMany({data:Array.from({length:105},(_,i)=>({
+      habitId:habit.id,createdAt:new Date(Date.now()-i*120000),
+      initiationLevel:null,aiConsent:true,aiStatus:"COMPLETED" as const,
+      aiLevel:0,aiConfidence:1,aiModelId:"test",aiPromptVersion:"v1"
+    }))});
+    await db.habitReflection.create({data:{habitId:other.id,createdAt:new Date(),
+      initiationLevel:0,aiConsent:false}});
+    const token=(await issueSession(owner.id,"WECHAT")).token;
+    const get=()=>habitProgressGET(req("/api/v1/habits/"+habit.id+"/progress","GET",
+      undefined,token,"WECHAT"),{params:Promise.resolve({id:habit.id})});
+    const response=await get();
+    assert.equal(response.status,200);
+    const result=await response.json() as {
+      progress:number;evidenceCount:number;evidenceStale:boolean;aiAnnotationCount:number;
+      aiAnnotationCountScope:string;lastRatingAt:string|null;reviewDue:boolean
+    };
+    assert.equal(result.evidenceCount,1);
+    assert.equal(result.evidenceStale,true);
+    assert.equal(result.aiAnnotationCount,105);
+    assert.equal(result.aiAnnotationCountScope,"historical_unconfirmed_ai_only");
+    assert.equal(result.lastRatingAt,old.toISOString());
+    assert.ok(result.progress>40);
+    assert.equal(result.reviewDue,true);
+    const dueResponse=await dueReviewsGET(req("/api/v1/habits/due","GET",undefined,
+      token,"WECHAT"));
+    const dueData=await dueResponse.json() as {due:{habitId:string;progress:number}[]};
+    const scheduled=dueData.due.find(x=>x.habitId===habit.id);
+    assert.ok(scheduled);
+    assert.equal(scheduled.progress,result.progress);
+    assert.ok(!dueData.due.some(x=>x.habitId===other.id));
+  }finally{
+    await db.user.deleteMany({where:{id:{in:[owner.id,neighbor.id]}}});
+  }
+});

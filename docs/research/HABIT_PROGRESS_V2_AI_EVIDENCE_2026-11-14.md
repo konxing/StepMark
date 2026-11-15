@@ -10,3 +10,14 @@ The deployed v1 blended human-reported ratings and confidence-filtered AI inferr
 - The 0–100 curve still has unvalidated heuristic weights and is not a habit formation probability or mental-health diagnosis.
 
 Research: Gardner, Lally & Rebar (2024), https://doi.org/10.1111/aphw.12600, evaluated *self-reported* one-item automaticity measurement against a fuller index on 16 datasets (16,838 participants). This does **not** validate AI diary classification as self-report, nor the StepMark curve.
+
+
+## v2.1 bounded-query evidence isolation (2026-11-15)
+
+A subsequent audit found a subtle selection failure: the progress endpoint fetched 80 recent reflections before filtering to explicit self-reports. Large amounts of AI-coded or plain unrated diary entries could crowd out older valid direct ratings, producing a false "no evidence" status. The due-review endpoint likewise applied `take:60` before the self-rating check.
+
+- Both routes now filter `initiationLevel IS NOT NULL` in the database *before* limiting results (120 recent direct ratings); both use a stable descending timestamp/ID order.
+- In the progress endpoint, the total historical count of **AI-only completed annotations without a direct rating** is computed in a separate owner-scoped aggregate. It remains excluded from scoring and review decisions. The additive response field `aiAnnotationCountScope="historical_unconfirmed_ai_only"` explains this exact denominator.
+- Added PostgreSQL multiuser integration regression for 105 newer AI records, one 65-day-old self-rating, equal progress between dashboard and due-review API, and no cross-user count leakage.
+- No schema migration; the existing `(habitId,createdAt)` index supports owner-scoped time ordering. Both queries are bounded by a published product cap; if an individual has >120 direct ratings on the same day or concentrated period, longer-range day coverage still needs a dedicated deduplication query. Avoid claiming exhaustive lifetime evidence.
+- The historical score may increase relative to the previous flawed selection if direct evidence is newly visible. This is evidence retrieval correction, not a psychological effect.
