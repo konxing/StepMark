@@ -15,7 +15,7 @@ test("pinned source schema parses distinct observed and missing",()=>{
   assert.equal(result[0].formKey,"mars-short-2");
 });
 test("fails on shifted schema, IDs, implausible latency, and changed upstream bytes",()=>{
-  assert.throws(()=>parsePinnedMarsShortformCsv(Buffer.from("different header\n"+row)),/SCHEMA/);
+  assert.throws(()=>parsePinnedMarsShortformCsv(Buffer.from(header.replace("subject","sUbject")+"\n"+row)),/SCHEMA/);
   assert.throws(()=>parsePinnedMarsShortformCsv(Buffer.from(header+"\n"+
     row.replace("p01","a private name"))),/INVALID/);
   assert.throws(()=>parsePinnedMarsShortformCsv(Buffer.from(header+"\n"+
