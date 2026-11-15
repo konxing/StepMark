@@ -18,7 +18,7 @@ test("accidental answer-key edit with unchanged version invalidates scored evide
   assert.equal(verify({...content,correctKey:"B"}),"mismatch");
   assert.equal(verify(content,{taskContentSha256:"bad"}),"mismatch");
   assert.equal(verify(content,{}, "logic-form-1"),"legacy_unverified");
-  assert.equal(verify(content,undefined,"logic-form-1"),"legacy_unverified");
+  assert.equal(verify(content,null,"logic-form-1"),"legacy_unverified");
   assert.equal(verify(content,attempt.evidence,"logic-form-2"),"mismatch");
 });
 test("unserializable content and unbounded depth cannot create a trusted fingerprint",()=>{
