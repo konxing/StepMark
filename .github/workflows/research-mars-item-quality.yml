@@ -1,0 +1,25 @@
+name: Research only - pinned MaRs-IB item quality audit
+on:
+  push:
+    paths:
+      - "packages/core/src/item-quality-audit.ts"
+      - "packages/core/scripts/validate-mars-item-quality.mjs"
+      - "packages/core/scripts/validate-mars-item-quality.test.mjs"
+      - ".github/workflows/research-mars-item-quality.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mars-research-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22', cache: npm}
+      - name: Install pinned workspaces without lifecycle scripts
+        run: npm ci --ignore-scripts
+      - name: Strict source parser and integrity negative tests
+        run: node --import tsx --test packages/core/scripts/validate-mars-item-quality.test.mjs
+      - name: Aggregate external MaRs-IB source from exact version
+        run: node --import tsx packages/core/scripts/validate-mars-item-quality.mjs --pinned-public-research

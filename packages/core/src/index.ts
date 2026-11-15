@@ -14,3 +14,4 @@ export * from "./habit-chat-evidence.ts";
 export * from "./adherence-sensitivity.ts";
 export * from "./forecast-calibration-audit.ts";
 export * from "./time-only-holdout.ts";
+export * from "./item-quality-audit.ts";
