@@ -19,3 +19,19 @@ This module is intentionally not exported from `packages/core/src/index.ts`. All
 ## Interpretation
 
 An empirical improvement over a pooled item rate only demonstrates that source-item difficulty contains information about source responses. It does NOT show that six StepMark originals are valid or equivalent. Failure or instability in a small source form must remain a visible negative/uncertain result. Research CI must run and be inspected before publishing any exact external-data figures.
+
+## Executed external benchmark — verified CI
+
+The pinned external research workflow successfully ran on the verified MaRs short-form CSV: [Actions run 43736070394](https://github.com/konxing/StepMark/actions/runs/43736070394). The main full-project CI for that exact source commit also [passed](https://github.com/konxing/StepMark/actions/runs/43736070388).
+
+The deterministic, person-disjoint 20%-hash holdout results were:
+
+| Research form | Train/test people | Held-out scored responses | Pooled-form Brier | Item-rate Brier | Improvement | 2,000-draw paired person-bootstrap 95% interval |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| MaRs short 1 | 90 / 24 | 285 | 0.209535 | 0.191078 | +0.018457 | [0.007187, 0.029380] |
+| MaRs short 2 | 92 / 21 | 250 | 0.227695 | 0.213805 | +0.013891 | [0.000372, 0.028587] |
+| MaRs short 3 | 90 / 24 | 283 | 0.231889 | 0.223489 | +0.008400 | [-0.003623, 0.020775] |
+
+The 12-item source forms were analyzed independently, not pooled into a falsely powered "341-person" per-form test. Each participant contributes a single mean loss. There were 21 / 18 / 17 recorded missing item answers in forms 1 / 2 / 3. The intervals are descriptive, from one repeatedly inspected split, and are **not** corrected for multiple comparisons; form 3 includes zero. No population standardization, construct validity, form linking, or StepMark item calibration has been established.
+
+The rights gate logged: `localResearchAllowed=true`, `aggregatePublicationAllowed=true`, `commercialProductAllowed=false`, `rawRedistributionAllowed=false`. This is a **scoped declared repository-data permission gate**, not a legal opinion about any separately held stimuli or downstream licensing. The code and log contain no participant-level result rows.
