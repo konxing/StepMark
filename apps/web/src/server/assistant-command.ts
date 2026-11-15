@@ -97,6 +97,13 @@ export function authorizeAssistantCommand(raw:unknown,userText:string,habits:rea
     return {...v,target};
   }
   if(v.intent==="record_reflection"){
+    // A reflective diary can have no resolved event date. If a date is supplied
+    // by the model, it must be explicitly grounded in the user's actual text.
+    // Otherwise keep the note unlinked rather than silently picking today.
+    if((v.when==="today"&&!userText.includes("今天"))||
+       (v.when==="yesterday"&&!userText.includes("昨天"))||
+       (v.when===null&&/(?:今天|昨天)/u.test(userText)))
+      return clarification("请明确这条感受是今天、昨天，还是只想记录一般感受；没有确定日期时我不会绑定某天的行动记录。");
     if(!reflectionWords.test(userText)||v.confidence<0.7)
       return clarification("我可以记录你的感受。请描述开始行动时是自然、犹豫还是需要刻意思考。");
     return {...v,target};

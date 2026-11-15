@@ -47,3 +47,9 @@ This is a **code-level**, not screenshot-level claim. Before enabling the public
 ## Future connection to AI Chat Web
 
 Expose this bounded `assistant-command` intent validator and transactional executor behind an authenticated internal API. Reuse it when AI Chat Web is linked via explicit account consent. The chat app should supply *user text*, not direct database credentials or arbitrary SQL. Keep separate services/users until identity-link, data visibility, revocation and replay semantics are reviewed. **No changes have been made to AI Chat Web.**
+
+## 2026-11-15: undated subjective reflection attribution guard
+
+The chatbot `record_reflection` flow used to call `observationDay(localDate, when)` even when the user supplied no date, which defaulted to today's local day. An undated general experience could therefore become linked to a completed action from today without explicit temporal evidence.
+
+New behavior: if `when=null`, persist the opted-in diary as an unlinked reflection, not today's event; a model-supplied today/yesterday must match the user's own words. When the text mentions a day but the model omitted it, return a clarification instead of inventing linkage. Existing history and quota rules are unchanged. Unit and real-PostgreSQL tests cover undated reflections, mismatched dates, proper event ownership, and continued provisional AI coding. Even when a date matches, AI labels remain provisional and do not count as user self-ratings.

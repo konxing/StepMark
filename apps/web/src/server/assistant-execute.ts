@@ -99,10 +99,12 @@ export async function executeAssistantCommand(args:{
         const start=new Date();start.setUTCHours(0,0,0,0);
         const count=await tx.habitReflection.count({where:{habitId:target.id,createdAt:{gte:start}}});
         if(count>=2)throw new ApiError(429,"REFLECTION_DAILY_LIMIT");
-        const day=observationDay(localDate,command.when);
-        const event=await tx.habitEvent.findUnique({where:{
+        // A generic reflection has no known occurrence day. Do not attach it
+        // to an unrelated completed event just because it was sent today.
+        const day=command.when?observationDay(localDate,command.when):null;
+        const event=day?await tx.habitEvent.findUnique({where:{
           habitId_opportunityKey:{habitId:target.id,opportunityKey:"daily:"+day}
-        },select:{id:true,completed:true}});
+        },select:{id:true,completed:true}}):null;
         const freeEvent=event?.completed ? await tx.habitReflection.findUnique({
           where:{eventId:event.id},select:{id:true}}):null;
         const evidence=verifiedInitiationEvidence(command,message);
@@ -114,9 +116,11 @@ export async function executeAssistantCommand(args:{
           aiModelId:model.slice(0,100),aiPromptVersion:"conversation-intent-v1",
           reviewedAt:new Date()
         }});
-        result={reply:evidence?
+        const linkage=day? (event?.completed?"已核对对应日期的完成记录。":"该日期没有对应的完成记录，感受没有强行关联事件。"):
+          "没有明确日期，感受不会自动绑定今天的完成记录。";
+        result={reply:(evidence?
           `已记录「${target.title}」的感受。AI 根据你的原话暂定自然启动等级 ${evidence.level}/4；这只是待校验的解释，不是你亲自选择的评分。`:
-          `已保存「${target.title}」的原话感受。由于缺少明确依据，AI 没有擅自给出自然启动评分。`,
+          `已保存「${target.title}」的原话感受。由于缺少明确依据，AI 没有擅自给出自然启动评分。`)+linkage,
           change:{kind:"reflection_recorded",habitId:target.id,habitTitle:target.title},
           progress:null};
       }else if(command.intent==="check_progress" && command.target){

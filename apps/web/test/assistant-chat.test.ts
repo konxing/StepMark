@@ -311,3 +311,43 @@ test("conversational check_progress agrees with dashboard even after AI-only not
       "read-only chat progress must not persist text or receipts");
   }finally{await db.user.deleteMany({where:{id:{in:[a.id,other.id]}}});}
 });
+
+test("undated reflection stays unlinked even when a different event happened today",async()=>{
+  const a=await db.user.create({data:{},select:{id:true}});
+  try{
+    const habit=await db.habit.create({data:{userId:a.id,title:"睡前阅读",action:"读十页"}});
+    const event=await db.habitEvent.create({data:{habitId:habit.id,eligible:true,
+      completed:true,opportunityKey:"daily:"+localDate(),occurredAt:new Date(),source:"test"}});
+    const generic="我感觉睡前阅读开始时很自然";
+    const command=authorizeAssistantCommand(template("record_reflection",{
+      habitId:habit.id,when:null,initiationLevel:4,quote:"开始时很自然"
+    }),generic,[{id:habit.id,title:habit.title}]);
+    assert.equal(command.intent,"record_reflection");
+    const result=await executeAssistantCommand({userId:a.id,requestId:randomUUID(),
+      message:generic,command,localDate:localDate(),model:"test"});
+    assert.equal(result.change?.kind,"reflection_recorded");
+    assert.ok(result.reply.includes("不会自动绑定今天"));
+    const note=await db.habitReflection.findFirstOrThrow({where:{habitId:habit.id}});
+    assert.equal(note.eventId,null);
+    assert.equal(note.initiationLevel,null);
+    assert.equal(note.aiLevel,4);
+    assert.equal(await db.habitEvent.findUniqueOrThrow({where:{id:event.id}}).then(x=>x.completed),true);
+  }finally{await db.user.deleteMany({where:{id:a.id}});}
+});
+test("AI reflection date cannot be invented; explicit date may link to matching event",async()=>{
+  const h={id:randomUUID(),title:"睡前阅读"};
+  for(const [text,when] of [
+    ["我感觉睡前阅读开始时很自然","today"],
+    ["今天睡前阅读开始时很自然",null],
+    ["昨天睡前阅读开始时很自然","today"]
+  ] as const){
+    const result=authorizeAssistantCommand(template("record_reflection",{
+      habitId:h.id,when,quote:"开始时很自然",initiationLevel:4
+    }),text,[h]);
+    assert.equal(result.intent,"clarify",text);
+  }
+  const yesterday=authorizeAssistantCommand(template("record_reflection",{
+    habitId:h.id,when:"yesterday",quote:"开始时很自然",initiationLevel:4
+  }),"昨天睡前阅读开始时很自然",[h]);
+  assert.equal(yesterday.intent,"record_reflection");
+});
