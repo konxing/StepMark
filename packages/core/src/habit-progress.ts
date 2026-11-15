@@ -1,5 +1,5 @@
 /**
- * StepMark visual growth indicator, policy v1. This 0-100 value is a user-facing
+ * StepMark visual growth indicator, policy v2. This 0-100 value is a user-facing
  * heuristic, NOT a probability of habit formation nor a validated SRBAI score.
  * Observed repetitions and automaticity are deliberately kept separate.
  */
@@ -32,7 +32,7 @@ export interface HabitProgress {
   stage:HabitStage;
   completedRepetitions:number;
   evidenceCount:number;
-  /** AI-coded diary interpretations in the bounded input; never scored. */
+  /** AI-coded annotations in the function input, never scored; public API may replace this with a separate owner-scoped historical count. */
   aiAnnotationCount:number;
   evidenceSpanDays:number;
   evidenceStale:boolean;
