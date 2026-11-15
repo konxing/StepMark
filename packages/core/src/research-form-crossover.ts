@@ -74,7 +74,8 @@ export function auditCounterbalancedCrossover(rows:readonly RecordedCrossoverFor
     if(definition&&(definition.version!==r.formVersion||definition.length!==r.totalItems))
       throw new RangeError("inconsistent form version or content length");
     formDefinitions.set(r.form,{version:r.formVersion,length:r.totalItems});
-    const person=persons.get(r.personKey)??{sequence:r.assignedSequence};
+    const person: {sequence:"A_B"|"B_A";a?:RecordedCrossoverForm;b?:RecordedCrossoverForm}=
+      persons.get(r.personKey)??{sequence:r.assignedSequence};
     if(person.sequence!==r.assignedSequence||
       (r.form==="A"&&person.a!==undefined)||
       (r.form==="B"&&person.b!==undefined))
