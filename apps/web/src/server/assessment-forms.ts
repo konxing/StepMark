@@ -44,19 +44,26 @@ export async function getLogicFormOverview(userId:string,now=new Date()){
       items.every((t,i)=>t.formOrder===i+1 && t.version==="logic-form-1") &&
       SKILLS.every(s=>items.filter(t=>t.skillCode===s.code).length===2);
     const done=items.filter(t=>attemptById.has(t.id));
-    const complete=validBank && done.length===FORM_SIZE;
+    // Old attempts cannot be silently re-scored against a replaced form item.
+    // A form with mismatched attempt versions is unavailable until reviewed,
+    // not "completed" with potentially contradictory answer explanations.
+    const attemptVersionsValid=done.every(t=>attemptById.get(t.id)!.taskVersion===t.version);
+    const trustworthyBank=validBank&&attemptVersionsValid;
+    const complete=trustworthyBank && done.length===FORM_SIZE;
     const completedAt=complete?new Date(Math.max(...done.map(t=>
       attemptById.get(t.id)!.createdAt.getTime()))).toISOString():null;
     const previous=index===0?null:LOGIC_FORMS[index-1];
     const previousItems=previous?tasks.filter(t=>t.formCode===previous.code):[];
     const previousDone=previousItems.filter(t=>attemptById.has(t.id));
     const previousValid=previousItems.length===FORM_SIZE &&
+      previousItems.every((t,i)=>t.formOrder===i+1&&t.version==="logic-form-1" &&
+        (!attemptById.has(t.id)||attemptById.get(t.id)!.taskVersion===t.version)) &&
       SKILLS.every(s=>previousItems.filter(t=>t.skillCode===s.code).length===2);
     const lastPrevious=previousDone.length===FORM_SIZE && previousValid?
       Math.max(...previousDone.map(t=>attemptById.get(t.id)!.createdAt.getTime())):null;
     const readyAt=lastPrevious===null?null:new Date(lastPrevious+WAIT_MS).toISOString();
     const unlocked=index===0 || (readyAt!==null && now.getTime()>=new Date(readyAt).getTime());
-    const status=!validBank?"unavailable":complete?"completed":
+    const status=!trustworthyBank?"unavailable":complete?"completed":
       done.length>0?"in_progress":unlocked?"ready":"locked";
     const correct=complete?done.filter(t=>attemptById.get(t.id)!.rawScore===100).length:null;
     const dimensions=SKILLS.map(skill=>{
@@ -76,7 +83,7 @@ export async function getLogicFormOverview(userId:string,now=new Date()){
         explanation:typeof contents.explanation==="string"?contents.explanation:"",
         correct:a.rawScore===100};
     }):[];
-    return {code:form.code,title:form.title,phase:form.phase,status,total:validBank?FORM_SIZE:0,
+    return {code:form.code,title:form.title,phase:form.phase,status,total:trustworthyBank?FORM_SIZE:0,
       attempted:done.length,correct,completedAt,availableAt:status==="locked"?readyAt:null,
       dimensions,reviews};
   });

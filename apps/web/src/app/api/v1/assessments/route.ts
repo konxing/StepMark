@@ -8,9 +8,21 @@ export const runtime="nodejs";
 export async function GET(request:NextRequest){
   try{
     const p=await principalFromRequest(request);
-    const attempts=await getDb().assessmentAttempt.findMany({where:{userId:p.userId},orderBy:{createdAt:"desc"},take:40,
-      select:{id:true,taskId:true,taskVersion:true,evidenceKind:true,rawScore:true,createdAt:true}});
-    return NextResponse.json({attempts},{headers:{"Cache-Control":"private, no-store"}});
+    const attempts=await getDb().assessmentAttempt.findMany({where:{userId:p.userId},
+      orderBy:[{createdAt:"desc"},{id:"desc"}],take:40,
+      select:{id:true,taskId:true,taskVersion:true,evidenceKind:true,rawScore:true,createdAt:true,
+        task:{select:{formCode:true,version:true}}}});
+    // A common score-history endpoint must respect the very same deferred-
+    // feedback policy as the form endpoint, not expose item correctness early.
+    const overview=attempts.some(a=>a.task.formCode)?await getLogicFormOverview(p.userId):null;
+    const statuses=new Map(overview?.forms.map(f=>[f.code,f.status])??[]);
+    return NextResponse.json({attempts:attempts.map(a=>{
+      const released=!a.task.formCode ||
+        (statuses.get(a.task.formCode)==="completed"&&a.taskVersion===a.task.version);
+      return {id:a.id,taskId:a.taskId,taskVersion:a.taskVersion,
+        evidenceKind:a.evidenceKind,rawScore:released?a.rawScore:null,
+        scoreDeferred:!released,createdAt:a.createdAt};
+    })},{headers:{"Cache-Control":"private, no-store"}});
   }catch(error){return errorResponse(error);}
 }
 export async function POST(request:NextRequest){

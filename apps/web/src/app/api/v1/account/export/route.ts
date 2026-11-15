@@ -2,6 +2,8 @@ import {NextRequest,NextResponse} from "next/server";
 import {z} from "zod";
 import {getDb} from "@/server/db";
 import {ApiError,enforceRateLimit,errorResponse,principalFromRequest} from "@/server/security";
+import {getLogicFormOverview} from "@/server/assessment-forms";
+import {projectDeferredAssessment} from "@/server/deferred-assessment";
 
 export const runtime="nodejs";
 /** Small owner-scoped pages prevent large JSON responses and avoid exposing secrets. */
@@ -47,9 +49,18 @@ export async function GET(request:NextRequest){
         data=await db.practiceAttempt.findMany({where:{userId:principal.userId},...paging,
           select:{id:true,itemId:true,bankVersion:true,selectedKey:true,correct:true,
             hintUsed:true,dayKey:true,createdAt:true}});break;
-      case "assessments":
-        data=await db.assessmentAttempt.findMany({where:{userId:principal.userId},...paging,
-          select:{id:true,taskId:true,taskVersion:true,evidenceKind:true,rawScore:true,evidence:true,deviceInfo:true,createdAt:true}});break;
+      case "assessments": {
+        const rows=await db.assessmentAttempt.findMany({where:{userId:principal.userId},...paging,
+          select:{id:true,taskId:true,taskVersion:true,evidenceKind:true,rawScore:true,
+            evidence:true,deviceInfo:true,createdAt:true,
+            task:{select:{formCode:true,version:true}}}});
+        const overview=rows.some(a=>a.task.formCode)?await getLogicFormOverview(principal.userId):null;
+        const statuses=new Map(overview?.forms.map(f=>[f.code,f.status])??[]);
+        data=rows.map(a=>projectDeferredAssessment(a,
+          !a.task.formCode ||
+          (statuses.get(a.task.formCode)==="completed"&&a.taskVersion===a.task.version)));
+        break;
+      }
       case "estimates":
         data=await db.abilityEstimate.findMany({where:{userId:principal.userId},...paging,
           select:{id:true,constructCode:true,estimator:true,modelVersion:true,estimate:true,

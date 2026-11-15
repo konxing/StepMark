@@ -22,7 +22,7 @@ import {POST as deletePOST} from "../src/app/api/v1/account/delete/route";
 import {GET as exportGET} from "../src/app/api/v1/account/export/route";
 import {hashToken} from "../src/server/security";
 import {GET as tasksGET} from "../src/app/api/v1/tasks/route";
-import {POST as assessPOST} from "../src/app/api/v1/assessments/route";
+import {POST as assessPOST,GET as assessGET} from "../src/app/api/v1/assessments/route";
 import {GET as practiceGET,POST as practicePOST} from "../src/app/api/v1/practice/route";
 import {GET as formOverviewGET} from "../src/app/api/v1/assessment-forms/route";
 
@@ -587,6 +587,22 @@ test("independent logic forms require elapsed retest time and expose only owned 
         const mid=await overview(token);
         const midData=await mid.json() as {forms:{reviews:unknown[]}[]};
         assert.deepEqual(midData.forms[0]!.reviews,[]);
+        // Neither general score history nor personal export may reveal
+        // correctness while the independent form is unfinished.
+        const history=await assessGET(req("/api/v1/assessments","GET",undefined,token,"WECHAT"));
+        const records=await history.json() as {attempts:{taskId:string;rawScore:number|null;scoreDeferred:boolean}[]};
+        const scored=records.attempts.filter(x=>itemsA.some(t=>t.id===x.taskId));
+        assert.equal(scored.length,i+1);
+        assert.ok(scored.every(x=>x.scoreDeferred&&x.rawScore===null));
+        const exported=await exportGET(req("/api/v1/account/export?kind=assessments&offset=0",
+          "GET",undefined,token,"WECHAT"));
+        assert.equal(exported.status,200);
+        const ex=await exported.json() as {items:{taskId:string;rawScore:number|null;
+          scoreDeferred:boolean;evidence:Record<string,unknown>}[]};
+        const items=ex.items.filter(x=>itemsA.some(t=>t.id===x.taskId));
+        assert.equal(items.length,i+1);
+        assert.ok(items.every(x=>x.scoreDeferred&&x.rawScore===null &&
+          !Object.hasOwn(x.evidence,"correct")&&!Object.hasOwn(x.evidence,"scorerVersion")));
       }
     }
     const completed=await overview(token);
@@ -594,6 +610,22 @@ test("independent logic forms require elapsed retest time and expose only owned 
       status:string;correct:number|null;reviews:{taskId:string;correctKey:string}[];
       dimensions:{total:number;correct:number|null}[];availableAt:string|null}[]};
     assert.equal(completedBody.forms[0]!.status,"completed");
+    const scoreHistory=await assessGET(req("/api/v1/assessments","GET",undefined,token,"WECHAT"));
+    const historyItems=(await scoreHistory.json() as {attempts:{
+      taskId:string;rawScore:number|null;scoreDeferred:boolean}[]}).attempts
+      .filter(x=>itemsA.some(t=>t.id===x.taskId));
+    assert.equal(historyItems.length,6);
+    assert.ok(historyItems.every(x=>!x.scoreDeferred&&x.rawScore!==null));
+    const fullExport=await exportGET(req("/api/v1/account/export?kind=assessments&offset=0",
+      "GET",undefined,token,"WECHAT"));
+    const exportedItems=(await fullExport.json() as {items:{
+      taskId:string;rawScore:number|null;scoreDeferred:boolean;evidence:Record<string,unknown>}[]}).items
+      .filter(x=>itemsA.some(t=>t.id===x.taskId));
+    assert.equal(exportedItems.length,6);
+    assert.ok(exportedItems.every(x=>!x.scoreDeferred&&typeof x.evidence.correct==="boolean"));
+    const otherHistory=await assessGET(req("/api/v1/assessments","GET",undefined,other,"WECHAT"));
+    assert.deepEqual((await otherHistory.json() as {attempts:unknown[]}).attempts,[]);
+
     assert.equal(completedBody.forms[0]!.reviews.length,6);
     assert.equal(completedBody.forms[0]!.dimensions.length,3);
     assert.ok(completedBody.forms[0]!.dimensions.every(d=>d.total===2 && d.correct!==null));
