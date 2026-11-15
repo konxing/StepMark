@@ -55,7 +55,7 @@ export async function GET(request:NextRequest){
             evidence:true,deviceInfo:true,createdAt:true,
             task:{select:{formCode:true,version:true}}}});
         const overview=rows.some(a=>a.task.formCode)?await getLogicFormOverview(principal.userId):null;
-        const statuses=new Map(overview?.forms.map(f=>[f.code,f.status])??[]);
+        const statuses=new Map<string,string>(overview?.forms.map(f=>[f.code,f.status])??[]);
         data=rows.map(a=>projectDeferredAssessment(a,
           !a.task.formCode ||
           (statuses.get(a.task.formCode)==="completed"&&a.taskVersion===a.task.version)));

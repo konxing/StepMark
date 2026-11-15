@@ -15,7 +15,7 @@ export async function GET(request:NextRequest){
     // A common score-history endpoint must respect the very same deferred-
     // feedback policy as the form endpoint, not expose item correctness early.
     const overview=attempts.some(a=>a.task.formCode)?await getLogicFormOverview(p.userId):null;
-    const statuses=new Map(overview?.forms.map(f=>[f.code,f.status])??[]);
+    const statuses=new Map<string,string>(overview?.forms.map(f=>[f.code,f.status])??[]);
     return NextResponse.json({attempts:attempts.map(a=>{
       const released=!a.task.formCode ||
         (statuses.get(a.task.formCode)==="completed"&&a.taskVersion===a.task.version);
