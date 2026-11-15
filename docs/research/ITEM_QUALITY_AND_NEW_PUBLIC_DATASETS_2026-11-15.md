@@ -56,7 +56,7 @@ This status is **not** a finding that MaRs-IB is invalid: it only indicates the 
 
 ## Source protocol checks for response-time confounding
 
-The originally pinned public file also includes `all_loaded`, `minimum_resolution`, and `browser_interactions`. These fields are now strictly parsed and summarized in the isolated runner so that a technically problematic trial is not silently interpreted as slower cognition. Preliminary independent inspection found 64/4092 `all_loaded=0` rows, 0/4092 `minimum_resolution=0` rows, and 22/4092 records with nonzero `browser_interactions`. Final figures should be confirmed against the new CI run. These are *operational flags*, not automatic respondent exclusion, and the source data still lack device-validated response-time comparability.
+The originally pinned public file also includes `all_loaded`, `minimum_resolution`, and `browser_interactions`. These fields are now strictly parsed and summarized in the isolated runner so that a technically problematic trial is not silently interpreted as slower cognition. Preliminary independent inspection found 64/4092 `all_loaded=0` rows, 0/4092 `minimum_resolution=0` rows, and 22/4092 records with nonzero `browser_interactions`. These totals were confirmed in the [re-run of the pinned public-data audit](https://github.com/konxing/StepMark/actions/runs/43722820977), including checksum, schema gates, and negative parser tests. This is observational quality metadata, not a causal explanation of response time. These are *operational flags*, not automatic respondent exclusion, and the source data still lack device-validated response-time comparability.
 
 ## Additional sources for the next research iteration
 
@@ -67,3 +67,7 @@ The originally pinned public file also includes `all_loaded`, `minimum_resolutio
 - [Practice-effect adjustment, Basner et al. 2020](https://scispace.com/papers/cognition-test-battery-adjusting-for-practice-and-stimulus-51p8yhm2oe?utm_source=chatgpt&utm_medium=tool): repeated cognitive-task practice can cause improvement that should not be mistaken for ability changes.
 
 All listed additional sources are **candidates only**; the real-data completed claim applies exclusively to the MaRs-IB file above. Neither source code nor sensitive participant files from these candidates were copied into StepMark.
+
+## Final verification record (2026-11-15)
+
+The updated source-status research run [43722820977](https://github.com/konxing/StepMark/actions/runs/43722820977) and associated full-project CI [43722820946](https://github.com/konxing/StepMark/actions/runs/43722820946) both succeeded. The latest study still yields `insufficient_evidence` for per-form psychometric calibration despite successful data parsing and reproducible descriptive statistics. Technical-status flags are not used for excluding individuals or predicting ability. No live StepMark score parameters or database schema were modified.
