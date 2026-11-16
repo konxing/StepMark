@@ -1,0 +1,27 @@
+name: Research only - synthetic StepMark crossover study planning
+on:
+  push:
+    paths:
+      - "packages/core/src/research-crossover-power.ts"
+      - "packages/core/test/research-crossover-power.test.ts"
+      - "packages/core/scripts/plan-crossover-power.mjs"
+      - ".github/workflows/research-crossover-planning.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic-study-planning:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install exact locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+      - name: Synthetic crossover negative and reproducibility tests
+        run: node --import tsx --test packages/core/test/research-crossover-power.test.ts
+      - name: Run fixed-seed study scenario grid without personal data
+        run: node --import tsx packages/core/scripts/plan-crossover-power.mjs --synthetic-only
