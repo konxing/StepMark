@@ -48,3 +48,19 @@ Prior attempts to retrieve an IRW transformation failed because its historical v
 New analysis in `validate-icar.py`: three predetermined item-target hash partitions on the **same pinned source and same held-out respondent set**, holding the fitted 1PL/2PL item parameters fixed. Each partition reveals target-item-prediction differences, the direct 2PL-vs-1PL Brier contrast and respondent-clustered exploratory uncertainty. Within each partition, LN/MR/VR/R3D task-family diagnostics are reported separately with the number of people actually contributing to that family; these are **not multiple-comparison-corrected** and cannot establish construct invariance, DIF, or transfer to StepMark's original questions.
 
 Critical scope: This is **sensitivity to the withheld-item selection**, NOT refitting on new calibration samples or validation in an independent new cohort. Reusing the same individuals, estimated parameters and source prohibits calling these three runs independent replications. The existing primary benchmark and its immutable source hash remain unchanged. All results must be taken from the successful new GitHub Actions run, not predicted. Models are not automatically selected and no production scoring rules change.
+
+## Executed target-partition sensitivity 2026-11-17
+
+Successfully executed with the same pinned and byte-verified Harvard Dataverse ICAR 60-item scored-response cohort. [Research CI run 43908803829](https://github.com/konxing/StepMark/actions/runs/43908803829). The original baseline had 2,949 evaluable held-out respondents and 9,405 hidden target item responses. All three sensitivity partitions use exactly the SAME trained 1PL/2PL item parameters and the SAME held-out respondent set, but different prespecified target-versus-context item hashes.
+
+| Prespecified within-person target allocation | 2PL advantage vs 1PL, participant-mean Brier |
+| --- | ---: |
+| original | +0.002021 |
+| robust-a | +0.001718 |
+| robust-b | +0.001757 |
+
+The direction is positive in all three, but these are highly dependent splits, **not** three independent replication cohorts. It is inappropriate to treat the apparent consistency as three separate statistical tests, to combine their bootstrap intervals as independent, or to pick the best variant after inspecting target outcomes.
+
+In the **original partition only**, illustrative unadjusted item-family Brier improvements were LN +0.002410, MR +0.001835, R3D +0.005212, VR +0.000909. The VR exploratory participant-bootstrap interval included zero (−0.000361 to +0.002242). These are different subsets of answered items with different contributors, not proof of cognitive domain differentiation or subgroup fairness. No measurement invariance, item bank transfer, StepMark Chinese adult norms, or online scoring update has occurred.
+
+**Next substantive gate:** a genuinely independent calibration cohort, refitting 1PL/2PL parameters under several *training-respondent* perturbations (this experiment changed only test item selection), followed by content-validity / test-retest evidence on StepMark's actual original items.

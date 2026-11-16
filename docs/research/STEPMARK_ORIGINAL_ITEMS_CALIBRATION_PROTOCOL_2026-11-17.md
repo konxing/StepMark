@@ -38,3 +38,17 @@
 **已实现**：纯合成设计模拟、确定性检验和可复现研究 CI；原创题库独立校准与未来随机复测研究规范。
 
 **尚未实现/不可宣称**：自动招募、真实用户实验、任何 StepMark 原创题目的有效 IRT 标定、独立中文成人常模、个体可靠变化认证，以及已经获得足够统计功效的具体 N。推进这些需要独立许可与未来真正的观察数据。
+
+## Executed synthetic study-planning grid (2026-11-17)
+
+The fully synthetic, zero-participant-research [Actions run 43909642089](https://github.com/konxing/StepMark/actions/runs/43909642089) passed fixed-seed tests and executed 250 Monte Carlo repetitions per scenario. These assumptions are purely illustrative: form logit shift +0.25, second-session shift +0.20, random independent 15% attrition in each assignment arm, equally weighted binary items, approximately Gaussian latent variation. Detection is the frequency of rejecting a two-sided unadjusted z-test at α=0.05, for the **simulated** effect, not a real-world power estimate.
+
+| Simulated assigned participants | Items per form | Form contrast detection | Session contrast detection |
+| ---: | ---: | ---: | ---: |
+| 160 | 6 | 0.624 | 0.472 |
+| 320 | 6 | 0.892 | 0.744 |
+| 640 | 6 | 0.996 | 0.948 |
+| 160 | 18 | 0.956 | 0.868 |
+| 320 | 18 | 1.000 | 0.992 |
+
+These rates cannot justify selecting 320 participants or expanding to 18 items without independent construct and effect-size evidence. They do illustrate that a six-item short test could leave substantial uncertainty and that test length matters under a particular assumed item model. Zero-effect false-positive rates were also printed, and **both** contrasts were tested without familywise correction. No programmatic "approved N" is emitted. The frozen experimental consent, randomization, reliability, repeated-exposure, attrition and multiplicity plan remains a prerequisite.
