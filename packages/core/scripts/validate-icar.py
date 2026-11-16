@@ -258,7 +258,20 @@ def confidence_interval(differences, seed=20261113, draws=1500):
     return [round(float(x),6) for x in np.quantile(boot,[.025,.975])]
 
 
-def evaluate_models(train, holdout, heldout_ids, names, fitted):
+TARGET_PARTITIONS = ("item-holdout", "item-holdout-robust-a", "item-holdout-robust-b")
+
+def item_family(name):
+    # Four published ICAR task families; an unexpected name remains OTHER
+    # rather than being silently pooled into a known construct.
+    for family in ("R3D", "LN", "MR", "VR"):
+        if name.startswith(family):
+            return family
+    return "OTHER"
+
+
+def evaluate_models(train, holdout, heldout_ids, names, fitted, target_seed="item-holdout"):
+    if target_seed not in TARGET_PARTITIONS:
+        raise ValueError("TARGET_PARTITION_NOT_PRESPECIFIED")
     train_mask = np.isfinite(train)
     counts = train_mask.sum(axis=0)
     rates = np.clip((np.nan_to_num(train,nan=0).sum(axis=0)+1)/(counts+2),1e-6,1-1e-6)
@@ -267,13 +280,17 @@ def evaluate_models(train, holdout, heldout_ids, names, fitted):
     per_person = {"item_rate":[],"1PL":[],"2PL":[]}
     log_person = {key:[] for key in per_person}
     target_answers = 0
+    # Each respondent contributes at most one family-specific aggregate.
+    family_losses = {}
+    if len(holdout) != len(heldout_ids):
+        raise ValueError("HOLDOUT_ID_COUNT_MISMATCH")
     for row, pid in zip(holdout, heldout_ids):
         available = np.flatnonzero(np.isfinite(row))
         if len(available) < 4:
             continue
         # Held-out items are chosen using a deterministic item hash independent
         # of outcomes. All model posteriors see context items only.
-        ranked = sorted(available,key=lambda col: stable_number("item-holdout:"+pid+":"+names[col]))
+        ranked = sorted(available,key=lambda col: stable_number(target_seed+":"+pid+":"+names[col]))
         num_targets = max(1,round(len(ranked)*.25))
         targets = np.asarray(ranked[:num_targets],dtype=int)
         contexts = np.asarray(ranked[num_targets:],dtype=int)
@@ -292,6 +309,25 @@ def evaluate_models(train, holdout, heldout_ids, names, fitted):
             prediction = posterior @ prob
             per_person[key].append(brier(prediction,truth))
             log_person[key].append(logloss(prediction,truth))
+        # Reuse the exact same target outcomes for all three comparators.
+        # Family contrasts are diagnostic only (substantially lower N).
+        for family in sorted(set(item_family(names[i]) for i in targets)):
+            positions=np.array([k for k,i in enumerate(targets) if item_family(names[i])==family])
+            y=truth[positions]
+            baseline_brier=brier(rates[targets[positions]],y)
+            family_a=posterior_for(context_row[None,:],*fitted["1PL"])[0]
+            family_b=posterior_for(context_row[None,:],*fitted["2PL"])[0]
+            fam_losses={}
+            for label,post in (("1PL",family_a),("2PL",family_b)):
+                a,c=fitted[label]
+                indexes=targets[positions]
+                prob=1/(1+np.exp(-np.clip(GRID[:,None]*a[indexes][None,:]+c[indexes][None,:],-40,40)))
+                fam_losses[label]=brier(post @ prob,y)
+            bucket=family_losses.setdefault(family,{"item_rate":[],"1PL":[],"2PL":[],"targets":0})
+            bucket["item_rate"].append(baseline_brier)
+            bucket["1PL"].append(fam_losses["1PL"])
+            bucket["2PL"].append(fam_losses["2PL"])
+            bucket["targets"]+=len(positions)
         target_answers += len(targets)
     if len(per_person["item_rate"]) < 100:
         raise ValueError("HELDOUT_WITH_CONTEXT_TOO_SMALL")
@@ -308,11 +344,50 @@ def evaluate_models(train, holdout, heldout_ids, names, fitted):
     comparison={"brierImprovement2plVs1pl":round(float(direct.mean()),6),
                 "bootstrap95":confidence_interval(direct),
                 "interpretation":"Positive means 2PL predicts better; uncertainty is participant-clustered and exploratory."}
-    return {"testedRespondents":len(per_person["item_rate"]),
+    families={}
+    for family,loss in sorted(family_losses.items()):
+        base=np.array(loss["item_rate"])
+        first=np.array(loss["1PL"])
+        second=np.array(loss["2PL"])
+        d=first-second
+        families[family]={
+            "respondentsWithFamilyTargets":len(base),
+            "targetResponses":loss["targets"],
+            "itemRateBrier":round(float(base.mean()),6),
+            "onePlBrier":round(float(first.mean()),6),
+            "twoPlBrier":round(float(second.mean()),6),
+            "twoPlMinusOnePlImprovement":round(float(d.mean()),6),
+            "pairedBootstrap95":confidence_interval(d) if len(base)>=30 else None}
+    return {"targetPartition":target_seed,
+            "testedRespondents":len(per_person["item_rate"]),
             "heldoutItemResponses":target_answers,
+            "itemFamilyDiagnostics":families,
             "directModelComparison":comparison,
             "results":{key:result_for(key) for key in ("item_rate","1PL","2PL")},
             "note":"Held-out respondents and within-person target items; descriptive predictive benchmark, not StepMark item calibration."}
+
+
+def audit_target_partition_robustness(train,holdout,ids,names,fitted):
+    # Same training/held-out respondents and same fitted item parameters.
+    # Only which of each held-out respondent's answered items is hidden changes.
+    results=[evaluate_models(train,holdout,ids,names,fitted,target_seed=seed)
+             for seed in TARGET_PARTITIONS]
+    effects=[r["directModelComparison"]["brierImprovement2plVs1pl"] for r in results]
+    return {
+        "design":"fixed-trained-model alternative target partitions; NOT repeated model calibration or independent replication",
+        "prespecifiedSeeds":list(TARGET_PARTITIONS),
+        "targetPartitions":[{
+            "partition":r["targetPartition"],
+            "testedRespondents":r["testedRespondents"],
+            "targetResponses":r["heldoutItemResponses"],
+            "deltaBrier2plVs1pl":r["directModelComparison"]["brierImprovement2plVs1pl"],
+            "paired95":r["directModelComparison"]["bootstrap95"],
+            "familyDiagnostics":r["itemFamilyDiagnostics"]
+        } for r in results],
+        "directionPositiveInPartitions":sum(effect>0 for effect in effects),
+        "deltaBrierRange":[min(effects),max(effects)],
+        "warning":"These target partitions share people, fitted parameters and source cohort. Correlated exploratory sensitivity checks are not independent replication, and each unadjusted family interval can be unstable. No favorable partition may be selected for product model tuning."
+    }
 
 
 def run(path):
@@ -324,11 +399,13 @@ def run(path):
         fitted[label]=(a,c)
         fit_diag[label]=info
     performance=evaluate_models(train,holdout,ids,names,fitted)
+    robustness=audit_target_partition_robustness(train,holdout,ids,names,fitted)
     return {"status":"EXTERNAL_ICAR_RESEARCH_BENCHMARK",
             "source":SOURCE,
             "quality":quality,
             "fitDiagnostics":fit_diag,
             "holdout":performance,
+            "targetPartitionRobustness":robustness,
             "participantLevelDataPersisted":False,
             "calibratesStepMarkOriginalItems":False,
             "caution":"Exploratory 1PL/2PL MML comparison on a convenience internet sample. Item stems and keys are separately licensed. No fairness, measurement-invariance, or ability growth claim."}

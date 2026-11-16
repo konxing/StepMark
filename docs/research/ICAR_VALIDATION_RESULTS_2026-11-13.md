@@ -42,3 +42,9 @@ The EM program reported numerical tolerance reached after 4 iterations (1PL) and
 **Next acceptance gate:** hold out an entirely independent cohort or comparable dataset, run DIF/measurement invariance and 1PL/2PL calibration stability assessments, and separately collect calibration evidence for StepMark's own original logic items. Do not import ICAR item stems or downstream item parameters into the product.
 
 Prior attempts to retrieve an IRW transformation failed because its historical version endpoints were unavailable; the successful benchmark uses the original Harvard Dataverse V3 CSV, not IRW service versions. Source: [ICAR_RESEARCH_BENCHMARK.md](./ICAR_RESEARCH_BENCHMARK.md).
+
+## 2026-11-17: prespecified target-partition sensitivity (research-only)
+
+New analysis in `validate-icar.py`: three predetermined item-target hash partitions on the **same pinned source and same held-out respondent set**, holding the fitted 1PL/2PL item parameters fixed. Each partition reveals target-item-prediction differences, the direct 2PL-vs-1PL Brier contrast and respondent-clustered exploratory uncertainty. Within each partition, LN/MR/VR/R3D task-family diagnostics are reported separately with the number of people actually contributing to that family; these are **not multiple-comparison-corrected** and cannot establish construct invariance, DIF, or transfer to StepMark's original questions.
+
+Critical scope: This is **sensitivity to the withheld-item selection**, NOT refitting on new calibration samples or validation in an independent new cohort. Reusing the same individuals, estimated parameters and source prohibits calling these three runs independent replications. The existing primary benchmark and its immutable source hash remain unchanged. All results must be taken from the successful new GitHub Actions run, not predicted. Models are not automatically selected and no production scoring rules change.

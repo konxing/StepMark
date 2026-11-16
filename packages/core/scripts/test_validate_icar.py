@@ -51,6 +51,33 @@ class IcarResearchTest(unittest.TestCase):
             self.assertTrue(np.all(a>0))
             self.assertEqual(diag["iterations"],3)
 
+    def test_alternative_target_partitions_are_deterministic_and_never_fit_targets(self):
+        rng=np.random.default_rng(667)
+        # A coherent synthetic latent structure; two families included.
+        theta=rng.normal(size=450)
+        difficulties=np.linspace(-1,1,8)
+        probs=1/(1+np.exp(-(theta[:,None]-difficulties[None,:])))
+        matrix=(rng.random((450,8))<probs).astype(float)
+        ids=[f"respondent-{i}" for i in range(450)]
+        names=["LN1","LN2","LN3","LN4","MR1","MR2","MR3","MR4"]
+        fitted={"1PL":(np.ones(8),-difficulties),
+                "2PL":(np.ones(8)*1.15,-difficulties)}
+        a=icar.evaluate_models(matrix,matrix,ids,names,fitted,target_seed="item-holdout")
+        b=icar.evaluate_models(matrix,matrix,ids,names,fitted,target_seed="item-holdout")
+        c=icar.evaluate_models(matrix,matrix,ids,names,fitted,target_seed="item-holdout-robust-a")
+        self.assertEqual(a,b)
+        self.assertNotEqual(a["targetPartition"],c["targetPartition"])
+        self.assertIn("LN",a["itemFamilyDiagnostics"])
+        self.assertIn("MR",a["itemFamilyDiagnostics"])
+        self.assertEqual(sum(x["targetResponses"] for x in a["itemFamilyDiagnostics"].values()),
+                         a["heldoutItemResponses"])
+        self.assertEqual(icar.item_family("R3D17"),"R3D")
+        self.assertEqual(icar.item_family("unknown"),"OTHER")
+        with self.assertRaisesRegex(ValueError,"NOT_PRESPECIFIED"):
+            icar.evaluate_models(matrix,matrix,ids,names,fitted,target_seed="choose-best-after-seeing-outcome")
+        with self.assertRaisesRegex(ValueError,"MISMATCH"):
+            icar.evaluate_models(matrix,matrix[:-1],ids,names,fitted)
+
     def test_brier_and_ci_direction(self):
         self.assertAlmostEqual(icar.brier(np.array([.8]),np.array([1.])),.04)
         z=np.array([.2]*40)
