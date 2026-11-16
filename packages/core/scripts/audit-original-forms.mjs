@@ -88,11 +88,16 @@ export function verifyFrozenSource(source,lock){
   if(!lock||lock.schemaVersion!=="original-logic-source-lock-v1"||
      lock.sourcePath!=="apps/web/prisma/seed.ts"||
      typeof lock.expectedGitBlobSha1!=="string"||
-     !/^[a-f0-9]{40}$/u.test(lock.expectedGitBlobSha1))
+     !/^[a-f0-9]{40}$/u.test(lock.expectedGitBlobSha1)||
+     typeof lock.expectedSourceSha256!=="string"||
+     !/^[a-f0-9]{64}$/u.test(lock.expectedSourceSha256))
     throw new Error("BAD_LOCK_MANIFEST");
   const current=gitBlobSha1(source);
   if(current!==lock.expectedGitBlobSha1)throw new Error("ORIGINAL_PUBLISHED_BANK_LOCK_DRIFT");
-  return {seedGitBlobSha1:current,sourceSha256:sha256(Buffer.from(source))};
+  const sourceSha256=sha256(Buffer.from(source));
+  if(sourceSha256!==lock.expectedSourceSha256)
+    throw new Error("ORIGINAL_PUBLISHED_BANK_SHA256_DRIFT");
+  return {seedGitBlobSha1:current,sourceSha256};
 }
 async function main(){
   if(process.argv.length!==3||process.argv[2]!=="--verify")

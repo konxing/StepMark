@@ -32,9 +32,23 @@ export interface CrossoverPlanningResult {
   holmNullSessionFalsePositiveRate:number|null;
   holmNullFamilywiseFalsePositiveRate:number|null;
   unadjustedNullFamilywiseFalsePositiveRate:number|null;
+  /** Wilson 95% intervals for finite Monte Carlo runs, NOT participant uncertainty. */
+  holmNullFamilywiseMonteCarlo95:Readonly<[number,number]>|null;
+  unadjustedNullFamilywiseMonteCarlo95:Readonly<[number,number]>|null;
   warning:string;
 }
 const round=(n:number)=>Number(n.toFixed(6));
+function binomialMonteCarlo95(successes:number,n:number):Readonly<[number,number]>|null{
+  if(!Number.isInteger(successes)||!Number.isInteger(n)||n<=0||
+     successes<0||successes>n)throw new RangeError("invalid monte carlo counts");
+  // Wilson binomial interval, using the simulation replicate (NOT subject) as
+  // the independent Bernoulli unit.
+  const z=1.959963984540054,z2=z*z;
+  const p=successes/n,denom=1+z2/n;
+  const mid=(p+z2/(2*n))/denom;
+  const half=z*Math.sqrt((p*(1-p)+z2/(4*n))/n)/denom;
+  return [round(Math.max(0,mid-half)),round(Math.min(1,mid+half))];
+}
 const logistic=(x:number)=>x>=0?1/(1+Math.exp(-x)):Math.exp(x)/(1+Math.exp(x));
 function validate(s:CrossoverPlanningScenario){
   if(!s||!Number.isInteger(s.assignedParticipants)||
@@ -164,6 +178,8 @@ export function simulateCrossoverPlanning(s:CrossoverPlanningScenario):Crossover
     holmNullSessionFalsePositiveRate:rate(nullHolmSession,nullEligible),
     holmNullFamilywiseFalsePositiveRate:rate(nullHolmAny,nullEligible),
     unadjustedNullFamilywiseFalsePositiveRate:rate(nullAny,nullEligible),
-    warning:"Synthetic binomial item responses and Gaussian-like latent trait; effects are assumed log-odds shifts, not measured StepMark effects. The stated Gaussian z approximation assumes independent participants, conditional random missingness and constant effects. Two legacy unadjusted contrasts are retained for comparison. The additional Holm step-down contrasts control two-test familywise Type I error under valid individual z-test assumptions. Report the simulated any-rejection FWER; neither test is a validated psychometric measurement. These finite-seed simulation rates are NOT verified statistical power or a recommended enrollment N until effect, reliability, attrition, randomization, missingness and multiplicity assumptions are prospectively justified. No personal data or population norms."
+    holmNullFamilywiseMonteCarlo95:enough?binomialMonteCarlo95(nullHolmAny,nullEligible):null,
+    unadjustedNullFamilywiseMonteCarlo95:enough?binomialMonteCarlo95(nullAny,nullEligible):null,
+    warning:"Synthetic binomial item responses and Gaussian-like latent trait; effects are assumed log-odds shifts, not measured StepMark effects. The stated Gaussian z approximation assumes independent participants, conditional random missingness and constant effects. Two legacy unadjusted contrasts are retained for comparison. The additional Holm step-down contrasts control two-test familywise Type I error under valid individual z-test assumptions. Report the simulated any-rejection FWER; neither test is a validated psychometric measurement. Finite-replicate Wilson 95% intervals describe only Monte Carlo error, not study-participant uncertainty or model misspecification. These finite-seed simulation rates are NOT verified statistical power or a recommended enrollment N until effect, reliability, attrition, randomization, missingness and multiplicity assumptions are prospectively justified. No personal data or population norms."
   };
 }

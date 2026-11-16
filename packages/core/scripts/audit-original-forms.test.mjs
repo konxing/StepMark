@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
-import {parseOriginalForms,auditOriginalForms,verifyFrozenSource} from "./audit-original-forms.mjs";
+import {parseOriginalForms,auditOriginalForms,verifyFrozenSource,gitBlobSha1} from "./audit-original-forms.mjs";
 const fixture=await readFile("apps/web/prisma/seed.ts","utf8");
 const lock=JSON.parse(await readFile("docs/research/locks/original-logic-forms-v1.json","utf8"));
 const clone=items=>structuredClone(items);
@@ -17,6 +17,10 @@ test("existing original demo forms have complete and explicitly uncalibrated blu
 test("published source lock rejects accidental edits including silent answer changes",()=>{
   assert.throws(()=>verifyFrozenSource(fixture.replace("备份校验","备份检查"),lock),/LOCK_DRIFT/);
   assert.throws(()=>verifyFrozenSource(fixture,{...lock,expectedGitBlobSha1:"bad"}),/BAD_LOCK/);
+  const changed=fixture.replace("备份校验","备份检查");
+  assert.throws(()=>verifyFrozenSource(changed,{
+    ...lock,expectedGitBlobSha1:gitBlobSha1(changed)
+  }),/SHA256_DRIFT/);
   assert.throws(()=>parseOriginalForms(fixture.replace("const newForms=[","const newForms=build(")),/STATIC_JSON/);
 });
 test("detect duplicate item IDs, prompts, answer keys, options and original skill drift",()=>{

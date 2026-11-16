@@ -68,3 +68,20 @@ test("Holm-adjusted detection never exceeds nominal and null FWER is separately 
     dropoutAB:.7,dropoutBA:.7});
   assert.equal(sparse.holmNullFamilywiseFalsePositiveRate,null);
 });
+
+test("Monte Carlo FWER intervals acknowledge simulation uncertainty, not subject precision",()=>{
+  const x=simulateCrossoverPlanning({...standard,replicates:250});
+  const a=x.holmNullFamilywiseMonteCarlo95!;
+  const b=x.unadjustedNullFamilywiseMonteCarlo95!;
+  assert.ok(a!==null&&b!==null);
+  assert.ok(a[0]<=x.holmNullFamilywiseFalsePositiveRate!);
+  assert.ok(a[1]>=x.holmNullFamilywiseFalsePositiveRate!);
+  assert.ok(b[0]<=x.unadjustedNullFamilywiseFalsePositiveRate!);
+  assert.ok(b[1]>=x.unadjustedNullFamilywiseFalsePositiveRate!);
+  assert.ok(a[1]-a[0]>.01);
+  const insufficient=simulateCrossoverPlanning({
+    ...standard,assignedParticipants:80,dropoutAB:.7,dropoutBA:.7
+  });
+  assert.equal(insufficient.holmNullFamilywiseMonteCarlo95,null);
+  assert.equal(insufficient.unadjustedNullFamilywiseMonteCarlo95,null);
+});

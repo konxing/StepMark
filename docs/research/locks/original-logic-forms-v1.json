@@ -2,6 +2,7 @@
   "schemaVersion": "original-logic-source-lock-v1",
   "sourcePath": "apps/web/prisma/seed.ts",
   "expectedGitBlobSha1": "bd498a75ae1cf4ef0c6b54a90d3437c5a0b23a28",
-  "rationale": "Freeze current published, public uncalibrated demo task content. A deliberate change requires code review and a separate new form version; do not silently rewrite prior test evidence.",
-  "introducedOn": "2026-11-17"
+  "rationale": "Dual locked source file SHA-256 and Git blob SHA-1 protect against accidental drift; published demo items require new version and compatibility review before any intentional revision.",
+  "introducedOn": "2026-11-17",
+  "expectedSourceSha256": "9300803e6d86d611675180bb5db2992ac439dcef9c99e3129fcb6dee974fab5f"
 }

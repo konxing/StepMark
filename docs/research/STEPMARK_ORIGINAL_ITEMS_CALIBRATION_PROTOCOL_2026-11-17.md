@@ -63,3 +63,7 @@ Earlier sample-size simulations counted two independent-looking nominal 5% tests
 Both exact two-test critical values (two-sided 0.025 then 0.05) and high-dropout gates have deterministic tests. The Holm procedure only protects nominal familywise alpha when the underlying z tests have valid null distributions; item dependence, missing-not-at-random data, repeated test tuning and lack of construct validity are **not solved** by multiplying p-values. The module remains synthetic-only and not exported to production.
 
 Reference: Holm, S. (1979), *A Simple Sequentially Rejective Multiple Test Procedure*, Scandinavian Journal of Statistics, 6:65–70, https://www.jstor.org/stable/4615733 .
+
+## 2026-11-17: finite Monte Carlo uncertainty protection
+
+Both null-familywise false-positive estimates (unadjusted and Holm-adjusted) now include **Wilson 95% Monte Carlo intervals over simulation replicates**. For the 320-assigned, 6-item, 15%-dropout scenario the earlier executed 250-draw point estimates were 0.112 unadjusted and 0.060 Holm-adjusted. An observed Holm point estimate exceeding 0.05 in a *small finite simulation* does not by itself invalidate Holm's analytical guarantee for correctly specified individual tests; nor does it prove valid z-test assumptions. Increasing replicates only reduces simulation error, **not** bias from wrong item/distribution/missingness assumptions. Refer to the new CI for the paired Wilson interval outputs, and never mislabel these ranges as participant-level confidence intervals.

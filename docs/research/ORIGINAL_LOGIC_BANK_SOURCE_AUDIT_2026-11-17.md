@@ -5,7 +5,7 @@
 ## 运行机制
 
 - 研究脚本 `packages/core/scripts/audit-original-forms.mjs` **仅将** `apps/web/prisma/seed.ts` 中的 `const newForms=[...]` 当作静态 JSON 读取；绝不执行种子文件或连接数据库。
-- `docs/research/locks/original-logic-forms-v1.json` 锁定整个种子文件的 Git blob SHA-1（Git 内容寻址，主要用于发现不经审查的偶然改动，不是恶意修改的密码学证明）。CI 发生变动就失败；希望修改公开题库时必须创建新版本、审核历史成绩兼容性，并按计划更新锁。
+- `docs/research/locks/original-logic-forms-v1.json` 同时锁定整个种子文件的 SHA-256 和 Git blob SHA-1（用于发现意外变更；两者不是独立密钥签名，不能防有权同时修改源文件与锁文件的人）。CI 发生变动就失败；希望修改公开题库时必须创建新版本、审核历史成绩兼容性，并按计划更新锁。
 - 12 道原创题按 A/B 两卷分离；每卷 6 题、条件推理/论证证据/数量比例各两题。校验固定的题号顺序、UUID 唯一、互不相同的选项、正确答案键合法及解析文字存在。
 - 完全重复的题干阻止合并；*语义相似* 无法由文本完全相同的规则发现，仍需盲审和真实测量。
 - 已有题库的答案位置偏向某几个选项：CI 会给出 `ANSWER_POSITION_CONCENTRATION_MAY_CUE_RESPONSES`，**但本轮不重排旧答案或选项**，否则会破坏已有答卷和未完成卷的可比性。
