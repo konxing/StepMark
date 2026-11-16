@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {simulateCrossoverPlanning,type CrossoverPlanningScenario} from "../src/research-crossover-power.ts";
+import {simulateCrossoverPlanning,holmTwoContrasts,type CrossoverPlanningScenario} from "../src/research-crossover-power.ts";
 const standard:CrossoverPlanningScenario={
   assignedParticipants:240,itemsPerForm:12,formLogitShift:.35,
   secondSessionLogitShift:.3,dropoutAB:.12,dropoutBA:.12,
@@ -44,4 +44,27 @@ test("invalid assumptions fail closed",()=>{
     {...standard,seed:0},
     {...standard,formLogitShift:Infinity}
   ]) assert.throws(()=>simulateCrossoverPlanning(scenario),/assumptions/);
+});
+
+test("Holm correction protects two planned tests at familywise 5% level",()=>{
+  assert.deepEqual(holmTwoContrasts(2.1,2.0),{form:false,session:false});
+  assert.deepEqual(holmTwoContrasts(2.6,1.1),{form:true,session:false});
+  assert.deepEqual(holmTwoContrasts(2.5,2.1),{form:true,session:true});
+  assert.deepEqual(holmTwoContrasts(1.9,2.6),{form:false,session:true});
+  assert.deepEqual(holmTwoContrasts(2.5,2.5),{form:true,session:true});
+  assert.throws(()=>holmTwoContrasts(NaN,2),/invalid/);
+  assert.throws(()=>holmTwoContrasts(-1,2),/invalid/);
+});
+test("Holm-adjusted detection never exceeds nominal and null FWER is separately exposed",()=>{
+  const x=simulateCrossoverPlanning({...standard,replicates:400});
+  assert.equal(x.status,"planning_scenario_only");
+  assert.ok(x.holmAdjustedFormDetectionRate!<=x.twoSidedFormDetectionRate!);
+  assert.ok(x.holmAdjustedSessionDetectionRate!<=x.twoSidedSessionDetectionRate!);
+  assert.ok(x.holmNullFormFalsePositiveRate!<=x.nullFormFalsePositiveRate!);
+  assert.ok(x.holmNullSessionFalsePositiveRate!<=x.nullSessionFalsePositiveRate!);
+  assert.ok(x.holmNullFamilywiseFalsePositiveRate!<=x.unadjustedNullFamilywiseFalsePositiveRate!);
+  assert.ok(x.holmNullFamilywiseFalsePositiveRate!>=0&&x.holmNullFamilywiseFalsePositiveRate!<=1);
+  const sparse=simulateCrossoverPlanning({...standard,assignedParticipants:80,
+    dropoutAB:.7,dropoutBA:.7});
+  assert.equal(sparse.holmNullFamilywiseFalsePositiveRate,null);
 });

@@ -25,6 +25,13 @@ export interface CrossoverPlanningResult {
   twoSidedSessionDetectionRate:number|null;
   nullFormFalsePositiveRate:number|null;
   nullSessionFalsePositiveRate:number|null;
+  /** Holm step-down adjusted, two planned contrasts with familywise alpha=0.05. */
+  holmAdjustedFormDetectionRate:number|null;
+  holmAdjustedSessionDetectionRate:number|null;
+  holmNullFormFalsePositiveRate:number|null;
+  holmNullSessionFalsePositiveRate:number|null;
+  holmNullFamilywiseFalsePositiveRate:number|null;
+  unadjustedNullFamilywiseFalsePositiveRate:number|null;
   warning:string;
 }
 const round=(n:number)=>Number(n.toFixed(6));
@@ -50,7 +57,26 @@ function generator(seed:number){
     return (state>>>0)/4294967296;
   };
 }
-type Analysis={form:boolean;session:boolean;completedAB:number;completedBA:number;eligible:boolean};
+/**
+ * Two-sided Holm step-down for exactly TWO prespecified z tests.
+ * The more significant test must pass alpha/2, then the other alpha.
+ * z values are absolute; this routine does not make the z approximation valid.
+ */
+export function holmTwoContrasts(absFormZ:number,absSessionZ:number):{
+  form:boolean;session:boolean
+}{
+  if(!Number.isFinite(absFormZ)||!Number.isFinite(absSessionZ)||
+     absFormZ<0||absSessionZ<0)throw new RangeError("invalid z statistics");
+  const nominal=1.959963984540054,first=2.241402727604948;
+  return {
+    form:absFormZ>=absSessionZ?
+      absFormZ>first:(absSessionZ>first&&absFormZ>nominal),
+    session:absSessionZ>=absFormZ?
+      absSessionZ>first:(absFormZ>first&&absSessionZ>nominal)
+  };
+}
+type Analysis={form:boolean;session:boolean;holmForm:boolean;holmSession:boolean;
+  completedAB:number;completedBA:number;eligible:boolean};
 function simulateTrial(s:CrossoverPlanningScenario, rng:()=>number,
   formShift:number,sessionShift:number):Analysis {
   const AB:number[]=[],BA:number[]=[];
@@ -74,7 +100,8 @@ function simulateTrial(s:CrossoverPlanningScenario, rng:()=>number,
     (ab?AB:BA).push(bMinusA);
   }
   const eligible=AB.length>=20&&BA.length>=20;
-  if(!eligible)return {form:false,session:false,completedAB:AB.length,completedBA:BA.length,eligible:false};
+  if(!eligible)return {form:false,session:false,holmForm:false,holmSession:false,
+    completedAB:AB.length,completedBA:BA.length,eligible:false};
   const stats=(a:number[])=>{
     const mean=a.reduce((x,y)=>x+y,0)/a.length;
     const variance=a.reduce((x,y)=>x+(y-mean)**2,0)/(a.length-1);
@@ -83,10 +110,14 @@ function simulateTrial(s:CrossoverPlanningScenario, rng:()=>number,
   const a=stats(AB),b=stats(BA);
   const se=Math.sqrt(a.variance/a.n+b.variance/b.n)/2;
   // If there is no empirical variation, a z test is not identified.
-  if(se<=1e-12)return {form:false,session:false,completedAB:AB.length,completedBA:BA.length,eligible:false};
+  if(se<=1e-12)return {form:false,session:false,holmForm:false,holmSession:false,
+    completedAB:AB.length,completedBA:BA.length,eligible:false};
   const form=(a.mean+b.mean)/2,session=(a.mean-b.mean)/2;
-  return {form:Math.abs(form/se)>1.95996398454,
-    session:Math.abs(session/se)>1.95996398454,
+  const absFormZ=Math.abs(form/se),absSessionZ=Math.abs(session/se);
+  const holm=holmTwoContrasts(absFormZ,absSessionZ);
+  return {form:absFormZ>1.959963984540054,
+    session:absSessionZ>1.959963984540054,
+    holmForm:holm.form,holmSession:holm.session,
     completedAB:AB.length,completedBA:BA.length,eligible:true};
 }
 /** Returns unconditional design assumptions plus conditional eligibility counts.
@@ -95,14 +126,24 @@ function simulateTrial(s:CrossoverPlanningScenario, rng:()=>number,
 export function simulateCrossoverPlanning(s:CrossoverPlanningScenario):CrossoverPlanningResult{
   validate(s);
   let effectEligible=0,nullEligible=0,formHits=0,sessionHits=0,nullFormHits=0,nullSessionHits=0;
+  let effectHolmForm=0,effectHolmSession=0,nullHolmForm=0,nullHolmSession=0;
+  let nullAny=0,nullHolmAny=0;
   let completedAB=0,completedBA=0;
   const seeded=generator(s.seed);
   for(let i=0;i<s.replicates;i++){
     const study=simulateTrial(s,seeded,s.formLogitShift,s.secondSessionLogitShift);
     completedAB+=study.completedAB;completedBA+=study.completedBA;
-    if(study.eligible){effectEligible++;formHits+=Number(study.form);sessionHits+=Number(study.session);}
+    if(study.eligible){
+      effectEligible++;formHits+=Number(study.form);sessionHits+=Number(study.session);
+      effectHolmForm+=Number(study.holmForm);effectHolmSession+=Number(study.holmSession);
+    }
     const zero=simulateTrial(s,seeded,0,0);
-    if(zero.eligible){nullEligible++;nullFormHits+=Number(zero.form);nullSessionHits+=Number(zero.session);}
+    if(zero.eligible){
+      nullEligible++;nullFormHits+=Number(zero.form);nullSessionHits+=Number(zero.session);
+      nullHolmForm+=Number(zero.holmForm);nullHolmSession+=Number(zero.holmSession);
+      nullAny+=Number(zero.form||zero.session);
+      nullHolmAny+=Number(zero.holmForm||zero.holmSession);
+    }
   }
   const enough=effectEligible>=.95*s.replicates&&nullEligible>=.95*s.replicates;
   const rate=(hits:number,n:number)=>enough&&n>0?round(hits/n):null;
@@ -117,6 +158,12 @@ export function simulateCrossoverPlanning(s:CrossoverPlanningScenario):Crossover
     twoSidedSessionDetectionRate:rate(sessionHits,effectEligible),
     nullFormFalsePositiveRate:rate(nullFormHits,nullEligible),
     nullSessionFalsePositiveRate:rate(nullSessionHits,nullEligible),
-    warning:"Synthetic binomial item responses and Gaussian-like latent trait; effects are assumed log-odds shifts, not measured StepMark effects. The stated Gaussian z approximation assumes independent participants, conditional random missingness and constant effects. Two unadjusted tests are performed (familywise error may exceed 5%). These finite-seed simulation rates are NOT verified statistical power or a recommended enrollment N until effect, reliability, attrition, randomization, missingness and multiplicity assumptions are prospectively justified. No personal data or population norms."
+    holmAdjustedFormDetectionRate:rate(effectHolmForm,effectEligible),
+    holmAdjustedSessionDetectionRate:rate(effectHolmSession,effectEligible),
+    holmNullFormFalsePositiveRate:rate(nullHolmForm,nullEligible),
+    holmNullSessionFalsePositiveRate:rate(nullHolmSession,nullEligible),
+    holmNullFamilywiseFalsePositiveRate:rate(nullHolmAny,nullEligible),
+    unadjustedNullFamilywiseFalsePositiveRate:rate(nullAny,nullEligible),
+    warning:"Synthetic binomial item responses and Gaussian-like latent trait; effects are assumed log-odds shifts, not measured StepMark effects. The stated Gaussian z approximation assumes independent participants, conditional random missingness and constant effects. Two legacy unadjusted contrasts are retained for comparison. The additional Holm step-down contrasts control two-test familywise Type I error under valid individual z-test assumptions. Report the simulated any-rejection FWER; neither test is a validated psychometric measurement. These finite-seed simulation rates are NOT verified statistical power or a recommended enrollment N until effect, reliability, attrition, randomization, missingness and multiplicity assumptions are prospectively justified. No personal data or population norms."
   };
 }

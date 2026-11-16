@@ -12,7 +12,7 @@ for(const itemsPerForm of [6,18]){
   }
 }
 process.stdout.write(JSON.stringify({
-  status:"SYNTHETIC_PLANNING_ONLY",design:"balanced A_B vs B_A; no research participants",
+  status:"SYNTHETIC_PLANNING_ONLY",design:"balanced A_B vs B_A; two planned contrasts, nominal and Holm adjusted; no research participants",
   preregisteredAssumptionExample:{formLogitShift:.25,secondSessionLogitShift:.2,
     independentMissingness:true,dropout:.15,seed:20261117},
   scenarios:cases,

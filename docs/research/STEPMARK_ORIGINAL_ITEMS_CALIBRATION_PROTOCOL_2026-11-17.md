@@ -52,3 +52,14 @@ The fully synthetic, zero-participant-research [Actions run 43909642089](https:/
 | 320 | 18 | 1.000 | 0.992 |
 
 These rates cannot justify selecting 320 participants or expanding to 18 items without independent construct and effect-size evidence. They do illustrate that a six-item short test could leave substantial uncertainty and that test length matters under a particular assumed item model. Zero-effect false-positive rates were also printed, and **both** contrasts were tested without familywise correction. No programmatic "approved N" is emitted. The frozen experimental consent, randomization, reliability, repeated-exposure, attrition and multiplicity plan remains a prerequisite.
+
+## 2026-11-17: Holm correction and false-positive study upgrade
+
+Earlier sample-size simulations counted two independent-looking nominal 5% tests (form difficulty and second-session change), but two such claims create a multiple-testing family. Holm's 1979 step-down method is now implemented for **exactly two prespecified contrasts**. The report retains earlier unadjusted rates for historical comparison, and adds:
+- Holm-adjusted form/session detection rates under assumed effects;
+- Holm-adjusted null rejection rate for each contrast;
+- **at least one false rejection** (familywise error) under the simulated joint null, with and without Holm.
+
+Both exact two-test critical values (two-sided 0.025 then 0.05) and high-dropout gates have deterministic tests. The Holm procedure only protects nominal familywise alpha when the underlying z tests have valid null distributions; item dependence, missing-not-at-random data, repeated test tuning and lack of construct validity are **not solved** by multiplying p-values. The module remains synthetic-only and not exported to production.
+
+Reference: Holm, S. (1979), *A Simple Sequentially Rejective Multiple Test Procedure*, Scandinavian Journal of Statistics, 6:65–70, https://www.jstor.org/stable/4615733 .
