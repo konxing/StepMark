@@ -1,6 +1,7 @@
 import {getDb} from "./db";
 import {verifyTaskAttemptEvidence} from "./assessment-integrity";
-import {describePublicReasoningEvidence,type ObservedForm} from "@stepmark/core";
+import {describePublicReasoningEvidence,type ObservedForm,
+  type FormEvidenceStatus,type ItemIntegrity} from "@stepmark/core";
 
 /**
  * Original, independent, deliberately UNCALIBRATED short forms.
@@ -73,8 +74,10 @@ export async function getLogicFormOverview(userId:string,now=new Date()){
       Math.max(...previousDone.map(t=>attemptById.get(t.id)!.createdAt.getTime())):null;
     const readyAt=lastPrevious===null?null:new Date(lastPrevious+WAIT_MS).toISOString();
     const unlocked=index===0 || (readyAt!==null && now.getTime()>=new Date(readyAt).getTime());
-    const status=!trustworthyBank?"unavailable":complete?"completed":
+    const status:FormEvidenceStatus=!trustworthyBank?"unavailable":complete?"completed":
       done.length>0?"in_progress":unlocked?"ready":"locked";
+    const integrityStatus:ItemIntegrity=!attemptVersionsValid?"mismatch":
+      legacyAttemptCount>0?"legacy_unverified":"verified";
     const correct=complete?done.filter(t=>attemptById.get(t.id)!.rawScore===100).length:null;
     const dimensions=SKILLS.map(skill=>{
       const domainItems=items.filter(t=>t.skillCode===skill.code);
@@ -94,7 +97,7 @@ export async function getLogicFormOverview(userId:string,now=new Date()){
         correct:a.rawScore===100};
     }):[];
     return {code:form.code,title:form.title,phase:form.phase,status,total:trustworthyBank?FORM_SIZE:0,
-      integrityStatus:!attemptVersionsValid?"mismatch":legacyAttemptCount>0?"legacy_unverified":"verified",
+      integrityStatus,
       legacyAttemptCount,
       attempted:done.length,correct,completedAt,availableAt:status==="locked"?readyAt:null,
       dimensions,reviews};
