@@ -26,7 +26,8 @@ Multiuser Alpha. The maintained `main` branch contains working authenticated acc
 - Benchmark on target hardware with real CDN and DB network; public/local only read-only Node smoke test: `node apps/web/scripts/perf-http.mjs`.
 
 ## Safety warnings
-- Demo reasoning items are not psychometrically calibrated. Raw task score should never be sold as a human skill percentile.
+- Demo reasoning items are public in `prisma/seed.ts` (including answers) and are not psychometrically calibrated. Raw task score must not be sold as a human skill percentile or a secure independent test.
+- For any new private candidate reasoning bank, use [offline private-bank admission](../../docs/research/PRIVATE_RESEARCH_BANK_ADMISSION_2026-11-17.md) on a file stored outside this git checkout. The CLI validates **structure only**; it does not publish, encrypt or store the questions in the production database.
 - Behavior completion cannot directly add ability points.
 - The Resend/email integration is synchronous for registration/recovery; it can take multiple seconds if provider is slow and deserves a queued outbox if traffic grows.
 - Registering public users requires production rollout of all security and privacy blockers, even if CI is green.

@@ -88,9 +88,10 @@ export default function AssessmentClient(){
   return <main className="account-shell assess-shell">
     <a className="wordmark" href="/">STEP<span>MARK</span><span className="brand-dot">.</span></a>
     <div className="assess-top"><a href="/dashboard">← 我的成长控制台</a><span>独立测验 · 实验阶段</span></div>
-    <div className="kicker">REASONING EVIDENCE · V1</div>
-    <h1>思维能力 · 逻辑推理证据</h1>
-    <p>分别完成两套原创题。两卷覆盖相同的推理类别，但尚未完成题目等值、常模和信度验证；
+    <div className="kicker">REASONING DEMO · V1</div>
+    <h1>思维能力 · 逻辑推理演示测验</h1>
+    <p>这两套题目和答案已包含在公开源代码中，仅适合功能演示与自我练习，不能作为保密能力考试。
+      两卷覆盖相同推理类别，但尚未完成题目等值、常模和信度验证；
       结果仅是当前答题证据，不能直接判断能力高低或证明能力增长。</p>
 
     <section className="assessment-form-list" aria-label="独立测验批次">

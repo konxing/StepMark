@@ -9,6 +9,11 @@ coverage/
 .DS_Store
 npm-debug.log*
 *.tsbuildinfo
+# Private assessment content must NEVER be tracked in this public repo.
+private-banks/
+**/private-banks/
+*.private-bank.json
+*.research-bank.private.json
 .idea/
 .vscode/
 apps/web/src/generated/
