@@ -52,6 +52,8 @@ jobs:
         run: node --import tsx --test packages/core/scripts/evaluate-resolved-forecasts.test.mjs
       - name: Private unpublished research-bank isolation and input-security tests
         run: node --test apps/web/scripts/audit-private-research-bank.test.mjs
+      - name: Private bank multi-role review and source-binding regression tests
+        run: node --test apps/web/scripts/audit-private-review-evidence.test.mjs
       - name: WeChat JavaScript syntax check
         run: |
           node --check apps/wechat-miniapp/app.js

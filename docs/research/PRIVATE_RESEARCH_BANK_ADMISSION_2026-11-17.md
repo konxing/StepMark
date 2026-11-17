@@ -58,3 +58,40 @@ Found and closed an important remaining publication bypass: previously any Task 
 Now both read and submit paths explicitly allow only the four already-public demo task IDs at version `demo-1`. Known A/B demonstration forms retain their existing independent deferred feedback rules. **No unpublished research task can be authorized by setting `publishedAt` alone**, even if it lacks `formCode`. A PostgreSQL integration test simulates this exact accidental misconfiguration and verifies no leaked content, no attempt creation, and continued demo availability.
 
 Adding a truly new task or construct will require an intentional, reviewed update to the server-side allowlist/publishing policy, rather than silently broadening scope. This is an additional API authorization boundary, not a secret question vault or psychometric validation.
+
+## 2026-11-17 独立审核证据绑定（新增）
+
+新增 `apps/web/scripts/audit-private-review-evidence.mjs`。在**仓库之外**保存审核清单，并将其绑定到离线私有题库文件的完整 SHA-256。清单包含三种不同的审核职责（内容、心理测量、版权与安全）、六个固定维度、匿名审核引用标识、审核日期和通过/需修订结论。脚本检验三个审核角色存在、引用标识不重复、清单及内容的版本一致、记录不超过 180 天；只输出计数、源哈希和阻断状态，**不会输出题干、答案、审核者引用标识或文件路径**。
+
+私有清单 JSON 形状示例（务必替换为真实源文件计算的 SHA-256，以下为无效占位）：
+
+```json
+{
+  "kind": "stepmark-private-bank-review-v1",
+  "bankSha256": "<64个十六进制字符>",
+  "reviewers": [
+    {
+      "reviewerRef": "reviewer-example001",
+      "role": "content",
+      "reviewedOn": "2026-11-17",
+      "decision": "pass",
+      "checks": {
+        "constructFit": "pass",
+        "answerKeyVerified": "pass",
+        "languageReviewed": "pass",
+        "rightsConfirmed": "pass",
+        "exposureRiskReviewed": "pass",
+        "noSensitiveContent": "pass"
+      }
+    }
+  ]
+}
+```
+
+实际审核时必须三条不同角色记录（`content`、`psychometrics`、`rights_security`），而不是上述只展示结构的一条。两个文件均须在公开仓库之外，离线运行：
+
+```powershell
+node apps/web/scripts/audit-private-review-evidence.mjs --bank "D:\\stepmark-private\\research-bank.json" --reviews "D:\\stepmark-private\\review-evidence.json"
+```
+
+**关键限制：** 本工具只核验**审核记录的格式与源版本绑定**，不能验证审核者身份、独立性或审核意见真实性。角色引用标识不是数字签名。即使三个角色都填写通过，程序仍固定输出 `BLOCKED_PENDING_AUTHENTICATED_REVIEW_AND_CALIBRATION`，不会授予生产题库发布、数据库写入或真实用户测量权限。后续必须设计身份认证的签核流程、题目版权审核与独立效度验证。
