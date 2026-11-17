@@ -21,6 +21,14 @@ export interface AbilityPosterior {
   theta: number;
   standardError: number;
   variance: number;
+  /**
+   * Discrete equal-tailed 95% *model posterior* interval. This is NOT an
+   * empirically validated 95% frequentist coverage interval.
+   * No responses => null (prior-only has no personal measurement evidence).
+   */
+  modelCredibleInterval95: readonly [number,number] | null;
+  /** All EAP results remain research-only until external validation. */
+  userAbilityRelease: "blocked_pending_independent_validation";
   evidenceCount: number;
   calibrationVersion: string;
   /** Fixed-grid discrete approximation of a N(0,1) prior and 2PL likelihood. */
@@ -68,7 +76,21 @@ export function estimateThetaEap(answers: readonly CalibratedAnswer[], calibrati
   const weights = raw.map(w => w/denom);
   const theta = grid.reduce((a,t,i)=>a+t*weights[i]!,0);
   const variance = grid.reduce((a,t,i)=>a+(t-theta)**2*weights[i]!,0);
+  // Equal-tailed quantiles on the same discrete quadrature measure as EAP.
+  // This avoids using a symmetric Gaussian interval for a skewed posterior.
+  const quantile=(target:number):number=>{
+    let cumulative=0;
+    for(let j=0;j<weights.length;j++){
+      cumulative+=weights[j]!;
+      if(cumulative>=target)return grid[j]!;
+    }
+    return grid[grid.length-1]!;
+  };
+  const interval:readonly [number,number]|null=answers.length?
+    [quantile(.025),quantile(.975)]:null;
   return {status:"model_based",theta,variance,standardError:Math.sqrt(variance),
+    modelCredibleInterval95:interval,
+    userAbilityRelease:"blocked_pending_independent_validation",
     evidenceCount:answers.length,calibrationVersion,grid,weights};
 }
 /**

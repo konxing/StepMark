@@ -331,3 +331,9 @@ Here `m` is the *predeclared* number of 1–6 simultaneously examined domains, a
 - PostgreSQL multiuser integration checks authentication, zero response leakage before full-form completion, mismatch/fingerprint rejection, different users' independent evidence, and that training attempts are excluded from cognitive ability. No DB schema migration, historical user score rescaling, or private research-bank publication.
 
 External algorithm comparisons (ICAR IRT, etc.) validate implementations on *their own* populations, **not** original StepMark content. Key sources: [AERA/APA/NCME standards](https://ncme.org/resources/books/testing-standards/), [COSMIN 2.0](https://pmc.ncbi.nlm.nih.gov/articles/PMC11541334/), [reliable change and practice effects](https://pmc.ncbi.nlm.nih.gov/articles/PMC11345114/), [device bias](https://pubmed.ncbi.nlm.nih.gov/33954913/). This document deliberately does not claim a validated cognitive test.
+
+### EAP posterior uncertainty (2026-11-18)
+
+`packages/core/src/adaptive.ts` now computes a discrete equal-tailed 95% model posterior interval from the same fixed quadrature weights as EAP. Unlike `theta ± 1.96*SE`, this allows asymmetric distributions near extremes. Zero responses yield `modelCredibleInterval95: null`; all such outputs are tagged `userAbilityRelease: "blocked_pending_independent_validation"`, and are not presented as validated 95%-coverage user measurements.
+
+*Crucial distinction:* Bayesian model posterior mass conditional on 2PL item parameters and an N(0,1) prior is not empirically demonstrated 95% interval coverage. Only independent person-level held-out validation in the target population can justify that interpretation. No StepMark original item calibration or user population norms are inferred from this change.

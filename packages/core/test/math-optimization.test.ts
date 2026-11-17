@@ -20,6 +20,11 @@ test("EAP shrinks uncertainty and respects monotonic item evidence",()=>{
   const correct=estimateThetaEap([{item:item("q1",0),correct:true}],version);
   const wrong=estimateThetaEap([{item:item("q1",0),correct:false}],version);
   assert.ok(Math.abs(none.theta)<1e-10);
+  assert.equal(none.modelCredibleInterval95,null,"no item responses must not yield personal CI");
+  assert.equal(none.userAbilityRelease,"blocked_pending_independent_validation");
+  assert.ok(correct.modelCredibleInterval95);
+  assert.ok(correct.modelCredibleInterval95[0]<=correct.theta);
+  assert.ok(correct.modelCredibleInterval95[1]>=correct.theta);
   assert.ok(correct.theta>0 && wrong.theta<0);
   assert.ok(correct.standardError<none.standardError);
   assert.throws(()=>estimateThetaEap([{item:item("q1",0),correct:true},{item:item("q1",0),correct:false}],version));
@@ -76,4 +81,21 @@ test("one-pass expected variance reduction agrees with explicit conditional post
     candidates:[c],calibrationVersion:version});
   assert.ok(selected);
   assert.ok(Math.abs(selected.expectedVarianceReduction-explicit)<1e-9);
+});
+
+test("EAP model posterior interval reflects observations, but is never a validated ability CI",()=>{
+  const short=[{item:item("s0",0),correct:true}];
+  const long=Array.from({length:40},(_,i)=>({
+    item:item("t"+i,0),correct:i<28
+  }));
+  const a=estimateThetaEap(short,version);
+  const b=estimateThetaEap(long,version);
+  assert.ok(b.modelCredibleInterval95);
+  assert.ok(a.modelCredibleInterval95);
+  const width=(ci:readonly [number,number])=>ci[1]-ci[0];
+  assert.ok(width(b.modelCredibleInterval95!)<width(a.modelCredibleInterval95!));
+  assert.ok(b.modelCredibleInterval95![0]<=b.theta);
+  assert.ok(b.modelCredibleInterval95![1]>=b.theta);
+  assert.equal(b.evidenceCount,40);
+  assert.equal(b.userAbilityRelease,"blocked_pending_independent_validation");
 });
