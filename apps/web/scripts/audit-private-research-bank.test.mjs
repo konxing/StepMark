@@ -86,3 +86,15 @@ test("reject invalid JSON, output no details of private content",async()=>{
     await assert.rejects(()=>auditPrivateResearchBankFile(path),/PRIVATE_BANK_JSON_INVALID/);
   }finally{await rm(folder,{recursive:true,force:true});}
 });
+
+test("missing private file never leaks absolute local paths in process diagnostics",()=>{
+  const fake=join(tmpdir(),"stepmark-private-bank-no-such-"+randomUUID()+".json");
+  const child=spawnSync(process.execPath,[
+    fileURLToPath(new URL("./audit-private-research-bank.mjs",import.meta.url)),
+    "--input",fake
+  ],{encoding:"utf8"});
+  assert.notEqual(child.status,0);
+  assert.match(child.stderr,/PRIVATE_BANK_ACCESS_OR_READ_FAILED/);
+  assert.equal(child.stderr.includes(fake),false);
+  assert.equal(child.stdout,"");
+});

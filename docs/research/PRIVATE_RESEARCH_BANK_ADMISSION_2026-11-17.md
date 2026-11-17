@@ -44,3 +44,9 @@ node apps/web/scripts/audit-private-research-bank.mjs --input "D:\stepmark-priva
 此脚本没有检测内容是否真实原创、题目正确答案是否科学准确、跨卷等值、IRT 校准、中文成年常模、知识泄漏与心理效度。近似重复只采用文本双字符相似度作为**需人工审核的告警**。内容版本发布和密钥管理**尚未实现**。任何真实题目都应先经双人盲审、版权确认、内容效度检查与题库隔离，再考虑是否具备进入研究系统的条件。
 
 现有 `GET /api/v1/tasks` 仅允许当前两卷的显式编号；`POST /api/v1/assessments` 会拒绝未知卷号。新研究草案不会通过生产接口暴露或评分。无新增 Prisma 迁移。
+
+## 2026-11-17 API fail-closed regression
+
+Added real PostgreSQL multiuser integration coverage for a deliberately *misconfigured* research draft Task with `publishedAt` in the past. The authenticated generic task list must omit its ID, prompt and explanation; `GET /api/v1/tasks?form=research-logic-a-v2` must respond 400; answer submission by guessed Task UUID must fail 503 before any attempt is created; and the existing form overview must not include it. The test leaves no research item in the database. This regression is a current-code protection boundary, **not** an authorization to import private questions or deploy a production private testing workflow.
+
+The CLI now emits only allowlisted error codes even for OS filesystem failures, preventing accidental disclosure of a researcher's absolute private-bank path through stderr.

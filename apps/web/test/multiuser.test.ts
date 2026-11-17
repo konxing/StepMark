@@ -880,3 +880,48 @@ test("many newer unrated and AI diary rows cannot crowd out historical direct ra
     await db.user.deleteMany({where:{id:{in:[owner.id,neighbor.id]}}});
   }
 });
+
+test("unreviewed research draft forms cannot be accessed even if accidentally marked published",async()=>{
+  const user=await db.user.create({data:{},select:{id:true}});
+  const candidateId=randomUUID();
+  const formCode="research-logic-a-v2";
+  const content={kind:"single_choice_v1",prompt:"Unpublished research candidate that must not reach public clients",
+    options:[{key:"A",label:"Choice alpha"},{key:"B",label:"Choice beta"},
+      {key:"C",label:"Choice gamma"},{key:"D",label:"Choice delta"}],
+    correctKey:"A",explanation:"Research-only scorer key; never sent to clients."};
+  try{
+    const task=await db.task.create({data:{
+      id:candidateId,constructCode:"reasoning.logic",version:"research-draft-2",
+      formCode,formOrder:1,skillCode:"conditional",content,
+      // This deliberate mistaken public date tests the defense in depth.
+      publishedAt:new Date(Date.now()-3600000)
+    }});
+    assert.equal(task.id,candidateId);
+    const token=(await issueSession(user.id,"WECHAT")).token;
+    const list=await tasksGET(req(
+      "/api/v1/tasks?construct=reasoning.logic&form="+formCode,
+      "GET",undefined,token,"WECHAT"));
+    assert.equal(list.status,400,"private form name must not become a public selection");
+    const unscoped=await tasksGET(req("/api/v1/tasks?construct=reasoning.logic",
+      "GET",undefined,token,"WECHAT"));
+    assert.equal(unscoped.status,200);
+    const exposed=await unscoped.text();
+    assert.equal(exposed.includes(candidateId),false);
+    assert.equal(exposed.includes(content.prompt),false);
+    assert.equal(exposed.includes(content.explanation),false);
+    const post=await assessPOST(req("/api/v1/assessments","POST",
+      {taskId:candidateId,selectedKey:"A"},token,"WECHAT"));
+    assert.equal(post.status,503,"unknown form must fail closed at submission");
+    assert.equal(await db.assessmentAttempt.count({where:{userId:user.id,taskId:candidateId}}),0);
+    const overview=await formOverviewGET(req(
+      "/api/v1/assessment-forms","GET",undefined,token,"WECHAT"));
+    assert.equal(overview.status,200);
+    const body=await overview.text();
+    assert.equal(body.includes(formCode),false);
+    assert.equal(body.includes(candidateId),false);
+    assert.equal(body.includes(content.prompt),false);
+  }finally{
+    await db.task.deleteMany({where:{id:candidateId}});
+    await db.user.deleteMany({where:{id:user.id}});
+  }
+});

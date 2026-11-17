@@ -127,6 +127,11 @@ async function main(){
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href)
   main().catch(error=>{
-    process.stderr.write("PRIVATE_BANK_ADMISSION_BLOCKED: "+String(error?.message||"INVALID")+"\n");
+    // Filesystem errors can embed private absolute paths. Only allow controlled
+    // validator error codes to escape; never print arbitrary exception text.
+    const message=typeof error?.message==="string"?error.message:"";
+    const code=/^PRIVATE_[A-Z0-9_]+$|^USAGE_NODE_AUDIT_PRIVATE_BANK_INPUT_ABSOLUTE_PATH$/.test(message)?
+      message:"PRIVATE_BANK_ACCESS_OR_READ_FAILED";
+    process.stderr.write("PRIVATE_BANK_ADMISSION_BLOCKED: "+code+"\n");
     process.exitCode=1;
   });
