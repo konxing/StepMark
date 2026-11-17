@@ -127,3 +127,26 @@ node apps/web/scripts/private-review-crypto.mjs --verify --bank "D:\stepmark-pri
 将三个独立生成的 `signed-*.json` 放入外部 `signed-reviews.json` 的 `reviews` 数组，同时设 `kind: "stepmark-signed-bank-review-v1"` 与完整 `bankSha256`。角色名单、审阅时间、审核结果和所有六项维度均纳入签名消息；篡改签名后不得通过，绝不根据传入审核清单自行信任某个新公钥。支持一次性保存签核文件（不能覆盖），保护私有路径不进入错误输出。
 
 **安全限定：** 验证成功仅意味着受信任公钥对应的私钥签署了所述内容，不代表审核者真实身份已通过法律意义的 KYC，不代表内容效度、版权授权或真人独立校准成功。输出仍为 `BLOCKED_UNTIL_REAL_CALIBRATION_AND_AUTHORIZED_RELEASE`；本工具**没有生产发布 API 或数据库写入权限**。信任注册表自身也需要 OWNER 的离线可信保管、密钥轮换和撤销策略，不能让提交审核的同一方替换信任注册表来伪造审核。
+
+## 2026-11-17 AES-256-GCM 题库离线封存（已实现）
+
+新增 `apps/web/scripts/private-bank-vault.mjs`，支持原始私有题库在**不进入数据库、不进入 GitHub、不进入网页或微信小程序**的前提下，使用 AES-256-GCM 加密成研究专用封存文件，并直接在内存中解密后复核三份 Ed25519 签核。**不提供任何生产启用或发布接口。**
+
+密钥需由 32 字节密码学随机数产生，不是用户输入的短口令。例如 Windows PowerShell 中使用 Node：
+
+```powershell
+node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"
+```
+
+将这个 43 字符值通过你控制的安全环境变量 `STEPMARK_PRIVATE_BANK_KEY_B64URL` 提供给进程，**不要**写入仓库、CI secrets、命令行参数、聊天内容或普通日志。首次生成后必须用安全的离线方式备份；丢失密钥时不能恢复加密题库。
+
+```powershell
+node apps/web/scripts/private-bank-vault.mjs --seal --input "D:\stepmark-private\research-bank.json" --output "D:\stepmark-private\bank.encrypted.json"
+node apps/web/scripts/private-bank-vault.mjs --audit --bundle "D:\stepmark-private\bank.encrypted.json" --reviews "D:\stepmark-private\signed-reviews.json" --trust "D:\stepmark-private\trusted-reviewers.json"
+```
+
+文件包含随机 96 位 GCM nonce、128 位校验标签、密文、源 SHA-256，且源 SHA-256 被放入 GCM 的附加认证上下文，防止密文和版本说明相互替换。严禁重用密钥与 nonce 的同一组合（工具使用随机 nonce），不可将环境变量值写进日志。即使题库文件被搬运或篡改，也必须通过密钥和认证后才能进行版本与签名校验。CLI 只输出聚合计数、源哈希和**继续阻断发布**的状态；不会解密打印题目或将明文写回磁盘。加密并不证明内容原创、测量效度、审核者真实身份或实际项目被授权。
+
+工具拒绝仓库内的输入输出路径、非标准封存格式、意外覆盖、错误密钥、GCM 认证不通过和签名不一致。相关 CI 使用临时合成题库、运行时临时随机密钥与审核者密钥，不包含真实保密题目。要注意：一旦用户使用明文原始 JSON 编写题库，**该原文件仍需独立保护或在确认备份后安全处理**；加密封存并不自动清除先前的明文副本。
+
+此封存只适合 OWNER 控制的离线研究资料存储，并不构成面向不受信任用户的在线题目交付架构。正式测验还需要题目最小暴露、实验会话授权、反作弊与独立信效度验证。本轮没有打开任何生产访问途径。
