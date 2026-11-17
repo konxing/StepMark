@@ -1,5 +1,6 @@
 import {getDb} from "./db";
 import {verifyTaskAttemptEvidence} from "./assessment-integrity";
+import {describePublicReasoningEvidence,type ObservedForm} from "@stepmark/core";
 
 /**
  * Original, independent, deliberately UNCALIBRATED short forms.
@@ -111,7 +112,17 @@ export async function getLogicFormOverview(userId:string,now=new Date()){
       gt:new Date(first.completedAt!),lt:new Date(second.completedAt!)
     }}
   }):null;
-  return {construct:"reasoning.logic",forms,
+  // Evidence-grade projection is derived ONLY from tenant-scoped, already
+  // visibility-filtered form summaries. No raw answers, AI, habit, practice,
+  // AbilityEstimate or unpublished Task data enter the ability layer.
+  const observed:ObservedForm[]=forms.map(form=>({
+    code:form.code,status:form.status,total:FORM_SIZE,attempted:form.attempted,
+    correct:form.status==="completed"?form.correct:null,
+    completedAt:form.status==="completed"?form.completedAt:null,
+    integrityStatus:form.integrityStatus
+  }));
+  const measurementEvidence=describePublicReasoningEvidence(observed);
+  return {construct:"reasoning.logic",forms,measurementEvidence,
     comparison:comparison?{...comparison,practiceAttemptsBetweenForms}:null,
     interpretation:"Raw independent-form performance only. Forms are not equated, " +
       "item counts are small, and a higher result is not validated ability growth. " +

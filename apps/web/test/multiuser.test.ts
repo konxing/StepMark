@@ -25,6 +25,7 @@ import {GET as tasksGET} from "../src/app/api/v1/tasks/route";
 import {POST as assessPOST,GET as assessGET} from "../src/app/api/v1/assessments/route";
 import {GET as practiceGET,POST as practicePOST} from "../src/app/api/v1/practice/route";
 import {GET as formOverviewGET} from "../src/app/api/v1/assessment-forms/route";
+import {GET as measurementEvidenceGET} from "../src/app/api/v1/measurement-evidence/route";
 
 const db=getDb();
 function req(path:string,method:string,body?:unknown,token?:string,kind:"WEB"|"WECHAT"="WEB",origin="http://localhost:3000"){
@@ -556,6 +557,20 @@ test("independent logic forms require elapsed retest time and expose only owned 
     assert.deepEqual(first.forms.map(x=>[x.code,x.status]),[
       ["logic-a-v1","ready"],["logic-b-v1","locked"]]);
     assert.equal(first.comparison,null);
+    assert.equal((await measurementEvidenceGET(req("/api/v1/measurement-evidence","GET"))).status,401);
+    const firstEvidence=await measurementEvidenceGET(req("/api/v1/measurement-evidence",
+      "GET",undefined,token,"WECHAT"));
+    assert.equal(firstEvidence.status,200);
+    assert.equal(firstEvidence.headers.get("Cache-Control"),"private, no-store");
+    const initialEvidence=await firstEvidence.json() as {
+      evidenceGrade:string;ability:{theta:number|null;populationPercentile:number|null};
+      change:{status:string};verifiedCompletedItems:number
+    };
+    assert.equal(initialEvidence.evidenceGrade,"E0");
+    assert.equal(initialEvidence.ability.theta,null);
+    assert.equal(initialEvidence.ability.populationPercentile,null);
+    assert.equal(initialEvidence.change.status,"insufficient_evidence");
+    assert.equal(initialEvidence.verifiedCompletedItems,0);
     const formTasks=async(form:string,t:string)=>tasksGET(req(
       "/api/v1/tasks?construct=reasoning.logic&form="+form,"GET",undefined,t,"WECHAT"));
     const aRaw=await formTasks("logic-a-v1",token);
@@ -587,6 +602,12 @@ test("independent logic forms require elapsed retest time and expose only owned 
         const mid=await overview(token);
         const midData=await mid.json() as {forms:{reviews:unknown[]}[]};
         assert.deepEqual(midData.forms[0]!.reviews,[]);
+        const interim=await (await measurementEvidenceGET(req(
+          "/api/v1/measurement-evidence","GET",undefined,token,"WECHAT"))).json() as {
+          observations:{itemsCorrect:number|null}[];ability:{theta:number|null}
+        };
+        assert.equal(interim.observations[0]!.itemsCorrect,null);
+        assert.equal(interim.ability.theta,null);
         // Neither general score history nor personal export may reveal
         // correctness while the independent form is unfinished.
         const history=await assessGET(req("/api/v1/assessments","GET",undefined,token,"WECHAT"));
@@ -610,6 +631,17 @@ test("independent logic forms require elapsed retest time and expose only owned 
       status:string;correct:number|null;reviews:{taskId:string;correctKey:string}[];
       dimensions:{total:number;correct:number|null}[];availableAt:string|null}[]};
     assert.equal(completedBody.forms[0]!.status,"completed");
+    const firstCompletedEvidence=await (await measurementEvidenceGET(req(
+      "/api/v1/measurement-evidence","GET",undefined,token,"WECHAT"))).json() as {
+      evidenceGrade:string;verifiedCompletedItems:number;
+      observations:{itemsCorrect:number|null}[];
+      rawComparison:unknown;ability:{theta:number|null}
+    };
+    assert.equal(firstCompletedEvidence.evidenceGrade,"E0");
+    assert.equal(firstCompletedEvidence.verifiedCompletedItems,6);
+    assert.equal(firstCompletedEvidence.observations[1]!.itemsCorrect,null);
+    assert.equal(firstCompletedEvidence.rawComparison,null);
+    assert.equal(firstCompletedEvidence.ability.theta,null);
     const scoreHistory=await assessGET(req("/api/v1/assessments","GET",undefined,token,"WECHAT"));
     const historyItems=(await scoreHistory.json() as {attempts:{
       taskId:string;rawScore:number|null;scoreDeferred:boolean}[]}).attempts
@@ -641,6 +673,13 @@ test("independent logic forms require elapsed retest time and expose only owned 
     assert.equal(mismatched.forms[0]!.status,"unavailable");
     assert.equal(mismatched.forms[0]!.integrityStatus,"mismatch");
     assert.deepEqual(mismatched.forms[0]!.reviews,[]);
+    const rejectedMeasurement=await (await measurementEvidenceGET(req(
+      "/api/v1/measurement-evidence","GET",undefined,token,"WECHAT"))).json() as {
+      verifiedCompletedItems:number;blockedBy:string[];ability:{theta:number|null}
+    };
+    assert.equal(rejectedMeasurement.verifiedCompletedItems,0);
+    assert.ok(rejectedMeasurement.blockedBy.includes("TASK_CONTENT_MISMATCH"));
+    assert.equal(rejectedMeasurement.ability.theta,null);
     const masked=await (await assessGET(req("/api/v1/assessments","GET",
       undefined,token,"WECHAT"))).json() as {attempts:{
       taskId:string;rawScore:number|null;scoreDeferred:boolean}[]};
@@ -698,6 +737,31 @@ test("independent logic forms require elapsed retest time and expose only owned 
     assert.ok(Number.isFinite(summary.comparison.rawDifferencePoints));
     assert.ok(summary.comparison.daysApart>=7);
     assert.equal(summary.comparison.practiceAttemptsBetweenForms,1); // Other user's practice excluded.
+    const evidenceFinal=await measurementEvidenceGET(req(
+      "/api/v1/measurement-evidence","GET",undefined,token,"WECHAT"));
+    const textFinal=await evidenceFinal.text();
+    assert.equal(textFinal.includes("correctKey"),false);
+    assert.equal(textFinal.includes("explanation"),false);
+    assert.equal(textFinal.includes("selectedKey"),false);
+    const evidenceJson=JSON.parse(textFinal) as {
+      verifiedCompletedItems:number;rawComparison:{rawDifferencePoints:number}|null;
+      change:{status:string;mdc95:number|null;reliableChange:number|null};
+      ability:{theta:number|null;populationPercentile:number|null}
+    };
+    assert.equal(evidenceJson.verifiedCompletedItems,12);
+    assert.equal(evidenceJson.rawComparison!.rawDifferencePoints,summary.comparison.rawDifferencePoints);
+    assert.equal(evidenceJson.change.status,"insufficient_evidence");
+    assert.equal(evidenceJson.change.mdc95,null);
+    assert.equal(evidenceJson.change.reliableChange,null);
+    assert.equal(evidenceJson.ability.theta,null);
+    assert.equal(evidenceJson.ability.populationPercentile,null);
+    const otherEvidence=await (await measurementEvidenceGET(req(
+      "/api/v1/measurement-evidence","GET",undefined,other,"WECHAT"))).json() as {
+      verifiedCompletedItems:number;rawComparison:unknown;observations:{itemsCorrect:number|null}[]
+    };
+    assert.equal(otherEvidence.verifiedCompletedItems,0);
+    assert.equal(otherEvidence.rawComparison,null);
+    assert.ok(otherEvidence.observations.every(x=>x.itemsCorrect===null));
     assert.equal(await db.abilityEstimate.count({where:{userId:a.id}}),0);
   }finally{
     await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});

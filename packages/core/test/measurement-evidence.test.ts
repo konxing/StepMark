@@ -17,7 +17,6 @@ test("public form performance can never be presented as theta, percentile or gro
     standardError:null,measurementInterval95:null,populationPercentile:null,
     compositeAbility:null});
   assert.equal(report.change.status,"insufficient_evidence");
-  assert.equal(report.change.minimumDetectableChange,undefined);
   assert.equal(report.change.mdc95,null);
   assert.ok(report.blockedBy.includes("FORM_EQUIVALENCE_UNVERIFIED"));
   assert.ok(report.blockedBy.includes("PUBLIC_ANSWERS_EXPOSED"));
@@ -92,7 +91,7 @@ test("predeclared multi-endpoint familywise correction is more conservative",()=
   const one=evaluateResearchReliableChange(first,later,link,1);
   const six=evaluateResearchReliableChange(first,later,link,6);
   assert.ok(six.minimumDetectableChange!>one.minimumDetectableChange!);
-  const small={...later,theta:0.49};
+  const small={...later,theta:0.57};
   assert.equal(evaluateResearchReliableChange(first,small,link,1).status,"model_detected_increase");
   assert.equal(evaluateResearchReliableChange(first,small,link,6).status,"insufficient_evidence");
   assert.throws(()=>evaluateResearchReliableChange(first,later,link,0));

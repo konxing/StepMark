@@ -1,5 +1,6 @@
 "use client";
 import HabitGrowthPanel from "./habit-growth-panel";
+import MeasurementEvidencePanel from "./measurement-evidence-panel";
 import AssistantChatPanel from "./assistant-chat-panel";
 import {useCallback,useEffect,useState} from "react";
 type Habit={id:string;title:string;cue:string|null;action:string;createdAt:string;_count:{events:number;checks:number}};
@@ -149,6 +150,7 @@ export default function DashboardClient({email}:{email:string}) {
       </div>
     </section>}
     <p className="assessment-link"><a href="/assess">开始实验性逻辑推理测量 ↗</a> · <a href="/practice">进行独立题库的推理专项训练 ↗</a></p>
+    <MeasurementEvidencePanel/>
     <section className={showManual?"dashboard-grid":"dashboard-grid dashboard-grid-single"}>
       {showManual&&<article className="dashboard-panel"><h2>手动建立习惯（备用入口）</h2>
         <form className="account-form" onSubmit={create}>

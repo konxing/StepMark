@@ -303,3 +303,31 @@ If no new rating is added, then \(w_i\) and the resulting weighted automaticity 
 **Implementation:** `packages/core/src/habit-progress.ts`, owner-scoped limited historical reads in the API and due-review selector, unit test comparing progress at +150 days with no added rating, real PostgreSQL test comparing a private note at 190 days, and updated Web / WeChat UI.
 
 The remaining scientific challenge is to validate reliability of 0–4 single-item initiation ratings against a suitable independent habit scale, with adequate sensitivity to genuine habit change. The corrected display does **not** validate the progress score, nor can it establish that a user maintained a habit during the silent interval.
+
+## Measurement Evidence Engine v1 (2026-11-18)
+
+Based on the November 2026 deep research findings and the AERA/APA/NCME testing standards, StepMark now enforces separate pipelines for:
+
+- `E0`: observed task performance — attempted, correct, timestamps and evidence fingerprint. Public demo questions and practice are **never** converted into latent ability or population percentiles.
+- `E1–E4`: proposed future content, reliability, validity and invariance review gates. These require real *independent* evidence; they are not assigned by AI confidence.
+- `E5`: longitudinal change only with independently supported scale linking, real practice-effect estimates, test–retest reliability, error independence and validated measurement standard errors.
+- `E6`: independently replicated external validation (not yet available for StepMark's original Chinese items).
+
+The new pure core module `packages/core/src/measurement-evidence.ts` implements (a) a **fail-closed E0 projection** for the current published A/B demo; (b) a research-only practice-adjusted reliable-change calculation:
+
+```text
+  Δadjusted = theta_followup - theta_baseline - expected_practice_effect
+  SEΔ = sqrt(SEbaseline² + SEfollowup² + SEpractice² + SElinking²)
+  MDC95 / familywise adjusted threshold = z(1 - 0.05/(2*m)) * SEΔ
+```
+
+Here `m` is the *predeclared* number of 1–6 simultaneously examined domains, and Bonferroni controls the familywise error rate under the specified model. The model requires explicit evidence of reliable scale linking, time invariance, independent test–retest and practice modeling; no default practice-effect=0 substitution. **MDC is meaningful only with valid empirical SE and scale assumptions.** The 18-item and 200-person holdout and 0.80 lower reliability bound are StepMark pilot **engineering proposal thresholds**, not published universal laws or actual validation results.
+
+### Production-facing changes
+
+- `GET /api/v1/measurement-evidence` requires the user's authenticated principal, projects only that user's current demo form summaries, sets `Cache-Control: private, no-store`, excludes answer keys/content, and exposes `ability.theta: null`, `populationPercentile: null`, `reliableChange: null`, `mdc95: null`, with explicit `insufficient_evidence`.
+- `GET /api/v1/assessment-forms` includes the same `measurementEvidence` field without changing its previous form/results shape; unfinished form correctness remains hidden. Stale/legacy task fingerprint status stays visible as metadata.
+- Dashboard and assessment page now show the `E0` evidence grade and explain missing calibration and change evidence instead of inventing a 0–100 total or improvement ratio.
+- PostgreSQL multiuser integration checks authentication, zero response leakage before full-form completion, mismatch/fingerprint rejection, different users' independent evidence, and that training attempts are excluded from cognitive ability. No DB schema migration, historical user score rescaling, or private research-bank publication.
+
+External algorithm comparisons (ICAR IRT, etc.) validate implementations on *their own* populations, **not** original StepMark content. Key sources: [AERA/APA/NCME standards](https://ncme.org/resources/books/testing-standards/), [COSMIN 2.0](https://pmc.ncbi.nlm.nih.gov/articles/PMC11541334/), [reliable change and practice effects](https://pmc.ncbi.nlm.nih.gov/articles/PMC11345114/), [device bias](https://pubmed.ncbi.nlm.nih.gov/33954913/). This document deliberately does not claim a validated cognitive test.

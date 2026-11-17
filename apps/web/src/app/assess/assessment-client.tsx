@@ -8,7 +8,18 @@ type Review={taskId:string;taskVersion:string;skillCode:string|null;prompt:strin
 type FormSummary={code:string;title:string;phase:string;status:string;total:number;attempted:number;
   integrityStatus:"verified"|"legacy_unverified"|"mismatch";legacyAttemptCount:number;
   correct:number|null;completedAt:string|null;availableAt:string|null;dimensions:Dimension[];reviews:Review[]};
-type Overview={forms:FormSummary[];comparison:{
+type MeasurementEvidence={
+  policyVersion:"measurement-evidence-v1";evidenceGrade:"E0";
+  evidenceGradeLabel:string;verifiedCompletedItems:number;
+  ability:{status:"not_estimated";theta:null;standardError:null;
+    measurementInterval95:null;populationPercentile:null;compositeAbility:null};
+  change:{status:"insufficient_evidence";reliableChange:null;mdc95:null;
+    practiceAdjustedDelta:null;message:string};
+  blockedBy:string[];
+  observations:{code:string;status:string;itemsAttempted:number;itemsCorrect:number|null;
+    totalItems:number;observedAt:string|null;sourceIntegrity:string}[];
+};
+type Overview={forms:FormSummary[];measurementEvidence:MeasurementEvidence;comparison:{
   baselineCorrect:number;retestCorrect:number;total:number;rawDifferencePoints:number;daysApart:number;
   practiceAttemptsBetweenForms:number
 }|null;interpretation:string};
@@ -105,6 +116,18 @@ export default function AssessmentClient(){
           {form.status==="completed" && form.correct!==null?" · 答对 "+form.correct+" 道":""}</small>
       </button>)}
     </section>
+
+    {overview?.measurementEvidence&&<section className="assessment-report"
+      aria-label="测量证据等级与可信度">
+      <h2>能力测量证据等级：{overview.measurementEvidence.evidenceGrade}</h2>
+      <p><strong>{overview.measurementEvidence.evidenceGradeLabel}</strong>。
+        已完成且具备可核验题目指纹的作答：
+        {overview.measurementEvidence.verifiedCompletedItems} 题。</p>
+      <p><strong>正式能力估计：暂不可提供。</strong> 无校准后的 θ、测量区间、人口百分位或综合能力总分。</p>
+      <p><strong>可靠变化：证据不足。</strong> {overview.measurementEvidence.change.message}</p>
+      <p className="progress-caveat">能力分与习惯打卡、对话、AI 判断及日常练习相互隔离。
+        此处坚持仅展示能从当前测验记录得到的事实，不把不确定的变化显示成成长百分比。</p>
+    </section>}
 
     {overview?.comparison&&<section className="assessment-report" aria-label="跨时段比较">
       <h2>两次测验 · 原始表现对照</h2>
