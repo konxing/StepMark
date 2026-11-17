@@ -5,6 +5,7 @@ import {getDb} from "@/server/db";
 import {ApiError,boundedJson,enforceRateLimit,errorResponse,principalFromRequest,requireSameOrigin} from "@/server/security";
 import {getLogicFormOverview,isLogicFormCode} from "@/server/assessment-forms";
 import {taskContentDigest} from "@/server/assessment-integrity";
+import {isAllowedPublicDemoTask} from "@/server/public-assessment-policy";
 export const runtime="nodejs";
 export async function GET(request:NextRequest){
   try{
@@ -34,8 +35,12 @@ export async function POST(request:NextRequest){
     await enforceRateLimit("assessment-user",p.userId,40,60*60*1000);
     const db=getDb();
     const task=await db.task.findFirst({where:{id:taskId,publishedAt:{lte:new Date()}},
-      select:{id:true,version:true,content:true,formCode:true}});
+      select:{id:true,version:true,content:true,formCode:true,constructCode:true}});
     if(!task)throw new ApiError(404,"TASK_NOT_FOUND");
+    // formCode=null is NOT an authorization to publish any new task.
+    // Only the four immutable public demo IDs may use immediate feedback.
+    if(task.formCode===null&&!isAllowedPublicDemoTask(task))
+      throw new ApiError(404,"TASK_NOT_FOUND");
     if(task.formCode){
       if(!isLogicFormCode(task.formCode))throw new ApiError(503,"FORM_DEFINITION_INVALID");
       const overview=await getLogicFormOverview(p.userId);

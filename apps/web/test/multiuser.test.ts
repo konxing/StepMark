@@ -925,3 +925,38 @@ test("unreviewed research draft forms cannot be accessed even if accidentally ma
     await db.user.deleteMany({where:{id:user.id}});
   }
 });
+
+test("accidentally published unformed research item is never listed or scored",async()=>{
+  const user=await db.user.create({data:{},select:{id:true}});
+  const privateTaskId=randomUUID();
+  const content={kind:"single_choice_v1",prompt:"Research draft without a form code must never reach public assessment routes.",
+    options:[{key:"A",label:"Option alpha"},{key:"B",label:"Option beta"},
+      {key:"C",label:"Option gamma"},{key:"D",label:"Option delta"}],
+    correctKey:"B",explanation:"Private provisional answer is not approved for release."};
+  try{
+    await db.task.create({data:{
+      id:privateTaskId,constructCode:"reasoning.logic",version:"research-draft-2",
+      formCode:null,content,publishedAt:new Date(Date.now()-3600000)
+    }});
+    const token=(await issueSession(user.id,"WECHAT")).token;
+    const list=await tasksGET(req("/api/v1/tasks?construct=reasoning.logic",
+      "GET",undefined,token,"WECHAT"));
+    assert.equal(list.status,200);
+    const response=await list.text();
+    assert.equal(response.includes(privateTaskId),false);
+    assert.equal(response.includes(content.prompt),false);
+    assert.equal(response.includes(content.explanation),false);
+    const post=await assessPOST(req("/api/v1/assessments","POST",
+      {taskId:privateTaskId,selectedKey:"B"},token,"WECHAT"));
+    assert.equal(post.status,404);
+    assert.equal(await db.assessmentAttempt.count({
+      where:{userId:user.id,taskId:privateTaskId}}),0);
+    // A fresh user's already-published demo tasks remain usable.
+    const demos=JSON.parse(response) as {tasks:{id:string}[]};
+    assert.ok(demos.tasks.length>0);
+    assert.ok(demos.tasks.every(x=>x.id!==privateTaskId));
+  }finally{
+    await db.task.deleteMany({where:{id:privateTaskId}});
+    await db.user.deleteMany({where:{id:user.id}});
+  }
+});

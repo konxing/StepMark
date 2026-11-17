@@ -4,6 +4,7 @@ import {singleChoiceContentSchema} from "@stepmark/contracts";
 import {getDb} from "@/server/db";
 import {ApiError,errorResponse,principalFromRequest} from "@/server/security";
 import {getLogicFormOverview,isLogicFormCode} from "@/server/assessment-forms";
+import {PUBLIC_DEMO_TASK_IDS} from "@/server/public-assessment-policy";
 export const runtime="nodejs";
 export async function GET(request:NextRequest){
   try{
@@ -26,7 +27,8 @@ export async function GET(request:NextRequest){
     }
     const db=getDb();
     const forms=await db.task.findMany({
-      where:{constructCode:construct,publishedAt:{lte:new Date()},formCode:requestedForm??null},
+      where:{constructCode:construct,publishedAt:{lte:new Date()},formCode:requestedForm??null,
+        ...(requestedForm===null?{id:{in:[...PUBLIC_DEMO_TASK_IDS]},version:"demo-1"}:{})},
       orderBy:requestedForm?[{formOrder:"asc"},{id:"asc"}]:[{id:"asc"}],take:20,
       select:{id:true,version:true,content:true,skillCode:true}});
     const completed=await db.assessmentAttempt.findMany({where:{userId:p.userId,taskId:{in:forms.map(f=>f.id)}},

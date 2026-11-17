@@ -107,3 +107,7 @@ The existing `taskVersion` guard catches a version mismatch but cannot detect ac
 - Old attempts with **no** digest remain readable and are marked `legacy_unverified`; prior history is neither erased nor presented as verified fingerprints. Browser explicitly warns when a completed form contains legacy attempts.
 - The digest is not an authentication signature. A sufficiently privileged DB editor can change both task content and stored digest. Operationally, **published tasks must be immutable**; versioning and immutable publication snapshots are still recommended before scientific norming.
 - Deterministic unit tests check field-order independence, unchanged-version answer-key modifications, version drift and input rejection. No schema migration: Prisma's existing `AssessmentAttempt.evidence` JSON stores the fingerprint.
+
+## Formless task publication hardening (2026-11-17)
+
+Research items with a missing `formCode` could previously be exposed as generic standalone assessment tasks whenever `publishedAt` was in the past. The new `src/server/public-assessment-policy.ts` explicitly allows only the four existing public demonstration task IDs at `demo-1`. GET filters before reading task content, and POST rejects unknown formless IDs before scoring. Recognized A/B forms remain unchanged. This defense in depth is required even if research draft importing or DB administration is misconfigured; a later private bank release requires separate security review.

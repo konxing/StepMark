@@ -50,3 +50,11 @@ node apps/web/scripts/audit-private-research-bank.mjs --input "D:\stepmark-priva
 Added real PostgreSQL multiuser integration coverage for a deliberately *misconfigured* research draft Task with `publishedAt` in the past. The authenticated generic task list must omit its ID, prompt and explanation; `GET /api/v1/tasks?form=research-logic-a-v2` must respond 400; answer submission by guessed Task UUID must fail 503 before any attempt is created; and the existing form overview must not include it. The test leaves no research item in the database. This regression is a current-code protection boundary, **not** an authorization to import private questions or deploy a production private testing workflow.
 
 The CLI now emits only allowlisted error codes even for OS filesystem failures, preventing accidental disclosure of a researcher's absolute private-bank path through stderr.
+
+## 2026-11-17 fail-closed unformed task authorization
+
+Found and closed an important remaining publication bypass: previously any Task with `formCode=null` and a past `publishedAt` timestamp was accessible as a standalone task. If a future import accidentally omitted the research form code, an unreviewed item could be served by `GET /api/v1/tasks?construct=reasoning.logic` and receive immediate correctness feedback from `POST /api/v1/assessments`.
+
+Now both read and submit paths explicitly allow only the four already-public demo task IDs at version `demo-1`. Known A/B demonstration forms retain their existing independent deferred feedback rules. **No unpublished research task can be authorized by setting `publishedAt` alone**, even if it lacks `formCode`. A PostgreSQL integration test simulates this exact accidental misconfiguration and verifies no leaked content, no attempt creation, and continued demo availability.
+
+Adding a truly new task or construct will require an intentional, reviewed update to the server-side allowlist/publishing policy, rather than silently broadening scope. This is an additional API authorization boundary, not a secret question vault or psychometric validation.
