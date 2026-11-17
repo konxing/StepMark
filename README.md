@@ -244,3 +244,7 @@ The independent [MaRs-IB per-person predictive benchmark](docs/research/RESEARCH
 ## 2026-11-17 evidence robustness and original-test study planning
 
 Two research-only, non-production updates are available: [ICAR target-allocation sensitivity](docs/research/ICAR_VALIDATION_RESULTS_2026-11-13.md) and the [StepMark original six-item form independent validation protocol](docs/research/STEPMARK_ORIGINAL_ITEMS_CALIBRATION_PROTOCOL_2026-11-17.md). The pinned ICAR test held trained parameters constant and found small positive 2PL-vs-1PL Brier effects in three **dependent** item-target allocations (+0.002021/+0.001718/+0.001757); it is not an independent replication. A reproducible Monte Carlo research tool now stress-tests assigned study size, item count, missingness and null false positives, but no real StepMark participants were sampled and no StepMark ability-validity claim was made. Production APIs, user scores and Prisma schema are unchanged.
+
+## 2026-11-17 private research bank vault (offline only)
+
+Added authenticated [AES-256-GCM bank sealing and inspection](docs/research/PRIVATE_RESEARCH_BANK_ADMISSION_2026-11-17.md), with optional explicitly requested private local unsealing, plus externally pinned three-role Ed25519 review signatures. CLI works only on paths outside the public git working tree, never pushes private item material into production, and all review/validation gates remain blocked absent independent empirical evidence. No new live assessment forms, migrations, or changed user scoring.

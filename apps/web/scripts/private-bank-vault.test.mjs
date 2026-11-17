@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {randomUUID,randomBytes,generateKeyPairSync,createHash} from "node:crypto";
-import {mkdtemp,writeFile,rm} from "node:fs/promises";
+import {mkdtemp,writeFile,readFile,rm,stat} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {join} from "node:path";
 import {spawnSync} from "node:child_process";
@@ -89,6 +89,23 @@ test("CLI seals outside Git, audit uses signed review registry, never logs quest
       "--output",output],{encoding:"utf8",env});
     assert.equal(seal.status,0,seal.stderr);
     assert.equal(seal.stdout.includes(value.forms[0].items[0].prompt),false);
+    const inspect=spawnSync(process.execPath,[script,"--inspect","--bundle",output],
+      {encoding:"utf8",env});
+    assert.equal(inspect.status,0,inspect.stderr);
+    assert.equal(inspect.stdout.includes(value.forms[0].items[0].prompt),false);
+    assert.match(inspect.stdout,/BLOCKED_PENDING_AUTHORIZED_STUDY_RELEASE/);
+    const restored=join(dir,"restored-private.json");
+    const unseal=spawnSync(process.execPath,[script,"--unseal","--bundle",output,
+      "--output",restored],{encoding:"utf8",env});
+    assert.equal(unseal.status,0,unseal.stderr);
+    assert.equal(unseal.stdout.trim(),"PRIVATE_BANK_PLAINTEXT_CREATED_OUTSIDE_GIT");
+    assert.deepEqual(JSON.parse(await readFile(restored,"utf8")),value);
+    if(process.platform!=="win32")
+      assert.equal((await stat(restored)).mode & 0o077,0,"unsealed file is owner-only");
+    const again=spawnSync(process.execPath,[script,"--unseal","--bundle",output,
+      "--output",restored],{encoding:"utf8",env});
+    assert.notEqual(again.status,0);
+    assert.equal(again.stderr.includes(restored),false);
     const audit=spawnSync(process.execPath,[script,"--audit","--bundle",output,
       "--reviews",reviews,"--trust",trust],{encoding:"utf8",env});
     assert.equal(audit.status,0,audit.stderr);

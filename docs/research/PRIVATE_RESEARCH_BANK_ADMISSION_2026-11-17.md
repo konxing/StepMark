@@ -150,3 +150,14 @@ node apps/web/scripts/private-bank-vault.mjs --audit --bundle "D:\stepmark-priva
 工具拒绝仓库内的输入输出路径、非标准封存格式、意外覆盖、错误密钥、GCM 认证不通过和签名不一致。相关 CI 使用临时合成题库、运行时临时随机密钥与审核者密钥，不包含真实保密题目。要注意：一旦用户使用明文原始 JSON 编写题库，**该原文件仍需独立保护或在确认备份后安全处理**；加密封存并不自动清除先前的明文副本。
 
 此封存只适合 OWNER 控制的离线研究资料存储，并不构成面向不受信任用户的在线题目交付架构。正式测验还需要题目最小暴露、实验会话授权、反作弊与独立信效度验证。本轮没有打开任何生产访问途径。
+
+## 2026-11-17 私有研究包检查与本地解封
+
+加密模块还支持 `--inspect` 在内存中验证题库结构、版本与 GCM 认证，只显示题目总数和告警；`--unseal` 可**显式**把已通过认证的研究题库写到仓库之外的本地 JSON，便于人工审核。解封不会打印题目，目标必须是尚不存在的私有文件，POSIX 默认权限为 0600，不能写进仓库目录。
+
+```powershell
+node apps/web/scripts/private-bank-vault.mjs --inspect --bundle "D:\stepmark-private\bank.encrypted.json"
+node apps/web/scripts/private-bank-vault.mjs --unseal --bundle "D:\stepmark-private\bank.encrypted.json" --output "D:\stepmark-private\review-copy.json"
+```
+
+两者要求环境变量 `STEPMARK_PRIVATE_BANK_KEY_B64URL` 中的原始随机 32 字节密钥。解封会创建明文副本，必须由研究者控制访问、禁止同步/提交并妥善保管；只有 `--inspect` 和 `--audit` 模式完全不写出题目明文。加密不等于独立审题或心理测量校准。

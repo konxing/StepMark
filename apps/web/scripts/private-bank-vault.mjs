@@ -75,7 +75,7 @@ export function sealPrivateBankBytes(sourceBytes,keyEncoded){
     itemCount:info.itemCount,formCount:info.formCount,
     releaseGate:"BLOCKED_PENDING_AUTHORIZED_STUDY_RELEASE"}};
 }
-export function inspectSealedBank(envelope,keyEncoded){
+function decryptVerifiedBytes(envelope,keyEncoded){
   const {iv,tag,ciphertext}=parseEnvelope(envelope);
   const key=validKey(keyEncoded);
   let plaintext;
@@ -89,7 +89,13 @@ export function inspectSealedBank(envelope,keyEncoded){
   }
   if(digest(plaintext)!==envelope.sourceSha256)
     reject("PRIVATE_VAULT_AUTHENTICATION_FAILED");
-  const summary=validateBankBytes(plaintext);
+  return plaintext;
+}
+export function inspectSealedBank(envelope,keyEncoded){
+  const plaintext=decryptVerifiedBytes(envelope,keyEncoded);
+  let summary;
+  try{summary=validateBankBytes(plaintext);}
+  finally{plaintext.fill(0);}
   return {sourceSha256:envelope.sourceSha256,
     itemCount:summary.itemCount,formCount:summary.formCount,
     warnings:summary.warnings,
@@ -143,6 +149,23 @@ async function main(args){
     const output=sealPrivateBankBytes(raw,key);
     await privateOutput(args[4],JSON.stringify(output.envelope)+"\n");
     process.stdout.write(JSON.stringify(output.summary)+"\n");
+    return;
+  }
+  if(args.length===3&&args[0]==="--inspect"&&args[1]==="--bundle"){
+    const envelope=await privateJson(args[2]);
+    const result=inspectSealedBank(envelope,key);
+    process.stdout.write(JSON.stringify(result,null,2)+"\n");
+    return;
+  }
+  if(args.length===5&&args[0]==="--unseal"&&args[1]==="--bundle"&&
+    args[3]==="--output"){
+    const envelope=await privateJson(args[2]);
+    const plain=decryptVerifiedBytes(envelope,key);
+    try{
+      validateBankBytes(plain);
+      await privateOutput(args[4],plain);
+    }finally{plain.fill(0);}
+    process.stdout.write("PRIVATE_BANK_PLAINTEXT_CREATED_OUTSIDE_GIT\n");
     return;
   }
   if(args.length===7&&args[0]==="--audit"&&args[1]==="--bundle"&&
