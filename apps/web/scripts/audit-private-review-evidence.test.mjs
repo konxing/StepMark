@@ -55,7 +55,7 @@ test("reject changed bank bytes, duplicate reviewers, missing roles and expired 
   assert.throws(()=>auditPrivateReviewManifest(future,SHA,NOW),/DATE_INVALID/);
   const invalid=manifest();invalid.reviewers[0].checks.unexpected="pass";
   assert.throws(()=>auditPrivateReviewManifest(invalid,SHA,NOW),/ENTRY_INVALID/);
-  assert.throws(()=>auditPrivateReviewManifest(manifest(),SHA,new Date("invalid"))),/CONTEXT_INVALID/);
+  assert.throws(()=>auditPrivateReviewManifest(manifest(),SHA,new Date("invalid")),/CONTEXT_INVALID/);
 });
 test("offline CLI binds private bank and review manifest with no content leakage",async()=>{
   const folder=await mkdtemp(join(tmpdir(),"stepmark-opaque-reviews-"));
