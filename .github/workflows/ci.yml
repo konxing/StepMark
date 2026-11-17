@@ -54,6 +54,8 @@ jobs:
         run: node --test apps/web/scripts/audit-private-research-bank.test.mjs
       - name: Private bank multi-role review and source-binding regression tests
         run: node --test apps/web/scripts/audit-private-review-evidence.test.mjs
+      - name: Private Ed25519 signed review identity-boundary and tamper tests
+        run: node --test apps/web/scripts/private-review-crypto.test.mjs
       - name: WeChat JavaScript syntax check
         run: |
           node --check apps/wechat-miniapp/app.js

@@ -95,3 +95,35 @@ node apps/web/scripts/audit-private-review-evidence.mjs --bank "D:\\stepmark-pri
 ```
 
 **关键限制：** 本工具只核验**审核记录的格式与源版本绑定**，不能验证审核者身份、独立性或审核意见真实性。角色引用标识不是数字签名。即使三个角色都填写通过，程序仍固定输出 `BLOCKED_PENDING_AUTHENTICATED_REVIEW_AND_CALIBRATION`，不会授予生产题库发布、数据库写入或真实用户测量权限。后续必须设计身份认证的签核流程、题目版权审核与独立效度验证。
+
+## 2026-11-17 Ed25519 签核工具（已实现）
+
+除了早期仅记录审核角色的“未验证声明”，新增独立的 **Ed25519 离线签名与核验流程**：`apps/web/scripts/private-review-crypto.mjs`。使用 Node 内置 `crypto`，不依赖网络、AI 模型或数据库。
+
+信任根为**仓库之外**由项目 OWNER 独立管理的本地 JSON 注册表：
+
+```json
+{
+  "kind": "stepmark-offline-reviewer-trust-v1",
+  "reviewers": [
+    {
+      "reviewerRef": "reviewer-sample001",
+      "role": "content",
+      "publicKeySpkiPem": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
+    }
+  ]
+}
+```
+
+实际注册表须包含三名不同审核者分别对应 `content`、`psychometrics`、`rights_security`。Reviewer 私钥（PKCS#8 PEM）必须由各自独立产生、保存在仓库外且使用系统 ACL/密钥管理工具保护；不要把私钥内容上传 GitHub、AI、网盘或提交到应用。
+
+每个签名的输入是独立 `entry.json`，其字段为 `reviewerRef`、`role`、`bankSha256`、`reviewedOn`、`decision`、`checks`，其含义与前述审核清单一致。生成与核验命令：
+
+```powershell
+node apps/web/scripts/private-review-crypto.mjs --sign --entry "D:\stepmark-private\entry.json" --key "D:\stepmark-private\reviewer-key.pem" --output "D:\stepmark-private\signed-content.json"
+node apps/web/scripts/private-review-crypto.mjs --verify --bank "D:\stepmark-private\bank.json" --reviews "D:\stepmark-private\signed-reviews.json" --trust "D:\stepmark-private\trusted-reviewers.json"
+```
+
+将三个独立生成的 `signed-*.json` 放入外部 `signed-reviews.json` 的 `reviews` 数组，同时设 `kind: "stepmark-signed-bank-review-v1"` 与完整 `bankSha256`。角色名单、审阅时间、审核结果和所有六项维度均纳入签名消息；篡改签名后不得通过，绝不根据传入审核清单自行信任某个新公钥。支持一次性保存签核文件（不能覆盖），保护私有路径不进入错误输出。
+
+**安全限定：** 验证成功仅意味着受信任公钥对应的私钥签署了所述内容，不代表审核者真实身份已通过法律意义的 KYC，不代表内容效度、版权授权或真人独立校准成功。输出仍为 `BLOCKED_UNTIL_REAL_CALIBRATION_AND_AUTHORIZED_RELEASE`；本工具**没有生产发布 API 或数据库写入权限**。信任注册表自身也需要 OWNER 的离线可信保管、密钥轮换和撤销策略，不能让提交审核的同一方替换信任注册表来伪造审核。
