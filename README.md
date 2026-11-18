@@ -23,13 +23,14 @@ Windows Tauri 2 只读预览已开始实施，包含本地 UI、系统浏览器 
 
 ## 客户端优先的软件架构迁移
 
-已开始渐进式迁移：现有 Next.js 暂时继续承载统一后端 API，微信小程序保持原生实现；新增可配置的服务端 OpenAI-compatible AI 网关。独立桌面/移动软件与安全登录仍处于后续阶段，网页 UI 可暂缓开发，但当前后端不能停用。实施边界与技术决策见 [ADR-002 客户端优先架构](docs/architecture/CLIENT_FIRST_MIGRATION.md)。
+已开始渐进式迁移：现有 Next.js 暂时继续承载统一后端 API，微信小程序保持原生实现；新增可配置的服务端 OpenAI-compatible AI 网关。**Windows Tauri 2 只读预览客户端和系统浏览器 PKCE 安全登录已实现**；Android/iOS 独立 App 暂缓，网站和微信小程序继续维护，当前后端不能停用。已确认正式域名为 **stepmark.xin**，Windows CI 将自动生成绑定 https://stepmark.xin 的未签名预览安装包；域名 DNS/TLS/服务器仍须独立部署和验证。实施边界与技术决策见 [ADR-002 客户端优先架构](docs/architecture/CLIENT_FIRST_MIGRATION.md)。
 
 ## 目录
 
 ```text
 apps/web/                Next.js 页面、认证及 REST API、Prisma 模型和迁移
-apps/wechat-miniapp/     原生微信小程序（需要你的 AppID 和合法 HTTPS 域名）
+apps/wechat-miniapp/     原生微信小程序（公开 API 域名已设为 stepmark.xin；需后台登记）
+apps/desktop/            Tauri 2 Windows 只读预览客户端与安装包工作流
 packages/core/           与数据库/模型供应商无关的可验证公式
 packages/contracts/      版本化 Zod 请求/响应数据结构
 docs/research/           论文、公式来源、模型局限
