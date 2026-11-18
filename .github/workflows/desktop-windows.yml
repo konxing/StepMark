@@ -38,7 +38,25 @@ jobs:
           STEPMARK_API_ORIGIN: ${{ inputs.api_origin }}
         run: |
           $uri = [Uri]$env:STEPMARK_API_ORIGIN
-          if ($uri.Scheme -ne 'https' -or $uri.AbsoluteUri.TrimEnd('/') -ne $env:STEPMARK_API_ORIGIN -or $uri.Host -eq 'localhost' -or $uri.Host -match '^\d+\.\d+\.\d+\.\d+$') {
+          $authority = $uri.GetLeftPart([UriPartial]::Authority).TrimEnd('/')
+          if ($uri.Scheme -ne 'https' -or $authority -ne $env:STEPMARK_API_ORIGIN -or $uri.Port -ne 443 -or $uri.UserInfo -or $uri.Host -eq 'localhost' -or $uri.Host -match '^\d+\.\d+\.\d+\.\d+
+            throw 'A real HTTPS origin without path/query/fragment is required'
+          }
+      - name: Build unsigned Windows NSIS preview installer
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        env:
+          STEPMARK_API_ORIGIN: ${{ inputs.api_origin }}
+        working-directory: apps/desktop
+        run: npx --yes @tauri-apps/cli@2 build --ci
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: StepMark-Windows-unsigned-preview
+          path: apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
+          retention-days: 7
+) {
             throw 'A real HTTPS origin without path/query/fragment is required'
           }
       - name: Build unsigned Windows NSIS preview installer
