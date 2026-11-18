@@ -1,0 +1,32 @@
+name: Alibaba ECS Deployment Image Check
+on:
+  push:
+    paths:
+      - 'deploy/**'
+      - '.dockerignore'
+      - '.github/workflows/deployment-image.yml'
+      - 'package-lock.json'
+      - 'apps/web/**'
+      - 'packages/**'
+  pull_request:
+    paths:
+      - 'deploy/**'
+      - '.dockerignore'
+      - '.github/workflows/deployment-image.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  image-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate deployment isolation and canonical domain
+        run: node --test deploy/scripts/verify-config.test.mjs
+      - name: Build local Docker image (no registry push, no secrets)
+        run: docker build --file deploy/Dockerfile --tag stepmark:ci .
+      - name: Assert runtime image contains build and no private configuration
+        run: |
+          docker run --rm --entrypoint sh stepmark:ci -c \
+            'test -f /workspace/apps/web/.next/BUILD_ID && test ! -f /workspace/apps/web/.env && test ! -f /workspace/deploy/production.env && test ! -d /workspace/private-banks'

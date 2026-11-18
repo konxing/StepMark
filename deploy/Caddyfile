@@ -1,0 +1,7 @@
+# First issue the public certificate while Cloudflare DNS is DNS-only.
+# Only after HTTPS works, enable Cloudflare proxy with SSL/TLS Full (strict).
+# Do NOT use Cloudflare Flexible TLS or cache authenticated routes.
+stepmark.xin {
+  encode zstd gzip
+  reverse_proxy web:3000
+}

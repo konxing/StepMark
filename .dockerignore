@@ -1,0 +1,22 @@
+# Keep credentials, local data and private research banks out of build context.
+.git
+.github
+node_modules
+**/node_modules
+**/.next
+**/dist
+**/coverage
+**/.env
+**/.env.*
+.env
+.env.*
+deploy/production.env
+apps/web/src/generated
+apps/desktop
+apps/wechat-miniapp
+docs
+private-banks
+**/private-banks
+**/*.private-bank.json
+**/*.research-bank.private.json
+*.local
