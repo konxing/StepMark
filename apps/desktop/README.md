@@ -16,6 +16,9 @@ Windows 是当前优先的原生客户端。此目录提供本地静态 UI + Rus
 - 显示未归档习惯的只读列表。当前无离线缓存、离线队列、自动更新或跨设备冲突合并。
 - 现有 PostgreSQL/Prisma 表和历史用户数据完全不变。
 
+**账号限制：** 当前桌面端通过邮箱网页账号授权；微信 OpenID 与邮箱账号尚未自动绑定。
+即使使用同一人手机和电脑，两个不同身份的习惯也不会自动合并，避免越权访问。
+
 ## 本地开发（Windows）
 
 1. 安装 Rust stable、Visual Studio C++ Build Tools、WebView2 Runtime。
