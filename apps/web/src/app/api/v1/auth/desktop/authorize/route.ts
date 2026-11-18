@@ -44,6 +44,6 @@ export async function POST(request:NextRequest){
     const callback=new URL(redirectUri);
     callback.searchParams.set("code",code);
     callback.searchParams.set("state",state);
-    return NextResponse.redirect(callback,303,{headers:safeHeaders});
+    return NextResponse.redirect(callback,{status:303,headers:safeHeaders});
   }catch(error){return errorResponse(error);}
 }
