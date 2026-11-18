@@ -53,3 +53,8 @@ test("WeChat transport retains rate-limit, login expiry and network errors",asyn
     await assert.rejects(requestApi(base),/网络请求失败/);
   }finally{globalThis.wx=original;}
 });
+
+test("mini-program public endpoint is the owner-approved canonical origin",()=>{
+  const config=require("../config.js");
+  assert.deepEqual(config,{apiBase:"https://stepmark.xin"});
+});
