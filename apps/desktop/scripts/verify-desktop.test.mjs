@@ -27,3 +27,15 @@ test("native commands do not expose a session token to the webview",()=>{
   assert.match(rust,/fn sign_out\(/);
   assert.doesNotMatch(rust,/tauri_plugin_shell|tauri_plugin_http|window\.eval/);
 });
+
+test("installer is pinned to the owner's canonical HTTPS domain",()=>{
+  const workflow=read("../../.github/workflows/desktop-windows.yml");
+  assert.match(workflow,/STEPMARK_API_ORIGIN: https:\/\/stepmark\.xin/);
+  assert.match(workflow,/Build unsigned Windows NSIS preview installer/);
+  assert.match(workflow,/upload-artifact@v4/);
+  assert.doesNotMatch(workflow,/inputs\.api_origin|http:\/\/stepmark\.xin/);
+  const probe=read("scripts/check-deployment.mjs");
+  assert.match(probe,/const origin="https:\/\/stepmark\.xin"/);
+  assert.match(probe,/UNAUTHENTICATED/);
+  assert.doesNotMatch(probe,/authorization|cookie/i);
+});
