@@ -31,8 +31,8 @@ test("WeChat transport rejects invalid endpoints and absent sessions before netw
       "https://user@api.stepmark.example","https://127.0.0.1:8443"]){
       await assert.rejects(requestApi({...base,apiBase}),/HTTPS API 域名/);
     }
-    for(const path of ["https://evil.example","//evil.example","/api/v1/../secrets"]){
-      if(path==="/api/v1/../secrets")continue;
+    for(const path of ["https://evil.example","//evil.example","/api/v1/../secrets",
+      "/api/v1/%2e%2e/secrets"]){
       await assert.rejects(requestApi({...base,path}),/不支持的 API 请求/);
     }
     await assert.rejects(requestApi({...base,accessToken:null}),/登录信息已过期/);

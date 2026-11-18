@@ -11,6 +11,7 @@ function requestApi({apiBase,path,method="GET",data,accessToken,authenticated=tr
   }
   if(typeof path!=="string"||!path.startsWith("/api/v1/")||
      path.startsWith("//")||path.includes("#")||path.includes("\\")||
+     /(?:^|\/)\.\.?\//.test(path)||/%2e|%2f|%5c/i.test(path)||
      !/^(GET|POST|PUT|DELETE)$/.test(method)){
     return Promise.reject(new Error("不支持的 API 请求"));
   }
