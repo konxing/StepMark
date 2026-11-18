@@ -1,7 +1,18 @@
-# stepmark.xin 域名部署与 Windows 预览验收
+## 2026-11-18 实际公网探测结果
 
-状态：域名已由项目负责人确认购买；**不表示已完成 DNS、TLS 或生产服务部署**。
-唯一规范 origin：**https://stepmark.xin**。桌面包在编译时固定该地址。
+[Windows 预览构建及只读域名探测](https://github.com/konxing/StepMark/actions/runs/44284262204)
+已完成：Windows NSIS 构建成功，上传约 2.75 MiB 未签名安装包。
+stepmark.xin DNS 返回 2 个地址，HTTPS 握手可用，但
+GET https://stepmark.xin/api/v1/me 返回 **HTTP 530 / text/plain**，
+而不是 StepMark 后端应有的 **401 / application/json**。
+探测因此明确判定 **Public API NOT READY**；工作流的非阻断探测不会
+把这个失败误称为已部署。
+
+530 可能与 CDN/反向代理到源站的路由、源站 DNS 或源站可用性有关；
+仅凭该状态码不能断言具体原因。拥有 DNS/托管平台权限的操作者应核查：
+实际 DNS 记录及代理模式、CDN 错误详情、源站健康状态、入站 443/80、
+TLS 模式与证书、反向代理 upstream、Next.js 服务是否监听、服务器私有
+APP_ORIGIN 及数据库连接。修复后重新运行只读探测，才可以开始真机登录验收。
 
 ## 域名与服务器（由拥有 DNS 和主机权限的操作者执行）
 
