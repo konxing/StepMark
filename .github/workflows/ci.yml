@@ -61,7 +61,10 @@ jobs:
       - name: WeChat JavaScript syntax check
         run: |
           node --check apps/wechat-miniapp/app.js
+          node --check apps/wechat-miniapp/lib/api.js
           node --check apps/wechat-miniapp/pages/index/index.js
+      - name: Mini-program transport boundary and authorization regression tests
+        run: node --test apps/wechat-miniapp/scripts/api-client.test.mjs
       - name: Mini-program structural and mobile layout contract checks
         run: node --test apps/wechat-miniapp/scripts/verify-layout.test.mjs
       - name: Deploy committed database migrations to clean PostgreSQL

@@ -1,3 +1,4 @@
+const {requestApi}=require("../../lib/api");
 const TOKEN_KEY="stepmark_mobile_access";
 const EXPIRES_KEY="stepmark_mobile_expires";
 Page({
@@ -19,30 +20,8 @@ Page({
   onLoad(){this.bootstrap();},
   onShow(){if(this.data.authenticated)this.loadHabits();},
   api(path,method,data,authenticated=true){
-    const base=getApp().globalData.apiBase;
-    if(!/^https:\/\//.test(base)){
-      return Promise.reject(new Error("请先配置已注册的 HTTPS API 域名"));
-    }
-    const token=wx.getStorageSync(TOKEN_KEY);
-    return new Promise((resolve,reject)=>{
-      wx.request({
-        url:base+path,method,
-        header:Object.assign({"content-type":"application/json"},authenticated?{"Authorization":"Bearer "+token}:{}),
-        data,timeout:path==="/api/v1/assistant"?17000:8000,
-        success:res=> {
-          if(res.statusCode>=200&&res.statusCode<300)resolve(res.data);
-          else {
-            const code=res.data&&res.data.error&&res.data.error.code;
-            const error=new Error(res.statusCode===401?"登录信息已过期":
-              code==="ASSISTANT_NOT_CONFIGURED"?"服务器暂未配置对话 AI，可先使用手动管理。":
-              code==="RATE_LIMITED"?"AI 对话次数达到上限，请稍后使用。":
-              "服务请求失败（"+res.statusCode+"）");
-            error.code=code;reject(error);
-          }
-        },
-        fail:()=>reject(new Error("网络请求失败"))
-      });
-    });
+    return requestApi({apiBase:getApp().globalData.apiBase,path,method,data,
+      accessToken:authenticated?wx.getStorageSync(TOKEN_KEY):null,authenticated});
   },
   async bootstrap(){
     if(this.data.loading)return;
