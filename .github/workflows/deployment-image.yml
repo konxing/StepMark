@@ -26,6 +26,24 @@ jobs:
         run: node --test deploy/scripts/verify-config.test.mjs
       - name: Build local Docker image (no registry push, no secrets)
         run: docker build --file deploy/Dockerfile --tag stepmark:ci .
+      - name: Validate Compose manifest without real credentials
+        run: |
+          cp deploy/production.env.example deploy/production.env
+          docker compose -f deploy/compose.yml config --quiet
+          rm deploy/production.env
+      - name: Smoke-test Node server without database secrets
+        run: |
+          docker run -d --name stepmark-smoke -p 127.0.0.1:3000:3000 \
+            -e APP_ORIGIN=https://stepmark.xin stepmark:ci
+          trap 'docker logs stepmark-smoke || true; docker rm -f stepmark-smoke >/dev/null || true' EXIT
+          for i in $(seq 1 35); do
+            if curl -fsS http://127.0.0.1:3000/ -o /tmp/stepmark-home.html 2>/dev/null; then
+              grep -q 'StepMark' /tmp/stepmark-home.html
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
       - name: Assert runtime image contains build and no private configuration
         run: |
           docker run --rm --entrypoint sh stepmark:ci -c \

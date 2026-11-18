@@ -15,7 +15,7 @@ export default function Home() {
       <p>不以打卡次数定义自律，不以一次分数定义能力。StepMark 用可追溯的证据，连接能力评估、习惯训练和真实进步。</p>
       <div className="hero-actions"><a href="#framework" className="primary-link">了解测量框架 <span aria-hidden="true">↗</span></a>
         <a href="#principles" className="secondary-link">科学原则 ↓</a></div>
-      <p className="warning">目前为公开、只读的架构展示。账户、评估提交及 AI 评分尚未开放。</p>
+      <p className="warning">当前为研究 Alpha 预览。演示测验尚未完成独立校准，不能将原始答题表现解释为正式能力分数或人口常模。</p>
     </section>
     <section id="framework" className="section">
       <div className="section-heading"><span className="kicker">MEASUREMENT DOMAINS</span><h2>从可测量的维度开始</h2><p>这些是初始研究构念，并非已经校准的人口常模。</p></div>

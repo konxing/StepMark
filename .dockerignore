@@ -20,3 +20,8 @@ private-banks
 **/*.private-bank.json
 **/*.research-bank.private.json
 *.local
+
+# Common private key and certificate material must not enter image builds.
+**/*.pem
+**/*.key
+**/*.p12
