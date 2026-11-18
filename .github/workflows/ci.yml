@@ -58,6 +58,10 @@ jobs:
         run: node --test apps/web/scripts/private-review-crypto.test.mjs
       - name: Private research bank AES-GCM sealing, tamper and signature audit tests
         run: node --test apps/web/scripts/private-bank-vault.test.mjs
+      - name: Desktop local UI syntax and permission-boundary checks
+        run: |
+          node --check apps/desktop/ui/app.js
+          node --test apps/desktop/scripts/verify-desktop.test.mjs
       - name: WeChat JavaScript syntax check
         run: |
           node --check apps/wechat-miniapp/app.js

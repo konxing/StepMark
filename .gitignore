@@ -17,3 +17,7 @@ private-banks/
 .idea/
 .vscode/
 apps/web/src/generated/
+
+# Native Windows desktop build output (never commit local credentials)
+apps/desktop/src-tauri/target/
+apps/desktop/src-tauri/.tauri/
