@@ -41,7 +41,9 @@ Windows 是当前优先的原生客户端。此目录提供本地静态 UI + Rus
   Windows 预览安装包**，并上传 14 天有效的 Actions artifact。
 - 下载：GitHub 仓库 → Actions → Windows Desktop → 最新成功的 main 运行 →
   Artifacts → StepMark-Windows-stepmark.xin-unsigned-preview。
-  仅供可信测试者；未签名安装包会遇到 Windows SmartScreen 警告。
+  安装包 artifact 同时包含 SHA256SUMS.txt，可在 Windows PowerShell 通过
+  Get-FileHash -Algorithm SHA256 校验下载文件；仅供可信测试者。
+  未签名安装包可能被 Windows SmartScreen 拦截，不应要求普通用户绕过警告。
 - 同一工作流运行 node apps/desktop/scripts/check-deployment.mjs：
   验证域名 DNS、HTTPS 证书和未登录的 /api/v1/me、/api/v1/habits
   都返回预期 401 JSON。**此探测暂为非阻断**，允许网站部署前先验证
