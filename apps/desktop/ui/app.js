@@ -50,7 +50,13 @@ async function refresh(){
     el("account-name").textContent=String(me?.user?.email??"已连接 StepMark 账号");
     displayHabits(data);
     message("数据已更新。桌面端暂不支持离线修改。");
-  }catch(error){message(String(error));}
+  }catch(error){
+    message(String(error));
+    // A server-side revocation clears the native credential. Do not leave the
+    // UI showing a stale signed-in state after the next refresh.
+    const status=await invoke("get_status").catch(()=>null);
+    if(status && !status.signedIn)showSignedIn(false);
+  }
   finally{setBusy(false);}
 }
 async function signIn(){
