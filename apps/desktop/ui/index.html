@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>StepMark Windows</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo">STEP<span>MARK</span><b>.</b></div>
+      <div class="eyebrow">WINDOWS DESKTOP / PREVIEW</div>
+      <nav aria-label="主要导航">
+        <div class="nav-active">习惯概览 <small>只读</small></div>
+        <div class="nav-muted">AI 成长助手 <small>待接入</small></div>
+        <div class="nav-muted">能力测量 <small>待接入</small></div>
+      </nav>
+      <div class="sidebar-bottom">
+        <p>同一 StepMark 账号与后端，手机端继续使用网站或微信小程序。</p>
+        <span class="dot"></span> 桌面预览版 · 不支持离线写入
+      </div>
+    </aside>
+    <main class="content">
+      <header class="header">
+        <div><span class="eyebrow">YOUR EVIDENCE, YOUR GROWTH</span><h1>我的习惯</h1>
+          <p>查看你已有的习惯。数据直接来自你的 StepMark 账号。</p></div>
+        <div class="account">
+          <div id="account-name">未连接账号</div>
+          <div id="api-label" class="small">检查服务配置中</div>
+        </div>
+      </header>
+      <section class="panel connection" aria-labelledby="connection-title">
+        <div>
+          <h2 id="connection-title">Windows 安全登录</h2>
+          <p id="connection-help">登录将在系统默认浏览器完成，授权令牌只存放在 Windows 凭据管理器中，不进入页面脚本。</p>
+        </div>
+        <div class="actions">
+          <button id="login" type="button">连接账号</button>
+          <button id="refresh" type="button" class="secondary" hidden>刷新习惯</button>
+          <button id="logout" type="button" class="secondary" hidden>注销</button>
+        </div>
+      </section>
+      <div id="message" role="status" aria-live="polite"></div>
+      <section class="summary" aria-label="习惯统计">
+        <div class="metric"><span>当前习惯</span><strong id="habit-count">—</strong><small>仅显示未归档项目</small></div>
+        <div class="metric"><span>数据模式</span><strong class="mode">只读</strong><small>避免离线冲突或重复提交</small></div>
+        <div class="metric"><span>测量解释</span><strong class="mode">证据优先</strong><small>打卡次数不等于能力增长</small></div>
+      </section>
+      <section class="panel habits">
+        <div class="panel-heading"><h2>习惯列表</h2><span id="list-hint">连接账号后显示</span></div>
+        <div id="habit-list" class="habit-list"><p class="empty">暂无可显示的个人数据。</p></div>
+      </section>
+      <footer>STEPMARK / WINDOWS-FIRST · 数据保留在现有后端 · 本地不缓存日记正文</footer>
+    </main>
+  </div>
+</body>
+</html>
