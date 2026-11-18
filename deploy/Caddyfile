@@ -1,7 +1,19 @@
-# First issue the public certificate while Cloudflare DNS is DNS-only.
-# Only after HTTPS works, enable Cloudflare proxy with SSL/TLS Full (strict).
-# Do NOT use Cloudflare Flexible TLS or cache authenticated routes.
+# Initial rollout: DNS-only (direct clients -> Caddy -> private Next.js).
+# Caddy is the ONLY public ingress. Never expose web:3000 directly.
+# When enabling a CDN/proxy, the TCP peer becomes the CDN edge; update the
+# trusted-proxy chain and test real visitor-IP attribution BEFORE enabling it.
 stepmark.xin {
   encode zstd gzip
-  reverse_proxy web:3000
+
+  # Small JSON APIs only. Reject oversized requests before they reach Node.
+  request_body {
+    max_size 64KB
+  }
+
+  reverse_proxy web:3000 {
+    # Overwrite any attacker-supplied header using the direct TCP peer.
+    # Never forward an unverified CF-Connecting-IP header to the application.
+    header_up X-Real-IP {remote_host}
+    header_up -CF-Connecting-IP
+  }
 }
