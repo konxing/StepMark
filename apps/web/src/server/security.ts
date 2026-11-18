@@ -149,9 +149,13 @@ export async function enforceRateLimit(kind: string, subject: string, limit: num
   if (bucket.hits > limit) throw new ApiError(429, "RATE_LIMITED");
 }
 
-export type Principal = {userId:string; kind:"WEB"|"WECHAT"; email:string|null};
-export async function lookupSession(token: string | undefined, kind: "WEB"|"WECHAT"): Promise<Principal|null> {
+export type Principal = {userId:string; kind:"WEB"|"WECHAT"|"DESKTOP"; email:string|null};
+const DESKTOP_PREFIX="sm_desktop_";
+const DESKTOP_READ_PATHS=new Set(["/api/v1/me","/api/v1/habits"]);
+export async function lookupSession(token: string | undefined, kind: "WEB"|"WECHAT", desktop=false): Promise<Principal|null> {
   if (!token || token.length < 32 || token.length > 128) return null;
+  // A desktop bearer can never be silently accepted as a browser cookie.
+  if (kind==="WEB" && token.startsWith(DESKTOP_PREFIX)!==desktop) return null;
   const session = await getDb().session.findUnique({
     where:{tokenHash:hashToken(token)},
     select:{userId:true, kind:true, expiresAt:true, revokedAt:true,
@@ -159,13 +163,22 @@ export async function lookupSession(token: string | undefined, kind: "WEB"|"WECH
   });
   if (!session || session.kind !== kind || session.expiresAt <= new Date() || session.revokedAt ||
       session.user.deletedAt || (kind === "WEB" && !session.user.credential?.verifiedAt)) return null;
-  return {userId:session.userId,kind,email:session.user.credential?.email ?? null};
+  return {userId:session.userId,kind:desktop?"DESKTOP":kind,email:session.user.credential?.email ?? null};
 }
 export async function principalFromRequest(request: NextRequest): Promise<Principal> {
   const authorization = request.headers.get("authorization");
   if (authorization !== null) {
     if (!authorization.startsWith("Bearer ")) throw new ApiError(401, "UNAUTHENTICATED");
-    const p = await lookupSession(authorization.slice(7), "WECHAT");
+    const token=authorization.slice(7);
+    if(token.startsWith(DESKTOP_PREFIX)){
+      // Explicit v1 desktop scope: only two read-only API routes.
+      if(request.method!=="GET" || !DESKTOP_READ_PATHS.has(request.nextUrl.pathname))
+        throw new ApiError(403,"DESKTOP_SCOPE_DENIED");
+      const desktop=await lookupSession(token,"WEB",true);
+      if(!desktop)throw new ApiError(401,"UNAUTHENTICATED");
+      return desktop;
+    }
+    const p = await lookupSession(token, "WECHAT");
     if (!p) throw new ApiError(401, "UNAUTHENTICATED");
     return p;
   }

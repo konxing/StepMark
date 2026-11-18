@@ -13,7 +13,17 @@ export default function AccountForm({mode}:{mode:Mode}) {
         method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({email,password}),credentials:"same-origin"
       });
-      if(response.ok && mode==="login"){location.assign("/dashboard");return;}
+      if(response.ok && mode==="login"){
+        const next=new URLSearchParams(location.search).get("next");
+        // Only the exact desktop consent endpoint is a valid post-login return.
+        // Never follow an arbitrary URL supplied by a query parameter.
+        const target=next?.startsWith("/api/v1/auth/desktop/authorize?") ?
+          new URL(next,location.origin) : null;
+        location.assign(target?.origin===location.origin &&
+          target.pathname==="/api/v1/auth/desktop/authorize" ?
+          target.pathname+target.search : "/dashboard");
+        return;
+      }
       if(response.ok){setMessage("若可以注册，你将收到一封验证邮件。请验证后登录。");}
       else {setMessage(response.status===429?"请求太频繁，请稍后再试。":response.status===503?"登录服务尚未配置完成。":"操作失败，请核对信息或完成邮箱验证。");}
     }catch {setMessage("网络错误，请稍后再试。");} finally {setLoading(false);}
