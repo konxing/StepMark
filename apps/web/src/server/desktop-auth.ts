@@ -60,7 +60,7 @@ export function verifyDesktopCode(code:string,verifier:string,redirectUri:string
   if(parts.length!==2 || !parts[0] || !B64_256.test(parts[1]??""))
     throw new ApiError(400,"INVALID_DESKTOP_CODE");
   const expected=hmac(parts[0]);
-  const signature=Buffer.from(parts[1],"base64url");
+  const signature=Buffer.from(parts[1]??"","base64url");
   if(signature.length!==expected.length || !timingSafeEqual(signature,expected))
     throw new ApiError(400,"INVALID_DESKTOP_CODE");
   let payload:unknown;
