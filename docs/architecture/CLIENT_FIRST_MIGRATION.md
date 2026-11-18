@@ -79,8 +79,10 @@ packages/core 的可复验算法决定。公开演示题不允许被 AI 解释�
   浏览器登录继续使用原有 Cookie/CSRF，桌面客户端不接触用户密码。
 - 桌面只读列表不持久化个人日记，不做离线写入，不接触私有题库。
   微信和网站原有请求、用户身份与数据结构不变。
-- Windows Desktop workflow 进行 Windows Rust 测试；手动配置真实 HTTPS origin
-  后才构建未签名 NSIS 预览安装包。**未签名安装包不可当正式发行版**。
+- Windows Desktop workflow 在 main 相关代码推送时以 https://stepmark.xin 为固定 origin
+  编译 Windows Rust 和未签名 NSIS 预览安装包，并运行非阻断公网 DNS/TLS/API 探测。**未签名安装包不可当正式发行版**。
 - 未来开放桌面写入前须单独设计可审计的请求幂等、乐观版本冲突、
   客户端凭据轮换和撤销、网络恢复、跨设备一致性以及设备端安全测试。
   当前阶段绝不通过扩展 WEB Cookie 或微信令牌权限来绕过这些门禁。
+
+- 生产域名操作与真机发布门禁见 [stepmark.xin 部署手册](DEPLOY_STEPMARK_XIN.md)；域名购买不代表服务已部署。

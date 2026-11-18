@@ -29,17 +29,33 @@ Windows 是当前优先的原生客户端。此目录提供本地静态 UI + Rus
    若尚未登录，浏览器会先进入 /login，成功后返回授权确认页。
 5. cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml 执行 Rust 安全边界测试。
 
-## Windows 安装包
+## Windows 安装包（已绑定 stepmark.xin）
 
-手动运行 GitHub Actions Windows Desktop workflow，输入真实部署的 HTTPS
-api_origin。工作流会先验证 HTTPS origin、编译测试，再生成未签名的 NSIS
-预览安装包，仅供受控测试，不应作为正式发行版。
-本地 release 构建前须设置编译环境变量 STEPMARK_API_ORIGIN=https://...，
-运行 npx @tauri-apps/cli@2 build。Release 未配置 origin 时客户端拒绝连接。
+用户已确认购买 **stepmark.xin**。桌面客户端的正式 API origin 固定为
+**https://stepmark.xin**（不含 www，不另设 api 子域），与网站共享
+/api/v1。域名购买本身不等于 DNS、TLS、后端和数据库已部署。
 
-正式发行前仍需：代码签名与 SmartScreen 信誉、Windows 真机登录/注销/
-WebView2 安装测试、威胁建模、服务端 TLS 与运维验收、可靠更新机制、
-隐私/数据留存审查、恢复与回滚演练。CI 编译不等于已完成这些验收。
+- 每次推送 Windows 桌面相关代码到 main，GitHub Actions 的
+  [Windows Desktop](../../.github/workflows/desktop-windows.yml) 工作流都会
+  编译 Rust/Tauri 生产协议、执行本地 UI 安全检查、构建 **未签名 NSIS
+  Windows 预览安装包**，并上传 14 天有效的 Actions artifact。
+- 下载：GitHub 仓库 → Actions → Windows Desktop → 最新成功的 main 运行 →
+  Artifacts → StepMark-Windows-stepmark.xin-unsigned-preview。
+  仅供可信测试者；未签名安装包会遇到 Windows SmartScreen 警告。
+- 同一工作流运行 node apps/desktop/scripts/check-deployment.mjs：
+  验证域名 DNS、HTTPS 证书和未登录的 /api/v1/me、/api/v1/habits
+  都返回预期 401 JSON。**此探测暂为非阻断**，允许网站部署前先验证
+  安装包构建；失败表示联网登录尚不可用，不能据此宣布上线。
+- 现有 Next.js 生产环境设置 APP_ORIGIN=https://stepmark.xin，
+  配置公开 HTTPS 反向代理、PostgreSQL、强随机服务端密钥，
+  按现有运维手册执行迁移。不要将 .env、数据库或 AI Key 放入桌面包。
+- 本地 release 构建可在 apps/desktop 下设置
+  STEPMARK_API_ORIGIN=https://stepmark.xin 并运行
+  npx @tauri-apps/cli@2 build；开发 debug 构建仍可使用 localhost:3000。
+
+正式发行前仍需：DNS/TLS 与生产数据库实际部署、Windows 真机登录/注销、
+WebView2 安装验证、代码签名与 SmartScreen 信誉、隐私/数据留存审查、
+恢复与回滚演练。GitHub CI 编译通过不等于已完成这些验收。
 
 ## 安全边界
 
