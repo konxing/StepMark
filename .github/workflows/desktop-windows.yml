@@ -30,7 +30,7 @@ jobs:
         with:
           workspaces: apps/desktop/src-tauri
       - name: Rust tests and Windows compilation
-        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
+        run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --features custom-protocol
       - name: Validate manual packaging API origin
         if: github.event_name == 'workflow_dispatch'
         shell: pwsh
