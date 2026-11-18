@@ -1,0 +1,10 @@
+{
+  "identifier": "default",
+  "description": "Minimal local UI; native Rust commands own HTTPS and Windows credentials.",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default"
+  ]
+}
