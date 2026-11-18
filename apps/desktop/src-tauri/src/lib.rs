@@ -37,6 +37,7 @@ fn validate_origin(raw: &str, debug: bool) -> Result<String, String> {
         || url.query().is_some()
         || url.fragment().is_some()
         || url.origin().ascii_serialization() != raw
+        || url.port().is_some()
     {
         return Err("API 地址必须是单一 HTTPS origin".to_owned());
     }

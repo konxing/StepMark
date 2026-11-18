@@ -1,5 +1,5 @@
 import {createHash,createHmac,randomBytes,timingSafeEqual} from "node:crypto";
-import {ApiError,hashToken} from "./security";
+import {ApiError} from "./security";
 
 /**
  * Desktop authorization is deliberately read-only. An authorization code is
@@ -20,7 +20,10 @@ function hmac(payload:string):Buffer {
   return createHmac("sha256",secret()).update("stepmark-desktop-pkce-v1:").update(payload).digest();
 }
 export function desktopCodeHash(nonce:string):string {
-  return hashToken("desktop-code-v1:"+nonce);
+  // A code nonce is visible inside the signed code. Never store a plain
+  // SHA-256 of a nonce-derived string as a Session.tokenHash: that would let
+  // the nonce itself impersonate a browser cookie and bypass PKCE.
+  return createHmac("sha256",secret()).update("desktop-code-session-v1:").update(nonce).digest("hex");
 }
 export function validateLoopbackRedirect(raw:string):string {
   if(raw.length>120)throw new ApiError(400,"INVALID_DESKTOP_REDIRECT");

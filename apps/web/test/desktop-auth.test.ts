@@ -76,6 +76,9 @@ test("browser consent -> one-time PKCE exchange -> scoped desktop reads -> logou
     assert.equal(callback.searchParams.get("state"),state);
     const code=callback.searchParams.get("code")??"";
     assert.ok(code.length>100);
+    // The signed code contains a visible nonce; it must never be usable as a web session.
+    const nonce=JSON.parse(Buffer.from(code.split(".")[0]??"","base64url").toString("utf8")).n as string;
+    assert.equal(await lookupSession("desktop-code-v1:"+nonce,"WEB"),null);
     const payload={code,codeVerifier:verifier,redirectUri};
     const wrong=await exchangePOST(req("/api/v1/auth/desktop/exchange","POST",{...payload,codeVerifier:randomBytes(32).toString("base64url")}));
     assert.equal(wrong.status,400);
