@@ -130,6 +130,8 @@ test("trusted proxy source IP requires a single valid address",()=>{
     const make=(ip:string)=>new Request("http://localhost/",{headers:{"x-real-ip":ip}});
     assert.equal(sourceKey(make("203.0.113.9")),"203.0.113.9");
     assert.equal(sourceKey(make("2001:db8::1")),"2001:db8::1");
+    assert.equal(sourceKey(make("2001:0DB8:0000:0000:0000:0000:0000:0001")),"2001:db8::1");
+    assert.equal(sourceKey(make("2001:DB8::1")),"2001:db8::1");
     assert.equal(sourceKey(make("203.0.113.9, 198.51.100.1")),"unresolved");
     assert.equal(sourceKey(make("invalid")),"unresolved");
     assert.equal(sourceKey(make("203.0.113.9:8080")),"unresolved");

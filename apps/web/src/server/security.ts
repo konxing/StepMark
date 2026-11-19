@@ -135,7 +135,15 @@ export function sourceKey(request: Request): string {
   const ip = request.headers.get(header)?.trim();
   // The ingress must overwrite the configured header; validate a single IP,
   // not a spoofed comma-separated chain or arbitrary punctuation.
-  if (!ip || ip.length > 64 || isIP(ip) === 0) return "unresolved";
+  if (!ip || ip.length > 64) return "unresolved";
+  const family = isIP(ip);
+  if (family === 0) return "unresolved";
+  // Different IPv6 spellings represent the same client. Normalize before
+  // hashing the rate-limit bucket to prevent equivalent-address evasion.
+  if (family === 6) {
+    try { return new URL(`http://[${ip}]/`).hostname.slice(1, -1); }
+    catch { return "unresolved"; }
+  }
   return ip;
 }
 export async function enforceRateLimit(kind: string, subject: string, limit: number, windowMs: number): Promise<void> {
