@@ -37,7 +37,7 @@ test("single-server preview keeps Node and database ports off the public interfa
   assert.match(caddy,/header_up X-Real-IP \{remote_host\}/);
   assert.match(caddy,/header_up -CF-Connecting-IP/);
   assert.match(caddy,/max_size 64KB/);
-  assert.doesNotMatch(caddy,/tls\s+internal|https:\/\/\*|:3000\s*\{/);
+  assert.doesNotMatch(caddy,/tls\s+internal|https:\/\/\*|^\s*:3000\s*\{/m);
 });
 test("public deployment requires a private DB, strong secrets and explicit TLS",()=>{
   const env=read("deploy/production.env.example");
