@@ -42,8 +42,8 @@ here supplies DNS and (optionally) the CDN/WAF, **not** the application runtime.
 
    Before starting Docker Compose, from the repository root run:
 
-       NODE_ENV=production APP_ORIGIN=https://stepmark.xin \\
-       STEPMARK_INGRESS_MODE=caddy-direct TRUSTED_CLIENT_IP_HEADER=x-real-ip \\
+       NODE_ENV=production APP_ORIGIN=https://stepmark.xin \
+       STEPMARK_INGRESS_MODE=caddy-direct TRUSTED_CLIENT_IP_HEADER=x-real-ip \
        node --env-file=deploy/production.env apps/web/scripts/production-preflight.mjs
 
    Compose runs the same offline configuration check before starting Next.js.
