@@ -44,6 +44,8 @@ jobs:
         run: npm run test
       - name: Typecheck
         run: npm run typecheck
+      - name: Verify local latency probe counts only successful responses
+        run: node --test apps/web/scripts/perf-http.test.mjs
       - name: Original public logic-bank source freeze and structure regression tests
         run: |
           node --test packages/core/scripts/audit-original-forms.test.mjs
