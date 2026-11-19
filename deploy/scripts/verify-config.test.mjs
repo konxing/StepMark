@@ -26,6 +26,8 @@ test("single-server preview keeps Node and database ports off the public interfa
   const caddy=read("deploy/Caddyfile");
   assert.match(compose,/APP_ORIGIN: https:\/\/stepmark\.xin/);
   assert.match(compose,/TRUSTED_CLIENT_IP_HEADER: x-real-ip/);
+  assert.match(compose,/STEPMARK_INGRESS_MODE: caddy-direct/);
+  assert.match(compose,/production-preflight\\.mjs && exec npm run start/);
   assert.match(compose,/\/api\/health/);
   assert.match(compose,/env_file:/);
   assert.match(compose,/\.\/production\.env/);
