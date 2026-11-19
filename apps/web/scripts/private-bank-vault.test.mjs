@@ -60,7 +60,8 @@ test("AES-GCM private vault is randomized, authenticated and decrypts only into 
   assert.throws(()=>inspectSealedBank(first.envelope,wrong),/AUTHENTICATION_FAILED/);
   const tamper={...first.envelope,sourceSha256:"0".repeat(64)};
   assert.throws(()=>inspectSealedBank(tamper,KEY),/AUTHENTICATION_FAILED/);
-  const ciphertext={...first.envelope,ciphertext:"A"+first.envelope.ciphertext.slice(1)};
+  const changed=first.envelope.ciphertext[0]==="A"?"B":"A";
+  const ciphertext={...first.envelope,ciphertext:changed+first.envelope.ciphertext.slice(1)};
   assert.throws(()=>inspectSealedBank(ciphertext,KEY),/AUTHENTICATION_FAILED/);
 });
 test("malformed, extra-field and weak keys are not accepted",()=>{
