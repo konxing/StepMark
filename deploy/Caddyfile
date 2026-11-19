@@ -1,5 +1,5 @@
 # Initial rollout: DNS-only (direct clients -> Caddy -> private Next.js).
-# Caddy is the ONLY public ingress. Never expose web:3000 directly.
+# Caddy is the ONLY public ingress. Never publish the private Node listener directly.
 # When enabling a CDN/proxy, the TCP peer becomes the CDN edge; update the
 # trusted-proxy chain and test real visitor-IP attribution BEFORE enabling it.
 stepmark.xin {
