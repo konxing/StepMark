@@ -25,6 +25,8 @@ test("single-server preview keeps Node and database ports off the public interfa
   const compose=read("deploy/compose.yml");
   const caddy=read("deploy/Caddyfile");
   assert.match(compose,/APP_ORIGIN: https:\/\/stepmark\.xin/);
+  assert.match(compose,/TRUSTED_CLIENT_IP_HEADER: x-real-ip/);
+  assert.match(compose,/\/api\/health/);
   assert.match(compose,/env_file:/);
   assert.match(compose,/\.\/production\.env/);
   assert.match(compose,/expose:\s*\n\s*- "3000"/);
@@ -32,6 +34,9 @@ test("single-server preview keeps Node and database ports off the public interfa
   assert.match(compose,/- "443:443"/);
   assert.match(caddy,/stepmark\.xin\s*\{/);
   assert.match(caddy,/reverse_proxy web:3000/);
+  assert.match(caddy,/header_up X-Real-IP \{remote_host\}/);
+  assert.match(caddy,/header_up -CF-Connecting-IP/);
+  assert.match(caddy,/max_size 64KB/);
   assert.doesNotMatch(caddy,/tls\s+internal|https:\/\/\*|:3000\s*\{/);
 });
 test("public deployment requires a private DB, strong secrets and explicit TLS",()=>{
