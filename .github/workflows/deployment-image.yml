@@ -16,6 +16,10 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  # A push and PR event for the same branch should not run duplicate builds.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 jobs:
   image-build:
     runs-on: ubuntu-latest
