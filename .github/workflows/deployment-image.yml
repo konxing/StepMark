@@ -24,6 +24,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Validate deployment isolation and canonical domain
         run: node --test deploy/scripts/verify-config.test.mjs
+      - name: Reject unsafe production configuration (offline tests)
+        run: node --test deploy/scripts/production-preflight.test.mjs
       - name: Build local Docker image (no registry push, no secrets)
         run: docker build --file deploy/Dockerfile --tag stepmark:ci .
       - name: Validate Compose manifest without real credentials
@@ -47,4 +49,4 @@ jobs:
       - name: Assert runtime image contains build and no private configuration
         run: |
           docker run --rm --entrypoint sh stepmark:ci -c \
-            'test -f /workspace/apps/web/.next/BUILD_ID && test ! -f /workspace/apps/web/.env && test ! -f /workspace/deploy/production.env && test ! -d /workspace/private-banks'
+            'test -f /workspace/apps/web/.next/BUILD_ID && test -f /workspace/apps/web/scripts/production-preflight.mjs && test ! -f /workspace/apps/web/.env && test ! -f /workspace/deploy/production.env && test ! -d /workspace/private-banks'
