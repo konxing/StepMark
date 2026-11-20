@@ -1,0 +1,54 @@
+name: One-time cleanup of integrated StepMark branches
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/one-time-branch-cleanup.yml'
+permissions:
+  contents: write
+jobs:
+  prune:
+    if: github.event.head_commit.message == 'chore: safely prune merged StepMark branches'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify both branch tips are fully represented in main, then delete
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_SHA: 41d578479aea066770dfae76fd2fc65a5b7c5bba
+          PREFLIGHT_SHA: a307a7a6d1967e3d9f974446d543ea38870ded34
+          ORIGINAL_BASE_SHA: 8db3ff5b90f7a5b2423a0d075f855a9558ed53ee
+        run: |
+          set -euo pipefail
+          pr_branch='hardening/global-latency-security-20261119'
+          preflight_branch='hardening/production-preflight-20261119'
+          git fetch --no-tags origin main "$pr_branch" "$preflight_branch"
+          git merge-base --is-ancestor "$PR_SHA" HEAD
+          git merge-base --is-ancestor "$ORIGINAL_BASE_SHA" "$PREFLIGHT_SHA"
+          # The second branch contains exactly one file added on the old main;
+          # its exact blob is already present in the current main branch.
+          changes="$(git diff --name-only "$ORIGINAL_BASE_SHA" "$PREFLIGHT_SHA")"
+          test "$changes" = 'apps/web/scripts/production-preflight.mjs'
+          test "$(git rev-parse "HEAD:apps/web/scripts/production-preflight.mjs")" = "$(git rev-parse "$PREFLIGHT_SHA:apps/web/scripts/production-preflight.mjs")"
+          for branch in "$pr_branch" "$preflight_branch"; do
+            case "$branch" in
+              "$pr_branch") expected="$PR_SHA" ;;
+              "$preflight_branch") expected="$PREFLIGHT_SHA" ;;
+              *) exit 1 ;;
+            esac
+            observed="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$branch" --jq '.object.sha')"
+            if [ "$observed" != "$expected" ]; then
+              echo "::error::Branch tip changed; refusing to delete $branch"
+              exit 1
+            fi
+          done
+          # The read-only checks above completed successfully for both refs.
+          for branch in "$pr_branch" "$preflight_branch"; do
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/$branch"
+            echo "Deleted integrated branch: $branch"
+          done
