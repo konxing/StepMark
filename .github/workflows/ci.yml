@@ -4,6 +4,10 @@ on:
   pull_request:
 permissions:
   contents: read
+concurrency:
+  # A push and PR event for the same branch should not run duplicate builds.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 jobs:
   verification:
     runs-on: ubuntu-latest
@@ -40,6 +44,8 @@ jobs:
         run: npm run test
       - name: Typecheck
         run: npm run typecheck
+      - name: Verify local latency probe counts only successful responses
+        run: node --test apps/web/scripts/perf-http.test.mjs
       - name: Original public logic-bank source freeze and structure regression tests
         run: |
           node --test packages/core/scripts/audit-original-forms.test.mjs

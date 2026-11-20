@@ -1,4 +1,5 @@
 import { createHash, createHmac, randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
+import { isIP } from "node:net";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import type { z } from "zod";
@@ -131,8 +132,18 @@ export function sourceKey(request: Request): string {
   // is stripped/re-written at ingress; otherwise use a conservative shared bucket.
   const header = process.env.TRUSTED_CLIENT_IP_HEADER;
   if (header !== "x-real-ip" && header !== "cf-connecting-ip") return "unresolved";
-  const ip = request.headers.get(header);
-  if (!ip || ip.length > 64 || !/^[0-9a-fA-F:.]+$/.test(ip)) return "unresolved";
+  const ip = request.headers.get(header)?.trim();
+  // The ingress must overwrite the configured header; validate a single IP,
+  // not a spoofed comma-separated chain or arbitrary punctuation.
+  if (!ip || ip.length > 64) return "unresolved";
+  const family = isIP(ip);
+  if (family === 0) return "unresolved";
+  // Different IPv6 spellings represent the same client. Normalize before
+  // hashing the rate-limit bucket to prevent equivalent-address evasion.
+  if (family === 6) {
+    try { return new URL(`http://[${ip}]/`).hostname.slice(1, -1); }
+    catch { return "unresolved"; }
+  }
   return ip;
 }
 export async function enforceRateLimit(kind: string, subject: string, limit: number, windowMs: number): Promise<void> {

@@ -182,6 +182,26 @@ async fn wait_for_callback(listener: TcpListener, state: &str) -> Result<String,
     }
 }
 
+/// Stream a bounded JSON response: Content-Length is advisory and may be absent
+/// for chunked transfer encoding. Never buffer an unbounded body first.
+async fn read_limited_json(mut response: reqwest::Response) -> Result<Value, String> {
+    if response.content_length().unwrap_or(0) > MAX_API_RESPONSE as u64 {
+        return Err("服务器响应超过安全上限".to_owned());
+    }
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|_| "读取服务器响应失败".to_owned())?
+    {
+        if chunk.len() > MAX_API_RESPONSE.saturating_sub(bytes.len()) {
+            return Err("服务器响应超过安全上限".to_owned());
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    serde_json::from_slice(&bytes).map_err(|_| "服务器响应格式无效".to_owned())
+}
+
 async fn api_get(path: &str, token: &str) -> Result<Value, String> {
     let origin = api_origin()?;
     let response = client()?
@@ -197,17 +217,7 @@ async fn api_get(path: &str, token: &str) -> Result<Value, String> {
     if !response.status().is_success() {
         return Err("服务暂时无法读取个人数据".to_owned());
     }
-    if response.content_length().unwrap_or(0) > MAX_API_RESPONSE as u64 {
-        return Err("服务器响应超过安全上限".to_owned());
-    }
-    let bytes = response
-        .bytes()
-        .await
-        .map_err(|_| "读取服务器响应失败".to_owned())?;
-    if bytes.len() > MAX_API_RESPONSE {
-        return Err("服务器响应超过安全上限".to_owned());
-    }
-    serde_json::from_slice(&bytes).map_err(|_| "服务器响应格式无效".to_owned())
+    read_limited_json(response).await
 }
 
 #[tauri::command]
@@ -364,5 +374,38 @@ mod tests {
         assert!(callback_code("POST /callback?code=abc HTTP/1.1", &state).is_none());
         assert!(callback_code("GET /callback?code=x&code=y&state=z HTTP/1.1", "z").is_none());
         assert!(callback_code("GET /other?code=x&state=z HTTP/1.1", "z").is_none());
+    }
+
+    #[test]
+    fn chunked_api_response_is_bounded_without_content_length() {
+        tauri::async_runtime::block_on(async {
+            let listener = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
+            let address = listener.local_addr().unwrap();
+            let server = tokio::spawn(async move {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let mut request = [0u8; 1024];
+                let _ = stream.read(&mut request).await;
+                let _ = stream.write_all(
+                    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n",
+                ).await;
+                for size in [180 * 1024, 90 * 1024] {
+                    let payload = vec![b'x'; size];
+                    let _ = stream.write_all(format!("{size:X}\r\n").as_bytes()).await;
+                    let _ = stream.write_all(&payload).await;
+                    let _ = stream.write_all(b"\r\n").await;
+                }
+                let _ = stream.write_all(b"0\r\n\r\n").await;
+            });
+            let response = reqwest::Client::new()
+                .get(format!("http://{address}"))
+                .send()
+                .await
+                .unwrap();
+            let result = timeout(Duration::from_secs(10), read_limited_json(response))
+                .await
+                .expect("bounded response reader timed out");
+            assert!(result.unwrap_err().contains("超过安全上限"));
+            server.await.unwrap();
+        });
     }
 }

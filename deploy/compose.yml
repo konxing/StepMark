@@ -13,8 +13,13 @@ services:
     environment:
       NODE_ENV: production
       APP_ORIGIN: https://stepmark.xin
+      # Caddy overwrites X-Real-IP using the direct TCP peer.
+      TRUSTED_CLIENT_IP_HEADER: x-real-ip
+      STEPMARK_INGRESS_MODE: caddy-direct
       PORT: "3000"
       HOSTNAME: 0.0.0.0
+    # Refuse to serve traffic if secrets, TLS or ingress settings are unsafe.
+    command: ["sh", "-c", "node /workspace/apps/web/scripts/production-preflight.mjs && exec npm run start --workspace @stepmark/web -- --hostname 0.0.0.0"]
     expose:
       - "3000"
     security_opt:
@@ -24,7 +29,7 @@ services:
     networks:
       - private
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(async r=>process.exit(r.ok && (await r.json()).status==='ok'?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 3

@@ -35,6 +35,21 @@ here supplies DNS and (optionally) the CDN/WAF, **not** the application runtime.
    use the managed PostgreSQL private hostname and require provider-supported
    TLS. The example is intentionally not a runnable production secret set.
    Configure verified transactional email before public registration.
+   Generate RATE_LIMIT_SECRET with Node.js, then paste the output into
+   production.env (never commit the result):
+
+       node -e 'console.log(require("node:crypto").randomBytes(32).toString("base64url"))'
+
+   Before starting Docker Compose, from the repository root run:
+
+       NODE_ENV=production APP_ORIGIN=https://stepmark.xin \
+       STEPMARK_INGRESS_MODE=caddy-direct TRUSTED_CLIENT_IP_HEADER=x-real-ip \
+       node --env-file=deploy/production.env apps/web/scripts/production-preflight.mjs
+
+   Compose runs the same offline configuration check before starting Next.js.
+   Missing/placeholder secrets, disabled database TLS, a wrong origin or an
+   unverified ingress mode stop startup. This is not a database connectivity,
+   backup, certificate, email-delivery or real-world latency test.
 3. Back up the database and apply versioned Prisma migrations with a
    **separate privileged migrator** using the checked-out source and
    npm ci / npm run db:generate /
@@ -49,14 +64,14 @@ here supplies DNS and (optionally) the CDN/WAF, **not** the application runtime.
    docker compose -f compose.yml ps
    docker compose -f compose.yml logs --tail=100 web proxy
    Confirm https://stepmark.xin/ works and the unauthenticated API probe
-   returns 401 JSON before enabling Cloudflare proxy.
-6. Optionally turn on Cloudflare proxy (orange cloud) and set SSL/TLS to
-   **Full (strict)**. Never use Flexible TLS. Avoid "Cache Everything" for
-   /api/, login, dashboard, assessment, or any user-specific responses.
-   Lock down direct origin bypass, preserve HTTPS and verify certificate
-   renewal. The initial template intentionally does not trust incoming
-   client-IP headers; before public traffic, implement authenticated ingress
-   IP forwarding and per-user/IP abuse protection.
+   returns 401 JSON. Keep Cloudflare DNS-only at this stage.
+6. **Do not enable Cloudflare proxy (orange cloud) with this template.**
+   Caddy currently overwrites X-Real-IP with the direct TCP peer; with
+   orange-cloud enabled that peer is a Cloudflare edge, so unrelated users
+   would share rate-limit buckets. A separate verified Cloudflare CIDR trust
+   chain, origin-bypass protection and real-client-IP regression test are
+   required first. Once that is implemented, use SSL/TLS **Full (strict)**,
+   never Flexible TLS; never cache private API/login/dashboard responses.
 7. From a separate machine run:
    node apps/desktop/scripts/check-deployment.mjs
    Then verify real browser login, cookie/CSRF behavior, registration email,
@@ -70,10 +85,13 @@ here supplies DNS and (optionally) the CDN/WAF, **not** the application runtime.
   Secrets live on the trusted server. Docker image is built without them.
 - Caddy binds 80/443; the Next.js container only exposes port 3000 on a
   private Docker network. PostgreSQL is managed externally and private.
-- The current sourceKey rate-limiter deliberately treats untrusted proxy
-  headers as a shared bucket. This is **not** sufficient for public traffic
-  behind Cloudflare: implement and test a trusted ingress address strategy
-  before removing the alpha restriction.
+- Direct-to-Caddy ingress overwrites X-Real-IP from the TCP peer and
+  strips unverified Cloudflare headers. Node port 3000 must remain private.
+  The current sourceKey rate-limiter is **not** suitable for public traffic
+  behind Cloudflare orange-cloud without verified CDN IP forwarding.
+- The production startup preflight rejects obvious unsafe configuration and
+  placeholder secrets; it cannot verify true entropy, network isolation,
+  certificate trust, provider delivery, or disaster recovery.
 - The existing experimental ability assessment is not a validated
   population-scale ability score. Hosting must not change the scientific
   release gate or publish private item banks.

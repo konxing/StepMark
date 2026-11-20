@@ -19,8 +19,11 @@ async function worker(){
     try{
       const r=await fetch(url.origin+path,{signal:AbortSignal.timeout(3000),cache:"no-store"});
       await r.arrayBuffer();
-      latency.push(performance.now()-start);
-      if(!r.ok)errors.push({status:r.status,path});
+      // HTTP 4xx/5xx is a failed request, not a successful latency sample.
+      // Excluding failures prevents misleading p95/p99 and success counts.
+      const elapsed=performance.now()-start;
+      if(r.ok)latency.push(elapsed);
+      else errors.push({status:r.status,path});
     }catch(e){errors.push({path,error:String(e)});}
   }
 }
