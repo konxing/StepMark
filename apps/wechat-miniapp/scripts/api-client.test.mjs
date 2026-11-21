@@ -45,7 +45,10 @@ test("WeChat transport retains rate-limit, login expiry and network errors",asyn
   try{
     globalThis.wx={request(options){options.success({statusCode:429,
       data:{error:{code:"RATE_LIMITED"}}});}};
-    await assert.rejects(requestApi(base),/AI 对话次数达到上限/);
+    await assert.rejects(requestApi(base),/操作过于频繁，请稍后再试/);
+    globalThis.wx={request(options){options.success({statusCode:429,
+      header:{"rEtRy-AfTeR":"125"},data:{error:{code:"RATE_LIMITED"}}});}};
+    await assert.rejects(requestApi(base),/约 3 分钟后重试/);
     globalThis.wx={request(options){options.success({statusCode:401,
       data:{error:{code:"UNAUTHENTICATED"}}});}};
     await assert.rejects(requestApi(base),/登录信息已过期/);

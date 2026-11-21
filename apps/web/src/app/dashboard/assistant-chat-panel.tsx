@@ -43,7 +43,13 @@ export default function AssistantChatPanel({
         const code=data?.error?.code;
         throw new Error(code==="ASSISTANT_NOT_CONFIGURED"?
           "服务器暂未配置对话 AI，仍可通过下方的手动管理记录。":
-          code==="RATE_LIMITED"?"对话次数已达到限制，请稍后再试。":
+          code==="RATE_LIMITED"?(function(){
+            const raw=res.headers.get("Retry-After")??"";
+            const seconds=/^[0-9]{1,5}$/.test(raw)?Number(raw):0;
+            return seconds>=1&&seconds<=86400?
+              "请求已达到限制，请在约 "+Math.ceil(seconds/60)+" 分钟后重试。":
+              "请求已达到限制，请稍后再试。";
+          })():
           "本次请求未确认保存，请检查记录后重试，避免重复登记。");
       }
       if(!data||typeof data.reply!=="string")throw new Error("AI 返回的数据无效，请稍后重试。");

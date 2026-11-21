@@ -27,9 +27,15 @@ function requestApi({apiBase,path,method="GET",data,accessToken,authenticated=tr
       success:res=>{
         if(res.statusCode>=200&&res.statusCode<300){resolve(res.data);return;}
         const code=res.data&&res.data.error&&res.data.error.code;
+        // WeChat response headers may differ in casing; do not trust arbitrary text.
+        const headers=res.header||{};
+        const key=Object.keys(headers).find(name=>name.toLowerCase()==="retry-after");
+        const raw=key?String(headers[key]):"";
+        const seconds=/^[0-9]{1,5}$/.test(raw)?Number(raw):0;
+        const backoff=seconds>=1&&seconds<=86400?"请在约 "+Math.ceil(seconds/60)+" 分钟后重试。":"请稍后再试。";
         const error=new Error(res.statusCode===401?"登录信息已过期":
           code==="ASSISTANT_NOT_CONFIGURED"?"服务器暂未配置对话 AI，可先使用手动管理。":
-          code==="RATE_LIMITED"?"AI 对话次数达到上限，请稍后使用。":
+          code==="RATE_LIMITED"?"操作过于频繁，"+backoff:
           "服务请求失败（"+res.statusCode+"）");
         error.code=code;reject(error);
       },
