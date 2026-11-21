@@ -1,7 +1,7 @@
 import {NextRequest,NextResponse} from "next/server";
 import {z} from "zod";
 import {getDb} from "@/server/db";
-import {listOwnHabits} from "@/server/habit-service";
+import {listOwnHabits,MAX_ACTIVE_HABITS} from "@/server/habit-service";
 import {ApiError,boundedJson,enforceRateLimit,errorResponse,principalFromRequest,requireSameOrigin} from "@/server/security";
 export const runtime="nodejs";
 const create=z.object({
@@ -23,7 +23,7 @@ export async function POST(request:NextRequest){
     const input=await boundedJson(request,create);
     await enforceRateLimit("habit-create",principal.userId,20,60*60*1000);
     const count=await getDb().habit.count({where:{userId:principal.userId,archivedAt:null}});
-    if(count>=100)throw new ApiError(409,"HABIT_QUOTA_EXCEEDED");
+    if(count>=MAX_ACTIVE_HABITS)throw new ApiError(409,"HABIT_QUOTA_EXCEEDED");
     const habit=await getDb().habit.create({
       data:{userId:principal.userId,title:input.title,action:input.action,cue:input.cue ?? null},
       select:{id:true,title:true,cue:true,action:true,createdAt:true}

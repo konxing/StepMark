@@ -1,6 +1,7 @@
 import {Prisma} from "@/generated/prisma/client";
 import {calculateHabitProgress,type InitiationEvidence} from "@stepmark/core";
 import {getDb} from "./db";
+import {MAX_ACTIVE_HABITS} from "./habit-service";
 import {ApiError} from "./security";
 import {observationDay,type SafeAssistantCommand,validateClientLocalDate,verifiedInitiationEvidence,assistantMessageDigest} from "./assistant-command";
 
@@ -43,7 +44,7 @@ export async function executeAssistantCommand(args:{
         change:null,progress:null};
       if(command.intent==="create_habit"){
         const count=await tx.habit.count({where:{userId,archivedAt:null}});
-        if(count>=50)throw new ApiError(409,"HABIT_QUOTA_EXCEEDED");
+        if(count>=MAX_ACTIVE_HABITS)throw new ApiError(409,"HABIT_QUOTA_EXCEEDED");
         const existing=await tx.habit.findFirst({
           where:{userId,archivedAt:null,title:command.title!,action:command.action!,
             createdAt:{gte:new Date(Date.now()-10*60*1000)}},select:{id:true,title:true}

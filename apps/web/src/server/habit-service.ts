@@ -1,11 +1,14 @@
 import {getDb} from "./db";
 
+/** Active habits must be visible in the standard web/desktop list. */
+export const MAX_ACTIVE_HABITS=50;
+
 export async function listOwnHabits(userId:string) {
   // One indexed query. No N+1 event fetches, no cross-user joins.
   return getDb().habit.findMany({
     where:{userId,archivedAt:null},
     orderBy:[{createdAt:"desc"},{id:"desc"}],
-    take:50,
+    take:MAX_ACTIVE_HABITS,
     select:{id:true,title:true,cue:true,action:true,reviewEnabled:true,createdAt:true,
       _count:{select:{events:true,checks:true}}}
   });

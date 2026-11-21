@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {randomUUID} from "node:crypto";
 import {NextRequest} from "next/server";
 import {getDb} from "../src/server/db";
-import {hashPassword,issueSession,lookupSession,requireSameOrigin,sourceKey,SESSION_COOKIE} from "../src/server/security";
+import {ApiError,enforceRateLimit,errorResponse,hashPassword,issueSession,lookupSession,requireSameOrigin,sourceKey,SESSION_COOKIE} from "../src/server/security";
 import {listOwnHabits,findOwnHabit,listOwnEvents} from "../src/server/habit-service";
 import {GET as habitsGET,POST as habitsPOST} from "../src/app/api/v1/habits/route";
 import {POST as eventPOST, GET as eventGET} from "../src/app/api/v1/observations/route";
@@ -1043,4 +1043,38 @@ test("accidentally published unformed research item is never listed or scored",a
     await db.task.deleteMany({where:{id:privateTaskId}});
     await db.user.deleteMany({where:{id:user.id}});
   }
+});
+
+
+test("rate limiter returns a bounded Retry-After without revealing bucket identities",async()=>{
+  const kind="test-retry-after",subject=randomUUID();
+  await enforceRateLimit(kind,subject,1,15*60*1000);
+  let error:unknown;
+  try{await enforceRateLimit(kind,subject,1,15*60*1000);}catch(e){error=e;}
+  assert.ok(error instanceof ApiError);
+  const response=errorResponse(error);
+  assert.equal(response.status,429);
+  assert.equal((await response.json() as {error:{code:string}}).error.code,"RATE_LIMITED");
+  const retry=Number(response.headers.get("Retry-After"));
+  assert.ok(Number.isInteger(retry)&&retry>=1&&retry<=900);
+  assert.equal(response.headers.get("Cache-Control"),"no-store");
+});
+
+test("web and chat share a visible 50-active-habit quota",async()=>{
+  const user=await db.user.create({data:{},select:{id:true}});
+  try{
+    const token=(await issueSession(user.id,"WECHAT")).token;
+    await db.habit.createMany({data:Array.from({length:50},(_,i)=>({
+      userId:user.id,title:"Habit "+i,action:"Visible habit action "+i
+    }))});
+    const listed=await habitsGET(req("/api/v1/habits","GET",undefined,token,"WECHAT"));
+    assert.equal(listed.status,200);
+    assert.equal((await listed.json() as {habits:unknown[]}).habits.length,50);
+    const rejected=await habitsPOST(req("/api/v1/habits","POST",{
+      title:"Hidden 51st habit",action:"Should never be saved"
+    },token,"WECHAT"));
+    assert.equal(rejected.status,409);
+    assert.equal((await rejected.json() as {error:{code:string}}).error.code,"HABIT_QUOTA_EXCEEDED");
+    assert.equal(await db.habit.count({where:{userId:user.id,archivedAt:null}}),50);
+  }finally{await db.user.delete({where:{id:user.id}});}
 });

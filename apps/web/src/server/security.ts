@@ -10,7 +10,8 @@ const WEB_SESSION_MS = 14 * 24 * 60 * 60 * 1000;
 const MOBILE_SESSION_MS = 24 * 60 * 60 * 1000;
 
 export class ApiError extends Error {
-  constructor(public readonly status: number, public readonly code: string) {
+  constructor(public readonly status: number, public readonly code: string,
+    public readonly retryAfterSeconds?: number) {
     super(code);
   }
 }
@@ -89,9 +90,13 @@ export function errorResponse(error: unknown): NextResponse {
   // Never expose ORM errors, account existence, tokens, model outputs or stack traces.
   const status = error instanceof ApiError ? error.status : 500;
   const code = error instanceof ApiError ? error.code : "INTERNAL_ERROR";
-  return NextResponse.json({error:{code}}, {
-    status, headers: {"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}
-  });
+  const headers:Record<string,string>={"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"};
+  if(error instanceof ApiError && error.status===429 &&
+     error.retryAfterSeconds!==undefined && Number.isSafeInteger(error.retryAfterSeconds) &&
+     error.retryAfterSeconds>0) {
+    headers["Retry-After"]=String(error.retryAfterSeconds);
+  }
+  return NextResponse.json({error:{code}}, {status,headers});
 }
 
 const SCRYPT_PARAMS = {N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024};
@@ -148,16 +153,21 @@ export function sourceKey(request: Request): string {
 }
 export async function enforceRateLimit(kind: string, subject: string, limit: number, windowMs: number): Promise<void> {
   if (!Number.isInteger(limit) || limit < 1 || windowMs < 1000) throw new Error("invalid rate window");
-  const windowStart = Math.floor(Date.now() / windowMs);
+  const now=Date.now();
+  const windowStart = Math.floor(now / windowMs);
+  const resetAt=(windowStart+1)*windowMs;
   const key = bucketIdentity(kind, subject, windowStart);
   // One atomic DB upsert; counts remain consistent on multi-process installations.
   const bucket = await getDb().rateLimitBucket.upsert({
     where: {key},
-    create: {key, hits:1, expiresAt:new Date((windowStart + 1) * windowMs)},
+    create: {key, hits:1, expiresAt:new Date(resetAt)},
     update: {hits:{increment:1}},
     select: {hits:true}
   });
-  if (bucket.hits > limit) throw new ApiError(429, "RATE_LIMITED");
+  if (bucket.hits > limit) {
+    const retryAfter=Math.max(1,Math.ceil((resetAt-Date.now())/1000));
+    throw new ApiError(429, "RATE_LIMITED",retryAfter);
+  }
 }
 
 export type Principal = {userId:string; kind:"WEB"|"WECHAT"|"DESKTOP"; email:string|null};
