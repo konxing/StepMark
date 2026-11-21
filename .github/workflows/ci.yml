@@ -85,5 +85,7 @@ jobs:
         run: npm run test:integration --workspace @stepmark/web
       - name: Production build
         run: npm run build
+      - name: Assert patched transitive Effect dependency is locked
+        run: node --test deploy/scripts/security-lock.test.mjs
       - name: Security dependency audit
         run: npm audit --omit=dev --audit-level=high
