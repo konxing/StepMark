@@ -1,5 +1,10 @@
 # StepMark / 个人能力与习惯成长平台
 
+## 系统整体设计（2026-11-21）
+
+[StepMark 完整架构、量化模型与实施方案](docs/architecture/STEPMARK_SYSTEM_DESIGN_2026-11-21.md)（以现有 main 代码为准，区分已实现与待上线验收）。
+
+
 **当前状态：多用户 Alpha（开发预览；不可直接视为正式公网生产版本）。**
 **产品优先级（2026-11-18）：Windows 桌面软件优先；手机当前支持响应式网站与原生微信小程序，暂不开发 Android/iOS 独立 App。** 未来 App 复用统一 HTTPS API 和共享领域契约。
 
