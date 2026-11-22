@@ -15,7 +15,9 @@ const base={
   RATE_LIMIT_SECRET:goodSecret,
   DB_POOL_MAX:"6",
   STEPMARK_INGRESS_MODE:"caddy-direct",
-  TRUSTED_CLIENT_IP_HEADER:"x-real-ip"
+  TRUSTED_CLIENT_IP_HEADER:"x-real-ip",
+  RESEND_API_KEY:"re_1234567890abcdef",
+  AUTH_FROM_EMAIL:"StepMark <no-reply@stepmark.xin>"
 };
 function rejected(key,value){
   assert.throws(()=>validateProductionEnv({...base,[key]:value}),Error,
@@ -24,7 +26,7 @@ function rejected(key,value){
 
 test("accepts a well-formed direct-Caddy production configuration",()=>{
   assert.deepEqual(validateProductionEnv(base),{
-    emailConfigured:false,wechatConfigured:false
+    emailConfigured:true,wechatConfigured:false
   });
   assert.deepEqual(validateProductionEnv({...base,
     DATABASE_URL:base.DATABASE_URL.replace("verify-full","require"),
@@ -67,13 +69,21 @@ test("refuses unverified CDN forwarding and invalid pool limits",()=>{
   rejected("DB_POOL_MAX","0");
 });
 
-test("optional email and WeChat credentials must be complete",()=>{
-  rejected("RESEND_API_KEY","re_1234567890abcdef");
-  rejected("AUTH_FROM_EMAIL","StepMark <no-reply@stepmark.xin>");
+test("authentication requires a complete email or WeChat channel",()=>{
+  rejected("RESEND_API_KEY",undefined);
+  rejected("AUTH_FROM_EMAIL",undefined);
   rejected("WECHAT_APP_ID","wx1234567890");
   rejected("WECHAT_APP_SECRET","configured-secret");
   assert.throws(()=>validateProductionEnv({...base,
     RESEND_API_KEY:"REPLACE_ME",AUTH_FROM_EMAIL:"no-reply@stepmark.xin"}));
+  const wechatOnly={...base,RESEND_API_KEY:undefined,AUTH_FROM_EMAIL:undefined,
+    WECHAT_APP_ID:"wx1234567890",WECHAT_APP_SECRET:"valid-wechat-secret"};
+  assert.deepEqual(validateProductionEnv(wechatOnly),{
+    emailConfigured:false,wechatConfigured:true
+  });
+  rejected("RESEND_API_KEY",undefined); // Email alone cannot be partially configured.
+  assert.throws(()=>validateProductionEnv({...base,
+    RESEND_API_KEY:undefined,AUTH_FROM_EMAIL:undefined}),/AUTH_PROVIDER/);
 });
 
 test("CLI exits before startup and never prints credential values",()=>{

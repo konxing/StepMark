@@ -1,7 +1,9 @@
 # StepMark deployment blueprint: Alibaba Cloud ECS + Cloudflare DNS
 
-**Status: infrastructure blueprint only.** No server, database, DNS record,
-certificate, live deployment, or payment is created by these files.
+**Status: deployable code and Compose blueprint, not a completed live deployment.** No server,
+database, DNS record, certificate, live deployment or payment is created by these files.
+Production start now checks actual database connectivity and required tables, and
+Compose includes an automatic expired-auth-metadata cleanup service.
 
 This path deliberately preserves the existing **Next.js 16 / Node.js 22 /
 Prisma 7 / PostgreSQL** stack. A full Cloudflare Workers deployment would
@@ -34,7 +36,10 @@ here supplies DNS and (optionally) the CDN/WAF, **not** the application runtime.
    Restrict permissions (e.g. chmod 600), replace all placeholder secrets,
    use the managed PostgreSQL private hostname and require provider-supported
    TLS. The example is intentionally not a runnable production secret set.
-   Configure verified transactional email before public registration.
+   Configure at least one sign-in channel: verified transactional email
+   (required for web/desktop account onboarding) or real WeChat credentials
+   (mini-program only). Neither configured will fail the production preflight.
+   A syntactically valid key does not prove external provider delivery.
    Generate RATE_LIMIT_SECRET with Node.js, then paste the output into
    production.env (never commit the result):
 
@@ -53,18 +58,33 @@ here supplies DNS and (optionally) the CDN/WAF, **not** the application runtime.
 3. Back up the database and apply versioned Prisma migrations with a
    **separate privileged migrator** using the checked-out source and
    npm ci / npm run db:generate /
-   npm run db:deploy --workspace @stepmark/web. Do not give the web runtime
-   schema-change privileges. Test rollback/restore before production.
+   npm run db:deploy --workspace @stepmark/web. Run these commands from the
+   repository root with DIRECT_URL set to the private migration account,
+   after confirming a verified backup; do not pass the migration credential
+   into the web Compose environment. The public website image has its
+   development Prisma CLI pruned and is NOT the migration environment.
+   Confirm the runtime database user can SELECT/INSERT/UPDATE/DELETE its
+   user tables, but cannot CREATE/ALTER schema. Test restore before production.
 4. Set Cloudflare's A/AAAA record for stepmark.xin to the **real ECS IP**.
    During the initial Caddy certificate issuance, use **DNS only** (grey
    cloud), ensure port 80/443 are reachable and wait for a valid HTTPS
    certificate. Do not point DNS at an invented IP.
-5. From this directory, run:
+5. First verify database readiness against the **runtime** credentials:
+   DATABASE_URL from production.env must reach the migrated database with
+   proper TLS and SELECT privileges. Compose checks this before serving.
+   From this directory, run:
    docker compose -f compose.yml up -d --build
    docker compose -f compose.yml ps
-   docker compose -f compose.yml logs --tail=100 web proxy
+   docker compose -f compose.yml logs --tail=100 web proxy maintenance
    Confirm https://stepmark.xin/ works and the unauthenticated API probe
    returns 401 JSON. Keep Cloudflare DNS-only at this stage.
+   The maintenance container runs only fixed, parameterized deletes for expired
+   rate-limit buckets, login codes, verification tokens, revoked/expired sessions
+   and 30-day-old AI command replay receipts. It runs after startup and once
+   every 24 hours, retrying errors after 15 minutes. It never deletes habits,
+   task attempts or user notes. Check its logs and restart alerts as part of
+   production operations. The optional AI diary analysis worker remains a
+   separately configured job; it is NOT started by this Compose template.
 6. **Do not enable Cloudflare proxy (orange cloud) with this template.**
    Caddy currently overwrites X-Real-IP with the direct TCP peer; with
    orange-cloud enabled that peer is a Cloudflare edge, so unrelated users
@@ -90,8 +110,14 @@ here supplies DNS and (optionally) the CDN/WAF, **not** the application runtime.
   The current sourceKey rate-limiter is **not** suitable for public traffic
   behind Cloudflare orange-cloud without verified CDN IP forwarding.
 - The production startup preflight rejects obvious unsafe configuration and
-  placeholder secrets; it cannot verify true entropy, network isolation,
-  certificate trust, provider delivery, or disaster recovery.
+  placeholder secrets, and requires an actual login channel. A separate
+  one-shot database readiness check verifies connection, core tables and
+  read privileges before starting. These cannot prove true entropy, network
+  isolation, certificate identity, provider email delivery, or disaster recovery.
+- The maintenance service inherits the same production.env file because it
+  accesses the same private database. Protect this file and restrict who can
+  inspect Docker container environment variables. Keep the application DB
+  credential limited to data access, not schema changes.
 - The existing experimental ability assessment is not a validated
   population-scale ability score. Hosting must not change the scientific
   release gate or publish private item banks.

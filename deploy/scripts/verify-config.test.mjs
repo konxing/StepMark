@@ -27,7 +27,10 @@ test("single-server preview keeps Node and database ports off the public interfa
   assert.match(compose,/APP_ORIGIN: https:\/\/stepmark\.xin/);
   assert.match(compose,/TRUSTED_CLIENT_IP_HEADER: x-real-ip/);
   assert.match(compose,/STEPMARK_INGRESS_MODE: caddy-direct/);
-  assert.match(compose,/production-preflight\.mjs && exec npm run start/);
+  assert.match(compose,/production-preflight\.mjs && node \/workspace\/apps\/web\/scripts\/check-database\.mjs && exec npm run start/);
+  assert.match(compose,/maintenance:\s*\n/);
+  assert.match(compose,/prune-expired\.mjs", "--loop"/);
+  assert.match(compose,/image: stepmark-web:local/);
   assert.match(compose,/\/api\/health/);
   assert.match(compose,/env_file:/);
   assert.match(compose,/\.\/production\.env/);

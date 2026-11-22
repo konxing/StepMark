@@ -64,6 +64,9 @@ export function validateProductionEnv(env=process.env) {
   if(Boolean(wxId)!==Boolean(wxSecret))invalid("WECHAT_APP_ID / WECHAT_APP_SECRET");
   if(wxId && (!nonPlaceholder(wxId)||!nonPlaceholder(wxSecret)))
     invalid("WECHAT_APP_ID / WECHAT_APP_SECRET");
+  // With neither provider configured, new users cannot sign in through any
+  // supported registration path. Fail rather than serve an unusable release.
+  if(!resend && !wxId)invalid("AUTH_PROVIDER");
   return {emailConfigured:Boolean(resend),wechatConfigured:Boolean(wxId)};
 }
 

@@ -3,6 +3,7 @@
 name: stepmark
 services:
   web:
+    image: stepmark-web:local
     build:
       context: ..
       dockerfile: deploy/Dockerfile
@@ -19,7 +20,7 @@ services:
       PORT: "3000"
       HOSTNAME: 0.0.0.0
     # Refuse to serve traffic if secrets, TLS or ingress settings are unsafe.
-    command: ["sh", "-c", "node /workspace/apps/web/scripts/production-preflight.mjs && exec npm run start --workspace @stepmark/web -- --hostname 0.0.0.0"]
+    command: ["sh", "-c", "node /workspace/apps/web/scripts/production-preflight.mjs && node /workspace/apps/web/scripts/check-database.mjs && exec npm run start --workspace @stepmark/web -- --hostname 0.0.0.0"]
     expose:
       - "3000"
     security_opt:
@@ -34,6 +35,25 @@ services:
       timeout: 5s
       retries: 3
       start_period: 40s
+
+  # Separate low-overhead worker; no incoming ports. Runs once on startup and
+  # every 24 hours, retrying failures after 15 minutes. Requires DB migrations.
+  maintenance:
+    image: stepmark-web:local
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ./production.env
+    command: ["node", "/workspace/apps/web/scripts/prune-expired.mjs", "--loop"]
+    depends_on:
+      web:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - private
 
   proxy:
     image: caddy:2.10-alpine

@@ -53,4 +53,4 @@ jobs:
       - name: Assert runtime image contains build and no private configuration
         run: |
           docker run --rm --entrypoint sh stepmark:ci -c \
-            'test -f /workspace/apps/web/.next/BUILD_ID && test -f /workspace/apps/web/scripts/production-preflight.mjs && test ! -f /workspace/apps/web/.env && test ! -f /workspace/deploy/production.env && test ! -d /workspace/private-banks'
+            'test -f /workspace/apps/web/.next/BUILD_ID && test -f /workspace/apps/web/scripts/production-preflight.mjs && test -f /workspace/apps/web/scripts/check-database.mjs && test -f /workspace/apps/web/scripts/prune-expired.mjs && test ! -f /workspace/apps/web/.env && test ! -f /workspace/deploy/production.env && test ! -d /workspace/private-banks'
