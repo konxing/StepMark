@@ -16,11 +16,7 @@ const endpoints:Record<string,string>={
 };
 const modelPattern=/^[a-zA-Z0-9._:/-]{1,100}$/;
 const completionPath=/^\/(?:[a-zA-Z0-9_-]+\/)*chat\/completions$/;
-
-function setting(env:Environment,purpose:AiPurpose,suffix:string):string|undefined{
-  const assistant=env["AI_ASSISTANT_"+suffix];
-  return purpose==="assistant" ? (assistant??env["AI_HABIT_"+suffix]) : env["AI_HABIT_"+suffix];
-}
+const providerFields=["PROVIDER","API_KEY","MODEL","ENDPOINT","ALLOWED_HOST"] as const;
 
 /** Custom OpenAI-compatible endpoints are an explicit server-admin opt-in. */
 export function validateCompatibleEndpoint(raw:string,allowedHost:string):string{
@@ -39,15 +35,19 @@ export function validateCompatibleEndpoint(raw:string,allowedHost:string):string
   return url.href;
 }
 export function resolveAiProvider(purpose:AiPurpose,env:Environment=process.env):AiProviderConfig{
-  const provider=setting(env,purpose,"PROVIDER");
-  const key=setting(env,purpose,"API_KEY");
-  const model=setting(env,purpose,"MODEL");
-  if(!key||!model||!modelPattern.test(model)||key.length>4096)
+  // Resolve a complete configuration together. Inheriting individual fields
+  // could send a habit provider's key to a different assistant provider.
+  const hasSettings=(prefix:string)=>providerFields.some(field=>Boolean(env[prefix+field]?.trim()));
+  const prefix=purpose==="assistant"&&hasSettings("AI_ASSISTANT_")?"AI_ASSISTANT_":"AI_HABIT_";
+  const provider=env[prefix+"PROVIDER"]?.trim()||(!hasSettings(prefix)&&env.DEEPSEEK_API_KEY?.trim()?"deepseek":undefined);
+  const key=env[prefix+"API_KEY"]?.trim()||(provider==="deepseek"?env.DEEPSEEK_API_KEY?.trim():undefined);
+  const model=env[prefix+"MODEL"]?.trim()||(provider==="deepseek"?"deepseek-flash":undefined);
+  if(!key||!model||!modelPattern.test(model)||key.length>4096||/[\r\n]/u.test(key))
     throw new Error("AI_PROVIDER_NOT_CONFIGURED");
-  let url=endpoints[provider??""];
+  let url=provider&&Object.hasOwn(endpoints,provider)?endpoints[provider]:undefined;
   if(provider==="compatible"){
-    const endpoint=setting(env,purpose,"ENDPOINT");
-    const host=setting(env,purpose,"ALLOWED_HOST");
+    const endpoint=env[prefix+"ENDPOINT"];
+    const host=env[prefix+"ALLOWED_HOST"];
     if(!endpoint||!host)throw new Error("AI_PROVIDER_NOT_CONFIGURED");
     url=validateCompatibleEndpoint(endpoint,host);
   }
@@ -55,9 +55,15 @@ export function resolveAiProvider(purpose:AiPurpose,env:Environment=process.env)
   return {key,model,url};
 }
 
+export function isAiProviderConfigured(purpose:AiPurpose):boolean{
+  try{resolveAiProvider(purpose);return true;}
+  catch{return false;}
+}
+
 const envelopeSchema=z.object({
   choices:z.array(z.object({
-    message:z.object({content:z.string().max(8000)}).passthrough()
+    message:z.object({content:z.string().max(8000)}).passthrough(),
+    finish_reason:z.string().nullish()
   }).passthrough()).min(1)
 }).passthrough();
 
@@ -71,12 +77,14 @@ export async function callAiJson(config:AiProviderConfig,args:{
   timeoutMs:number;maxTokens:number;maxResponseBytes:number;
   disableThinking?:boolean;
 }):Promise<unknown>{
+  const isDeepSeekFlash=config.url===endpoints.deepseek &&
+    ["deepseek-flash","deepseek-v4-flash","deepseek-v4-flash-vision-exp"].includes(config.model);
   const response=await fetch(config.url,{
     method:"POST",cache:"no-store",redirect:"error",
     signal:AbortSignal.timeout(args.timeoutMs),
     headers:{"Authorization":"Bearer "+config.key,"Content-Type":"application/json"},
     body:JSON.stringify({model:config.model,temperature:0,max_tokens:args.maxTokens,
-      ...(args.disableThinking?{thinking:{type:"disabled"}}:{}),
+      ...(args.disableThinking||isDeepSeekFlash?{thinking:{type:"disabled"}}:{}),
       response_format:{type:"json_object"},messages:args.messages})
   });
   if(!response.ok)throw new Error("AI_UPSTREAM_FAILED");
@@ -104,6 +112,8 @@ export async function callAiJson(config:AiProviderConfig,args:{
   try{raw=JSON.parse(output);}catch{throw new Error("AI_RESPONSE_INVALID_JSON");}
   const envelope=envelopeSchema.safeParse(raw);
   if(!envelope.success)throw new Error("AI_RESPONSE_INVALID");
-  try{return JSON.parse(envelope.data.choices[0]!.message.content);}
+  const choice=envelope.data.choices[0]!;
+  if(choice.finish_reason!=null&&choice.finish_reason!=="stop")throw new Error("AI_RESPONSE_INCOMPLETE");
+  try{return JSON.parse(choice.message.content);}
   catch{throw new Error("AI_RESPONSE_INVALID_JSON");}
 }

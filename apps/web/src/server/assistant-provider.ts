@@ -21,6 +21,8 @@ Create only for explicit requests to establish a concrete observable routine.
 Record actions only for explicit completed/missed/no-cue statements, NEVER hopes,
 predictions, hypothetical examples, or questions. Do not guess habit identity:
 if multiple habits, require the full habit title in the CURRENT message.
+Use missed only when the user states there was an opportunity AND they did not act.
+If they only say they did not act, ask whether they had an opportunity.
 For self-reports about naturally INITIATING a habit, label initiation only
 when a literal quote states initiation automaticity (0 forced, 1 strong deliberation,
 2 mildly hesitant, 3 mostly natural, 4 spontaneous without thinking).

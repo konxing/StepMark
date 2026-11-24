@@ -14,6 +14,7 @@
       <div class="brand"><span class="brand-symbol" aria-hidden="true">S</span>StepMark</div>
       <nav aria-label="主要导航" class="navigation">
         <button type="button" data-view="workspace" aria-current="page">工作台</button>
+        <button type="button" data-view="retest">独立复测</button>
         <button type="button" data-view="habits">习惯记录</button>
         <button type="button" data-view="connections">连接设置</button>
       </nav>
@@ -62,6 +63,36 @@
         </div>
       </section>
 
+      <section id="view-retest" class="secondary-view" aria-labelledby="retest-title" hidden>
+        <header class="topline"><h1 id="retest-title">独立复测</h1></header>
+        <div class="panel retest-panel">
+          <div class="panel-heading">
+            <label for="retest-topic">选择要验证的方法</label>
+            <select id="retest-topic">
+              <option value="limits">极限 · 等价无穷小代换</option>
+              <option value="evidence">论证与证据判断</option>
+            </select>
+          </div>
+          <p>独立选出答案后看解析。下一道在 24 小时后开放，记录保存在当前 Windows 用户下。</p>
+          <p id="retest-summary"></p>
+          <form id="retest-form" hidden>
+            <fieldset id="retest-question" class="retest-question">
+              <legend id="retest-prompt"></legend>
+              <div id="retest-options" class="retest-options"></div>
+            </fieldset>
+            <button id="retest-submit" type="submit" class="primary" disabled>提交第一次答案</button>
+          </form>
+          <div id="retest-feedback" class="retest-feedback" aria-live="polite" hidden></div>
+          <p id="retest-next"></p>
+          <button id="retest-refresh" type="button" class="quiet" hidden>检查是否可复测</button>
+          <details id="retest-history" hidden>
+            <summary>查看首次作答记录</summary>
+            <ol id="retest-attempts"></ol>
+          </details>
+          <p id="retest-status" class="status-line" role="status" aria-live="polite"></p>
+        </div>
+      </section>
+
       <section id="view-habits" class="secondary-view" aria-labelledby="habits-title" hidden>
         <header class="topline"><h1 id="habits-title">习惯记录</h1><button id="refresh" type="button" class="quiet" hidden>刷新</button></header>
         <div class="panel">
@@ -77,7 +108,7 @@
         <div class="connection-panels">
           <section class="panel" aria-labelledby="ai-title">
             <div class="panel-heading"><h2 id="ai-title">DeepSeek Flash</h2><span id="provider-label" class="subtle"></span></div>
-            <p>工作台通过本机直接连接 DeepSeek。密钥经验证后保存在 Windows 凭据管理器。</p>
+            <p>工作台用 OpenAI 兼容格式直连 DeepSeek 官方接口。密钥经验证后保存在 Windows 凭据管理器。</p>
             <form id="key-form" autocomplete="off">
               <label for="api-key">DeepSeek API Key</label>
               <input id="api-key" name="api-key" type="password" autocomplete="off" spellcheck="false" maxlength="180" placeholder="sk-…" required>

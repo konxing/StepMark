@@ -31,6 +31,10 @@ export interface HabitProgress {
   evidenceLevel:"insufficient"|"limited"|"moderate"|"repeated";
   stage:HabitStage;
   completedRepetitions:number;
+  /** Includes observed eligible opportunities only. No inference about missing records. */
+  eligibleOpportunities:number;
+  /** Proportion in [0, 1], or null when no eligible opportunities are recorded. */
+  observedCompletionRate:number|null;
   evidenceCount:number;
   /** AI-coded annotations in the function input, never scored; public API may replace this with a separate owner-scoped historical count. */
   aiAnnotationCount:number;
@@ -140,7 +144,9 @@ export function calculateHabitProgress(input:HabitProgressInput):HabitProgress {
     policyVersion:HABIT_PROGRESS_POLICY_VERSION,
     progress,repetitionSignal:Number(repetitionSignal.toFixed(1)),
     automaticitySignal:automaticitySignal===null?null:Number(automaticitySignal.toFixed(1)),
-    evidenceLevel,stage,completedRepetitions:n,evidenceCount:count,
+    evidenceLevel,stage,completedRepetitions:n,eligibleOpportunities,
+    observedCompletionRate:eligibleOpportunities===0?null:completedOpportunities/eligibleOpportunities,
+    evidenceCount:count,
     aiAnnotationCount,
     evidenceSpanDays:Number(span.toFixed(1)),evidenceStale,
     lastRatingAt:latest?new Date(latest.atMs).toISOString():null,

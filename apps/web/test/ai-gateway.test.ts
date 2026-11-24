@@ -20,6 +20,19 @@ test("fixed providers and assistant fallback preserve deployed configuration",()
   assert.throws(()=>resolveAiProvider("habit",{...env,AI_HABIT_MODEL:"invalid model"}));
   assert.throws(()=>resolveAiProvider("habit",{...env,AI_HABIT_PROVIDER:"unknown"}));
 });
+test("a DeepSeek key defaults to Flash without crossing explicit provider credentials",()=>{
+  const deepseek={DEEPSEEK_API_KEY:"fixture-deepseek"};
+  for(const purpose of ["assistant","habit"] as const){
+    assert.deepEqual(resolveAiProvider(purpose,deepseek),{
+      url:"https://api.deepseek.com/chat/completions",key:"fixture-deepseek",model:"deepseek-flash"
+    });
+  }
+  assert.equal(resolveAiProvider("assistant",{...env,...deepseek}).key,"secret");
+  assert.throws(()=>resolveAiProvider("assistant",{...env,...deepseek,
+    AI_ASSISTANT_PROVIDER:"openrouter",AI_ASSISTANT_MODEL:"example"}),/AI_PROVIDER_NOT_CONFIGURED/);
+  assert.throws(()=>resolveAiProvider("assistant",{...env,AI_ASSISTANT_PROVIDER:"__proto__",
+    AI_ASSISTANT_API_KEY:"fixture-only",AI_ASSISTANT_MODEL:"example"}),/AI_PROVIDER_NOT_CONFIGURED/);
+});
 test("custom OpenAI-compatible endpoint is server-allowlisted, HTTPS and public",()=>{
   const good="https://llm.example.com/v1/chat/completions";
   assert.equal(validateCompatibleEndpoint(good,"llm.example.com"),good);
@@ -65,6 +78,11 @@ test("bounded AI gateway parses JSON, denies redirects and oversized replies",as
     assert.equal(calls[0]?.redirect,"error");
     assert.equal((calls[0]?.headers as Record<string,string>).Authorization,"Bearer secret");
     assert.equal(JSON.parse(String(calls[0]?.body)).messages[0].content,"hello");
+    assert.equal(JSON.parse(String(calls[0]?.body)).thinking,undefined);
+    await callAiJson(resolveAiProvider("habit",{DEEPSEEK_API_KEY:"fixture-deepseek"}),{
+      messages,timeoutMs:1000,maxTokens:50,maxResponseBytes:1000
+    });
+    assert.deepEqual(JSON.parse(String(calls[1]?.body)).thinking,{type:"disabled"});
     globalThis.fetch=async()=>new Response("x".repeat(120),{status:200});
     await assert.rejects(()=>callAiJson(cfg,{messages,timeoutMs:1000,maxTokens:50,
       maxResponseBytes:100}),/AI_RESPONSE_TOO_LARGE/);
@@ -75,6 +93,9 @@ test("bounded AI gateway parses JSON, denies redirects and oversized replies",as
     globalThis.fetch=async()=>new Response("not json",{status:200});
     await assert.rejects(()=>callAiJson(cfg,{messages,timeoutMs:1000,maxTokens:50,
       maxResponseBytes:100}),/AI_RESPONSE_INVALID_JSON/);
+    globalThis.fetch=async()=>Response.json({choices:[{...payload.choices[0],finish_reason:"length"}]});
+    await assert.rejects(()=>callAiJson(cfg,{messages,timeoutMs:1000,maxTokens:50,
+      maxResponseBytes:1000}),/AI_RESPONSE_INCOMPLETE/);
     globalThis.fetch=async()=>new Response("",{status:302,headers:{location:"https://evil.test"}});
     await assert.rejects(()=>callAiJson(cfg,{messages,timeoutMs:1000,maxTokens:50,
       maxResponseBytes:100}),/AI_UPSTREAM_FAILED/);

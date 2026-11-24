@@ -152,7 +152,11 @@ export async function executeAssistantCommand(args:{
           eligibleOpportunities:eligible,completedOpportunities:completed,
           observations,nowMs:Date.now(),lastCompletedAtMs:last?.occurredAt.getTime()??null,
           seed:target.id,reviewEnabled:target.reviewEnabled});
-        result={reply:`「${target.title}」已执行 ${completed} 次；实验性成长指标 ${status.progress.toFixed(1)}%。${status.evidenceStale?" 最近的感受证据已过时，建议简短复查。":""}这不是习惯形成概率，也不代表能力自动提高。`,
+        const execution=status.observedCompletionRate===null?"暂无已记录的执行机会。":
+          `已记录 ${status.eligibleOpportunities} 次执行机会，完成 ${completed} 次（${Math.round(status.observedCompletionRate*100)}%）。`;
+        const feedback=status.evidenceCount===0?"自然启动程度暂无本人自评。":
+          `自然启动程度有 ${status.evidenceCount} 天的本人自评。${status.evidenceStale?"最近的感受证据已过时，建议简短复查。":""}`;
+        result={reply:`「${target.title}」${execution}${feedback}`,
           change:null,progress:{habitId:target.id,percent:status.progress,
             repetitions:completed,evidenceStale:status.evidenceStale}};
       }else if(command.intent==="clarify"){

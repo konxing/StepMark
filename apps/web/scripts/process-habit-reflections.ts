@@ -1,6 +1,8 @@
+import "dotenv/config";
 import {PrismaClient} from "../src/generated/prisma/client";
 import {PrismaPg} from "@prisma/adapter-pg";
 import {judgeHabitNote} from "../src/server/habit-ai";
+import {resolveAiProvider} from "../src/server/ai-gateway";
 
 /**
  * Server-only bounded worker. Run from scheduler separately from HTTP requests.
@@ -9,7 +11,7 @@ import {judgeHabitNote} from "../src/server/habit-ai";
  */
 const connectionString=process.env.DATABASE_URL;
 if(!connectionString)throw new Error("DATABASE_URL required");
-if(!process.env.AI_HABIT_API_KEY || !process.env.AI_HABIT_MODEL)throw new Error("AI provider missing");
+resolveAiProvider("habit");
 const db=new PrismaClient({adapter:new PrismaPg({connectionString,max:2,connectionTimeoutMillis:3000})});
 async function main(){
   // Recover interrupted worker claims, keeping a strictly bounded external-call lease.

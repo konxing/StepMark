@@ -29,7 +29,7 @@ test("native commands do not expose a session token to the webview",()=>{
   assert.doesNotMatch(rust,/tauri_plugin_shell|tauri_plugin_http|window\.eval/);
 });
 
-test("workbench keeps a failed draft, carries context, and displays a copyable result",async()=>{
+test("workbench keeps a failed draft, carries context, and opens an offline retest",async()=>{
   class Element {
     constructor(){
       this.children=[];this.dataset={};this.events={};this.value="";this.textContent="";
@@ -42,12 +42,23 @@ test("workbench keeps a failed draft, carries context, and displays a copyable r
   }
   const nodes=new Map([...read("ui/index.html").matchAll(/\sid="([^"]+)"/g)].map(match=>[match[1],new Element()]));
   const calls=[];
-  const result={analysis:"One conditional finding",deliverable:"A reusable draft",nextStep:"Check the next observation"};
+  const result={analysis:"One conditional finding",deliverable:"A reusable draft",nextStep:"Check the next observation",retestTopic:"evidence"};
   let shouldFail=true;
   let copied;
   const invoke=async(command,args)=>{
     if(command==="deepseek_status")return {configured:true,savedHere:true};
     if(command==="get_status")return {signedIn:false,apiOrigin:"https://stepmark.xin"};
+    if(command==="get_retest"){
+      assert.equal(args.topic,"evidence");
+      return {question:{id:"evidence-v1-confound",prompt:"Which statement is supported?",options:["A","B","C"]},attempts:[],nextAt:null,total:3};
+    }
+    if(command==="submit_retest"){
+      assert.equal(args.topic,"evidence");
+      assert.equal(args.id,"evidence-v1-confound");
+      assert.equal(args.choice,1);
+      return {question:null,attempts:[{attempt:{itemId:args.id,choice:1,recordedAt:1000},correct:true,
+        answer:1,explanation:"Compare the conditions."}],nextAt:86401000,total:3};
+    }
     if(command==="work_on_problem"){
       calls.push(structuredClone(args));
       if(shouldFail)throw "DeepSeek connection failed";
@@ -75,6 +86,17 @@ test("workbench keeps a failed draft, carries context, and displays a copyable r
   output.children[0].children[1].events.click();
   await new Promise(resolve=>setImmediate(resolve));
   assert.equal(copied,result.deliverable);
+  turn.children[1].children.at(-1).events.click();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(nodes.get("retest-form").hidden,false);
+  assert.equal(nodes.get("retest-submit").disabled,true);
+  assert.equal(nodes.get("retest-feedback").hidden,true);
+  nodes.get("retest-options").children[1].children[0].events.change();
+  await nodes.get("retest-form").events.submit({preventDefault(){}});
+  assert.equal(nodes.get("retest-form").hidden,true);
+  assert.equal(nodes.get("retest-feedback").children[1].textContent,"Compare the conditions.");
+  assert.equal(nodes.get("retest-attempts").children.length,1);
+  assert.equal(nodes.get("retest-refresh").hidden,false);
   input.value="I tested it and got new evidence";
   await submit();
   assert.deepEqual(calls.at(-1).history,[{question:"Investigate why the result changed",result}]);

@@ -1,6 +1,7 @@
 "use client";
 import {useCallback,useEffect,useState} from "react";
 type Progress={progress:number;repetitionSignal:number;automaticitySignal:number|null;
+  eligibleOpportunities?:number;observedCompletionRate?:number|null;
   completedRepetitions:number;evidenceCount:number;aiAnnotationCount:number;reviewDue:boolean;nextReviewAt:string|null;
   stage:string;policyVersion:string;reviewEnabled:boolean;reviewReason:string;evidenceStale:boolean;lastRatingAt:string|null};
 type Reflection = {id:string;eventId:string|null;note:string|null;initiationLevel:number|null;
@@ -87,16 +88,13 @@ export default function HabitGrowthPanel({habitId,eventId}:{habitId:string;event
     }catch{setMessage("网络错误，未能完成操作。");}finally{setBusy(false);}
   }
   return <section className="dashboard-panel" aria-label="习惯进度和维护">
-    <h2>习惯成长进度</h2>
+    <h2>习惯执行与启动感受</h2>
     {result ? <>
-      <div className="progress-head"><strong>{result.progress.toFixed(1)}%</strong>
-        <span>{result.evidenceStale?"证据已过时·保留历史进度":result.reviewDue?"建议复查":result.stage==="maintaining"?"较稳定·维护观察":result.stage==="developing"?"形成中":"收集证据"}</span>
-      </div>
-      <div className="growth-track" role="progressbar" aria-label="实验性习惯成长进度"
-        aria-valuemin={0} aria-valuemax={100} aria-valuenow={result.progress}>
-        <div className="growth-fill" style={{width:result.progress+"%"}}/>
-      </div>
-      <p>已执行 {result.completedRepetitions} 次 · 本人启动感受信号：{result.automaticitySignal===null?"尚无直接自评":result.automaticitySignal.toFixed(1)}
+      {result.observedCompletionRate===null?<p>暂无已记录的执行机会。</p>:
+        typeof result.observedCompletionRate==="number"?
+          <p>已记录 {result.eligibleOpportunities} 次执行机会，完成 {result.completedRepetitions} 次（{Math.round(result.observedCompletionRate*100)}%）。</p>:
+          <p>已执行 {result.completedRepetitions} 次。</p>}
+      <p>本人启动感受信号：{result.automaticitySignal===null?"尚无直接自评":result.automaticitySignal.toFixed(1)}
         · 本人有效反馈 {result.evidenceCount} 次</p>
       {result.aiAnnotationCount>0&&<p className="progress-caveat">历史记录有 {result.aiAnnotationCount} 条仅 AI 暂定解读，未参与进度和复查判断。</p>}
       {result.evidenceStale&&<p className="review-prompt">
@@ -105,7 +103,17 @@ export default function HabitGrowthPanel({habitId,eventId}:{habitId:string;event
       {result.reviewDue&&<p className="review-prompt">{result.reviewReason==="recent_difficulty"?"最近开始行动似乎更费力了，做一次简短复查吧。":"该做一次低负担复查了：现在开始行动，还是和之前一样自然吗？"}</p>}
       {result.nextReviewAt&&<small>预计下次应用内复查：{new Date(result.nextReviewAt).toLocaleDateString("zh-CN")}</small>}
       <button type="button" className="text-button" disabled={busy} onClick={toggleReview}>{result.reviewEnabled?"关闭应用内复查":"开启应用内复查"}</button>
-      <p className="progress-caveat">此百分比基于本人明确感受的实验性指标，不是科学验证的“养成概率”；AI 暂定解读不加分，也不会直接改变能力分。</p>
+      <details>
+        <summary>查看实验性成长指标</summary>
+        <div className="progress-head"><strong>{result.progress.toFixed(1)}%</strong>
+          <span>{result.evidenceStale?"证据已过时·保留历史进度":result.reviewDue?"建议复查":result.stage==="maintaining"?"较稳定·维护观察":result.stage==="developing"?"形成中":"收集证据"}</span>
+        </div>
+        <div className="growth-track" role="progressbar" aria-label="实验性习惯成长进度"
+          aria-valuemin={0} aria-valuemax={100} aria-valuenow={result.progress}>
+          <div className="growth-fill" style={{width:result.progress+"%"}}/>
+        </div>
+        <p className="progress-caveat">此指标按执行次数和本人明确感受计算。它只适合查看同一习惯的历史趋势。</p>
+      </details>
     </>:<p>正在计算进度…</p>}
     <div className="growth-form">
       <strong>这一次开始行动时的感受（选填）</strong>

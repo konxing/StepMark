@@ -19,9 +19,10 @@ export type ParsedAssistantCommand=z.infer<typeof commandSchema>;
 export type SafeAssistantCommand=ParsedAssistantCommand&{target:OwnedHabit|null};
 const question=/[?？]|(?:是不是|能不能|怎么做|如何|为什么|要不要)/u;
 const createWords=/(创建|添加|建立|养成|培养|开始坚持|帮我制定|我想每天|我打算每天|我想每周)/u;
-const doneWords=/(做了|完成了|已完成|执行了|打卡了|打卡|读了|阅读了|跑了|练习了|坚持了|已经做|刚做完)/u;
+const doneWords=/(做了|完成了|已完成|执行了|打卡了|读了|阅读了|跑了|练习了|坚持了|已经做|刚做完)/u;
 const missedWords=/(没做|没完成|没有完成|未执行|没执行|没打卡|忘记|忘了|没有做)/u;
-const noCueWords=/(没机会|没有机会|没有触发|未遇到|没遇到|没出现触发|没有出现)/u;
+const noCueWords=/(没(?:有)?机会|没(?:有)?触发|(?:未遇到|没遇到|没(?:有)?出现)[^。！？!?]{0,12}(?:触发|机会|时机))/u;
+const opportunityWords=/(有(?:过|个)?机会|本来可以|(?:遇到|等到)(?:了)?(?:预设的|约定的)?(?:触发|机会|时机))/u;
 const reflectionWords=/(感觉|感受|自然|不用思考|没想|纠结|犹豫|抗拒|费力|顺手|轻松|自然而然)/u;
 /**
  * Never let the AI's confident intent label turn a conditional example,
@@ -85,14 +86,14 @@ export function authorizeAssistantCommand(raw:unknown,userText:string,habits:rea
        (v.when==="yesterday"&&!userText.includes("昨天")))
       return clarification("我不会把未说明日期的消息默认记录为今天。请明确说出今天还是昨天发生的事情。");
     if(!v.status||v.confidence<0.75)return clarification("我不确定你是否完成了这次行动，请说清楚“已完成”“有机会未做”或“没有触发机会”。");
-    if(v.status==="done"&&(!doneWords.test(userText)||missedWords.test(userText)))
+    if(v.status==="done"&&(!doneWords.test(userText)||missedWords.test(userText)||noCueWords.test(userText)))
       return clarification("我没有找到明确的“已经执行”证据，请直接告诉我是否完成了。");
     if(v.status==="missed"&&
        (noCueWords.test(userText)||/(?:还没|尚未|等会|待会|一会儿)/u.test(userText)))
       return clarification("这可能是尚未执行或根本没有触发机会，不能自动算作一次有机会未做。请说明实际情况。");
-    if(v.status==="missed"&&!missedWords.test(userText))
-      return clarification("请明确说出这次有机会但没有执行。");
-    if(v.status==="no_cue"&&!noCueWords.test(userText))
+    if(v.status==="missed"&&(!missedWords.test(userText)||!opportunityWords.test(userText)))
+      return clarification("这次有机会做，但最后没做，还是没有遇到机会？");
+    if(v.status==="no_cue"&&(!noCueWords.test(userText)||doneWords.test(userText)))
       return clarification("请明确说出这次没有出现触发机会。");
     return {...v,target};
   }

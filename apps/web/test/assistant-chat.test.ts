@@ -78,6 +78,12 @@ test("chat cannot misrecord hypothetical, future or third-party achievements",()
     template("record_opportunity",{habitId:habit.id,status:"missed",when:"today"}),
     "今天还没做睡前阅读",[habit]);
   assert.equal(incompleteToday.intent,"clarify");
+  const missed=template("record_opportunity",{habitId:habit.id,status:"missed",when:"today"});
+  assert.equal(authorizeAssistantCommand(missed,"今天没做睡前阅读",[habit]).intent,"clarify");
+  assert.equal(authorizeAssistantCommand(missed,"今天有机会，但没做睡前阅读",[habit]).intent,"record_opportunity");
+  assert.equal(authorizeAssistantCommand(template("record_opportunity",{
+    habitId:habit.id,status:"no_cue",when:"today"
+  }),"今天完成了睡前阅读，但没有出现困意",[habit]).intent,"clarify");
   const noCue=authorizeAssistantCommand(template("record_opportunity",{
     habitId:habit.id,status:"no_cue",when:"today"
   }),"今天没做睡前阅读，因为没有机会",[habit]);

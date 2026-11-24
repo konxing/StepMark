@@ -1,5 +1,11 @@
 # StepMark / 个人能力与习惯成长平台
 
+## 产品目标
+
+StepMark 帮用户在 AI 能承担大量任务的时代，仍有能力、有机会、有自主性地参与自己愿意做的劳动和创造。培养的能力包括独立发现问题、系统理解和验证、学习与迁移、使用工具与 AI、完成创造和交付、与人沟通协作，以及依据价值和证据自主选择方向。
+
+思维优先，持续练习问题分解、反证检验和独立解题。表达、观察与证据判断、预测与校准也需要各自的真实任务。AI 优先承担整理、反馈和复测准备，用户保留对方向、真实结果和记录的决定权。进展以原始表现、可核对的产出和独立复测为依据。
+
 ## 系统整体设计（2026-11-21）
 
 [StepMark 完整架构、量化模型与实施方案](docs/architecture/STEPMARK_SYSTEM_DESIGN_2026-11-21.md)（以现有 main 代码为准，区分已实现与待上线验收）。
@@ -8,7 +14,7 @@
 **当前状态：多用户 Alpha（开发预览；不可直接视为正式公网生产版本）。**
 **产品优先级（2026-11-18）：Windows 桌面软件优先；手机当前支持响应式网站与原生微信小程序，暂不开发 Android/iOS 独立 App。** 未来 App 复用统一 HTTPS API 和共享领域契约。
 
-Windows Tauri 2 只读预览已开始实施，包含本地 UI、系统浏览器 PKCE 授权、Windows 凭据存储和本人习惯列表；详见 [Windows 客户端](apps/desktop/README.md)。**尚未完成 Windows 真机、代码签名或正式发行验收。** Web + 微信小程序继续使用统一后端 API。每个用户有独立的身份、习惯与测评证据。
+Windows Tauri 2 预览包括 DeepSeek Flash 工作台、系统浏览器 PKCE 授权、Windows 凭据存储和本人习惯列表，详见 [Windows 客户端](apps/desktop/README.md)。Web + 微信小程序继续使用统一后端 API。每个用户有独立的身份、习惯与测评证据。
 **唯一长期维护分支为 `main`。** 开发成果已通过 PR 合并到主分支；本地部署与更新均以 `main` 为准。
 
 ## 已实现
@@ -28,7 +34,7 @@ Windows Tauri 2 只读预览已开始实施，包含本地 UI、系统浏览器 
 
 ## 客户端优先的软件架构迁移
 
-已开始渐进式迁移：现有 Next.js 暂时继续承载统一后端 API，微信小程序保持原生实现；新增可配置的服务端 OpenAI-compatible AI 网关。**Windows Tauri 2 只读预览客户端和系统浏览器 PKCE 安全登录已实现**；Android/iOS 独立 App 暂缓，网站和微信小程序继续维护，当前后端不能停用。已确认正式域名为 **stepmark.xin**，Windows CI 将自动生成绑定 https://stepmark.xin 的未签名预览安装包；域名 DNS/TLS/服务器仍须独立部署和验证。实施边界与技术决策见 [ADR-002 客户端优先架构](docs/architecture/CLIENT_FIRST_MIGRATION.md)。
+Next.js 承载统一后端 API 与可配置的服务端 AI 网关，微信小程序保持原生实现。Windows Tauri 2 通过系统浏览器 PKCE 授权读取个人习惯记录，工作台通过独立的原生连接使用 DeepSeek Flash。Windows CI 生成使用 **stepmark.xin** 作为账户服务地址的未签名预览安装包。实施边界见 [ADR-002 客户端优先架构](docs/architecture/CLIENT_FIRST_MIGRATION.md)。
 
 ## 目录
 
@@ -107,7 +113,7 @@ License: Apache-2.0. 引入任何第三方认知测验或量表前另行确认�
 - 控制台执行一次习惯后，可以选择一个自然启动等级，也可以不填；可附 600 字以内感受。未提交文字仍不影响行为记录。
 - 通过“查看记录 / 习惯成长进度”显示 0–100 实验性进度条。重复次数只是部分信号；文字或自评才能提供自动化程度证据。示例：20 次且轻微纠结 ≈33%，90 次且跨时间多次自然启动 ≈91%（均不是科学阈值）。
 - 形成较稳定的候选习惯进入“维护观察”，应用内会低频提示复查，用户可关闭。**未启用微信订阅消息或自动推送**。
-- AI 是可选的异步服务：只有用户单独勾选同意，且服务端配置 `AI_HABIT_PROVIDER`、`AI_HABIT_MODEL`、`AI_HABIT_API_KEY` 后，本条文字才会排队等待分析。
+- AI 是可选的异步服务。用户勾选同意且服务器配置了可用的 AI 服务时，这条感受才会排队等待分析。只设置服务端 `DEEPSEEK_API_KEY` 即可选用 Flash；其他服务商使用一组完整的 `AI_HABIT_*` 配置。
 - 开发者要在可信服务器的计划任务中运行 `npm run habits:analyze --workspace @stepmark/web`。**仅启动网页服务不会自动运行 AI worker**。AI 结果是带原文引句的暂定分类，不会直接改写能力分数。
 - 用户数据导出覆盖个人感受原文和可审计的 AI 分类结果；账户删除级联清除个人感受。
 - 详细公式、参数和局限：`docs/research/RESEARCH_AND_FORMULAS.md` 第11节。数据库迁移使用 `db:deploy`，不可在生产使用 `db:push`。

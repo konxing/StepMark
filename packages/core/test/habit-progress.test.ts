@@ -25,6 +25,15 @@ test("many repetitions with no introspective data must not imply habit formation
   assert.equal(x.automaticitySignal,null);
   assert.equal(x.stage,"collecting_evidence");
 });
+test("execution rate describes recorded opportunities separately from automaticity",()=>{
+  const x=calculateHabitProgress({completedRepetitions:3,completedOpportunities:3,eligibleOpportunities:8,
+    nowMs:now,observations:[{atMs:now,level:4,source:"ai_interpretation",confidence:1}]});
+  assert.equal(x.completedRepetitions,3);
+  assert.equal(x.eligibleOpportunities,8);
+  assert.equal(x.observedCompletionRate,3/8);
+  assert.equal(x.automaticitySignal,null);
+  assert.equal(base(0).observedCompletionRate,null);
+});
 test("a single strong note is not enough to certify a mature habit",()=>{
   const x=base(90,[evidence(1,4)]);
   assert.ok(x.progress<=65);

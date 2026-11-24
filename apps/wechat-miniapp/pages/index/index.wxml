@@ -107,17 +107,18 @@
       </view>
     </view>
     <view wx:if="{{selectedHabitId && progress}}" class="progress-card">
-      <view class="section-title">习惯形成进度</view>
-      <view class="progress-percentage">{{progress.progress}}%</view>
-      <view class="progress-track"><view class="progress-fill" style="width:{{progress.progress}}%;"></view></view>
-      <text class="meta">已执行 {{progress.completedRepetitions}} 次，本人有效感受证据 {{progress.evidenceCount}} 条</text>
+      <view class="section-title">习惯执行与启动感受</view>
+      <text wx:if="{{progress.eligibleOpportunities > 0}}" class="meta">已记录 {{progress.eligibleOpportunities}} 次执行机会，完成 {{progress.completedRepetitions}} 次</text>
+      <text wx:elif="{{progress.eligibleOpportunities === 0}}" class="meta">暂无已记录的执行机会。</text>
+      <text wx:else class="meta">已执行 {{progress.completedRepetitions}} 次</text>
+      <text class="meta">本人有效感受证据 {{progress.evidenceCount}} 条</text>
       <text wx:if="{{progress.aiAnnotationCount>0}}" class="small-note">历史仅 AI 暂定解读 {{progress.aiAnnotationCount}} 条，未参与进度或复查判断。</text>
       <view wx:if="{{progress.evidenceStale}}" class="review-note">
         最近 45 天没有新的有效感受评分。显示的是历史证据支持的进度，不代表当前状态；缺少记录不扣分。
       </view>
       <view wx:if="{{progress.reviewDue}}" class="review-note">该复查了：现在开始这个习惯仍然自然吗？</view>
-      <view class="small-note">百分比只使用本人明确反馈的感受证据，不使用 AI 暂定推断；不是习惯形成概率，也不直接增加能力分。</view>
       <block wx:if="{{showAdvanced}}">
+      <view class="small-note">实验性成长指标 {{progress.progress}}%。按执行次数和本人明确感受计算，供查看历史趋势。</view>
       <view class="section-title">最近记录 · 更正</view>
       <view wx:for="{{recentEvents}}" wx:key="id" class="reflection-item">
         <text class="meta">{{item.opportunityKey}} · {{!item.eligible ? '没有触发机会' : (item.completed ? '已执行' : '有机会未执行')}} · 版本 {{item.revision}}</text>
