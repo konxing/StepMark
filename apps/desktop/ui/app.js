@@ -1,96 +1,286 @@
 "use strict";
-// All network and credential operations are Rust commands. No bearer token is
-// ever returned to the webview. Render API-provided text via textContent only.
+
 const invoke=window.__TAURI__?.core?.invoke;
 const el=id=>document.getElementById(id);
-let busy=false;
-function message(value){el("message").textContent=value;}
-function setBusy(value){
-  busy=value;
-  for(const id of ["login","refresh","logout"])el(id).disabled=value;
+const navigation=[...document.querySelectorAll("[data-view]")];
+const examples=[...document.querySelectorAll("[data-example]")];
+const conversation=[];
+const contextTurns=6;
+const provider={configured:false,savedHere:false,verified:false};
+let accountBusy=false;
+let providerBusy=false;
+let workBusy=false;
+let signedIn=false;
+
+function textElement(tag,value,className){
+  const element=document.createElement(tag);
+  element.textContent=value;
+  if(className)element.className=className;
+  return element;
 }
-function showSignedIn(value){
-  el("login").hidden=value;
-  el("refresh").hidden=!value;
-  el("logout").hidden=!value;
-  if(!value){
-    el("habit-count").textContent="—";
-    el("list-hint").textContent="连接账号后显示";
-    el("habit-list").replaceChildren();
-    const p=document.createElement("p");p.className="empty";p.textContent="暂无可显示的个人数据。";
-    el("habit-list").append(p);
-    el("account-name").textContent="未连接账号";
+
+function status(id,value,error=false){
+  const line=el(id);
+  line.textContent=value;
+  line.dataset.error=String(error);
+}
+
+function showView(view,focus=false){
+  if(view!=="connections")el("api-key").value="";
+  for(const button of navigation){
+    const selected=button.dataset.view===view;
+    el("view-"+button.dataset.view).hidden=!selected;
+    if(selected){
+      button.setAttribute("aria-current","page");
+      if(focus)button.focus();
+    }else button.removeAttribute("aria-current");
   }
 }
-function displayHabits(data){
-  const habits=Array.isArray(data?.habits)?data.habits:[];
-  el("habit-count").textContent=String(habits.length);
-  el("list-hint").textContent="最多显示最近 50 项未归档习惯";
-  const list=el("habit-list");
-  list.replaceChildren();
-  if(!habits.length){
-    const p=document.createElement("p");p.className="empty";p.textContent="当前没有未归档习惯。";
-    list.append(p);return;
-  }
-  for(const habit of habits){
-    const card=document.createElement("article");card.className="habit-card";
-    const h3=document.createElement("h3");h3.textContent=String(habit.title??"未命名习惯");
-    const action=document.createElement("p");action.textContent=String(habit.action??"");
-    const cue=document.createElement("p");cue.textContent=habit.cue?"触发情境："+String(habit.cue):"";
-    const meta=document.createElement("small");
-    meta.textContent="已记录机会："+String(habit._count?.events??0)+" · 仅供行为追踪，不代表能力分数";
-    card.append(h3,action,cue,meta);list.append(card);
-  }
+
+function syncWorkspace(){
+  const started=conversation.length>0;
+  el("conversation").hidden=!started;
+  el("welcome").hidden=started;
+  el("new-problem").hidden=!started;
+  el("new-problem").disabled=workBusy;
+  el("question").disabled=workBusy;
+  el("question").placeholder=started?"补充事实、反馈结果，或让 AI 继续完善成果。":"例如，遇到了什么现象？你希望产出什么？";
+  el("composer-label").textContent=started?"继续这件事":"你的问题";
+  el("send").textContent=workBusy?"正在处理…":started?"继续":"交给 AI";
+  el("send").disabled=!provider.configured||workBusy||providerBusy;
+  for(const example of examples)example.disabled=workBusy;
 }
-async function refresh(){
-  if(busy)return;
-  setBusy(true);message("正在安全读取习惯列表…");
+
+function syncProvider(){
+  const {configured,savedHere,verified}=provider;
+  el("connection-indicator").classList.toggle("ready",verified);
+  el("connection-status").textContent=verified?"DeepSeek 连接正常":configured?"DeepSeek 已配置":"DeepSeek 未连接";
+  el("ai-unavailable").hidden=configured;
+  el("provider-label").textContent=configured?(savedHere?"Windows 凭据管理器":"环境变量") :"未配置";
+  el("test-key").hidden=!configured;
+  el("clear-key").hidden=!savedHere;
+  for(const id of ["api-key","save-key","test-key","clear-key"])el(id).disabled=providerBusy||workBusy||!invoke;
+  syncWorkspace();
+}
+
+async function readProvider(){
+  const result=await invoke("deepseek_status");
+  provider.configured=result.configured;
+  provider.savedHere=result.savedHere;
+  if(!provider.configured)provider.verified=false;
+  syncProvider();
+}
+
+async function changeProvider(command,args,pending,done){
+  if(providerBusy||workBusy)return;
+  providerBusy=true;
+  syncProvider();
+  status("key-status",pending);
   try{
-    const [me,data]=await Promise.all([invoke("get_me"),invoke("get_habits")]);
-    el("account-name").textContent=String(me?.user?.email??"已连接 StepMark 账号");
-    displayHabits(data);
-    message("数据已更新。桌面端暂不支持离线修改。");
+    await invoke(command,args);
+    if(command==="save_deepseek_key")el("api-key").value="";
+    provider.verified=command!=="clear_deepseek_key";
+    await readProvider();
+    status("key-status",done);
   }catch(error){
-    message(String(error));
-    // A server-side revocation clears the native credential. Do not leave the
-    // UI showing a stale signed-in state after the next refresh.
-    const status=await invoke("get_status").catch(()=>null);
-    if(status && !status.signedIn)showSignedIn(false);
+    if(command==="check_deepseek")provider.verified=false;
+    status("key-status",String(error),true);
+  }finally{
+    providerBusy=false;
+    syncProvider();
   }
-  finally{setBusy(false);}
 }
-async function signIn(){
-  if(busy)return;
-  setBusy(true);message("请在系统默认浏览器登录并确认连接，授权窗口最长等待 3 分钟。");
+
+async function copyOutput(button,output){
   try{
-    await invoke("sign_in");
-    showSignedIn(true);
-    message("授权完成。");
-  }catch(error){message(String(error));}
-  finally{setBusy(false);}
-  if(!busy && !el("refresh").hidden)await refresh();
+    await navigator.clipboard.writeText(output.textContent);
+    button.textContent="已复制";
+  }catch{
+    const range=document.createRange();
+    range.selectNodeContents(output);
+    const selection=window.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    button.textContent="已选中，请按 Ctrl+C";
+  }
 }
-async function signOut(){
-  if(busy)return;
-  setBusy(true);message("正在注销…");
+
+function addTurn({question,result}){
+  const turn=document.createElement("article");
+  turn.className="turn";
+  const reply=document.createElement("section");
+  reply.className="reply";
+  reply.append(textElement("h3","分析"),textElement("p",result.analysis));
+  if(result.deliverable.trim()){
+    const deliverable=document.createElement("section");
+    deliverable.className="deliverable";
+    const heading=document.createElement("div");
+    heading.className="output-heading";
+    const button=textElement("button","复制成果","quiet");
+    button.type="button";
+    const output=textElement("pre",result.deliverable,"deliverable-text");
+    button.addEventListener("click",()=>void copyOutput(button,output));
+    heading.append(textElement("h3","可用成果"),button);
+    deliverable.append(heading,output);
+    reply.append(deliverable);
+  }
+  if(result.nextStep.trim()){
+    const next=document.createElement("section");
+    next.className="next-step";
+    next.append(textElement("h3","下一步"),textElement("p",result.nextStep));
+    reply.append(next);
+  }
+  turn.append(textElement("p",question,"question-bubble"),reply);
+  el("conversation").append(turn);
+  return turn;
+}
+
+async function sendQuestion(event){
+  event.preventDefault();
+  if(workBusy||providerBusy||!provider.configured)return;
+  const input=el("question");
+  const question=input.value.trim();
+  if(!question){input.focus();return;}
+  workBusy=true;
+  syncProvider();
+  status("work-status","DeepSeek 正在处理这件事…");
+  let turn;
   try{
-    const result=await invoke("sign_out");
-    showSignedIn(false);
-    message(result.serverRevoked?"已从本机和服务器注销。":"本机凭据已清除，但服务器撤销尚未确认。请联网后核实账号安全。");
-  }catch(error){message(String(error));}
-  finally{setBusy(false);}
+    const result=await invoke("work_on_problem",{question,history:conversation.slice(-contextTurns)});
+    const completed={question,result};
+    turn=addTurn(completed);
+    conversation.push(completed);
+    input.value="";
+    provider.verified=true;
+    status("work-status","");
+  }catch(error){
+    provider.verified=false;
+    status("work-status",String(error),true);
+  }
+  finally{
+    workBusy=false;
+    syncProvider();
+  }
+  if(!el("view-workspace").hidden){
+    input.focus({preventScroll:true});
+    turn?.scrollIntoView({block:"start"});
+  }
 }
-async function init(){
-  if(!invoke){message("请通过 StepMark Windows 客户端启动此界面。");return;}
-  el("login").addEventListener("click",signIn);
-  el("refresh").addEventListener("click",refresh);
-  el("logout").addEventListener("click",signOut);
+
+function setAccountBusy(value){
+  accountBusy=value;
+  for(const id of ["login","habit-login","logout","refresh"])el(id).disabled=value||!invoke;
+}
+
+function showAccount(connected,email){
+  signedIn=connected;
+  el("login").hidden=connected;
+  el("habit-login").hidden=connected;
+  el("refresh").hidden=!connected;
+  el("logout").hidden=!connected;
+  el("account-name").textContent=connected?(email||"已连接 StepMark 账号"):"未连接。连接账号后可查看习惯记录。";
+  if(!connected){
+    el("habit-list").replaceChildren();
+    el("list-hint").textContent="连接 StepMark 账号后查看已记录的习惯。";
+  }
+}
+
+async function readHabits(){
+  const data=await invoke("get_habits");
+  const habits=data.habits;
+  el("list-hint").textContent=habits.length?"当前未归档习惯（最多显示 50 项）":"当前没有未归档习惯。";
+  const cards=habits.map(habit=>{
+    const card=document.createElement("article");
+    card.className="habit-card";
+    card.append(textElement("h3",habit.title??"未命名习惯"));
+    if(habit.action)card.append(textElement("p",habit.action));
+    if(habit.cue)card.append(textElement("p","触发情境："+habit.cue));
+    card.append(textElement("small","已记录机会："+(habit._count?.events??0)));
+    return card;
+  });
+  el("habit-list").replaceChildren(...cards);
+}
+
+async function accountAction(command){
+  if(accountBusy)return;
+  setAccountBusy(true);
+  const pending=command==="sign_in"?"请在系统浏览器完成登录和授权。":"正在同步账号…";
+  status("account-status",pending);
+  status("habit-status",pending);
   try{
-    const status=await invoke("get_status");
-    el("api-label").textContent=status.apiOrigin;
-    showSignedIn(status.signedIn);
-    if(status.signedIn)await refresh();
-    else message("请连接账号。登录在外部浏览器完成，不会在桌面界面输入密码。");
-  }catch(error){message(String(error));}
+    const result=await invoke(command);
+    if(command==="sign_out"){
+      showAccount(false);
+      status("account-status",result.serverRevoked?"已注销。":"本机已注销，服务器撤销未确认。",!result.serverRevoked);
+    }else{
+      showAccount(true,result?.user?.email);
+      await readHabits();
+      status("account-status","");
+    }
+    status("habit-status","");
+  }catch(error){
+    const current=await invoke("get_status").catch(()=>null);
+    if(current&&!current.signedIn)showAccount(false);
+    status("account-status",String(error),true);
+    status("habit-status",String(error),true);
+  }finally{setAccountBusy(false);}
 }
-void init();
+
+async function initializeAccount(){
+  setAccountBusy(true);
+  try{
+    const current=await invoke("get_status");
+    el("api-label").textContent=current.apiOrigin;
+    if(current.signedIn){
+      const me=await invoke("get_me");
+      showAccount(true,me?.user?.email);
+      await readHabits();
+    }else showAccount(false);
+  }catch(error){
+    status("account-status",String(error),true);
+    status("habit-status",String(error),true);
+  }finally{setAccountBusy(false);}
+}
+
+function initialize(){
+  for(const button of navigation)button.addEventListener("click",()=>showView(button.dataset.view));
+  el("open-connection").addEventListener("click",()=>showView("connections",true));
+  for(const example of examples)example.addEventListener("click",()=>{
+    const input=el("question");
+    if(!input.value.trim())input.value=example.dataset.example;
+    input.focus();
+  });
+  el("new-problem").addEventListener("click",()=>{
+    if(workBusy||!window.confirm("当前对话只保留在这个窗口。确定要开启新问题吗？"))return;
+    conversation.length=0;
+    el("conversation").replaceChildren();
+    el("question").value="";
+    status("work-status","");
+    syncWorkspace();
+    el("question").focus();
+  });
+  el("composer").addEventListener("submit",sendQuestion);
+  el("key-form").addEventListener("submit",event=>{
+    event.preventDefault();
+    if(providerBusy||workBusy||!invoke)return;
+    const key=el("api-key").value.trim();
+    if(!key)return;
+    void changeProvider("save_deepseek_key",{key},"正在验证 DeepSeek Flash…","连接成功。密钥已保存，可以回到工作台。");
+  });
+  el("test-key").addEventListener("click",()=>void changeProvider("check_deepseek",undefined,"正在测试 DeepSeek Flash…","连接成功，可以回到工作台。"));
+  el("clear-key").addEventListener("click",()=>void changeProvider("clear_deepseek_key",undefined,"正在移除密钥…","已移除保存的本机密钥。"));
+  el("login").addEventListener("click",()=>void accountAction("sign_in"));
+  el("habit-login").addEventListener("click",()=>void accountAction("sign_in"));
+  el("logout").addEventListener("click",()=>void accountAction("sign_out"));
+  el("refresh").addEventListener("click",()=>{if(signedIn)void accountAction("get_me");});
+  syncProvider();
+  setAccountBusy(false);
+  if(!invoke){
+    el("ai-unavailable-copy").textContent="请在 StepMark Windows 软件中连接 DeepSeek。";
+    return;
+  }
+  void readProvider().catch(error=>status("key-status",String(error),true));
+  void initializeAccount();
+}
+
+initialize();

@@ -133,9 +133,8 @@ export default function DashboardClient({email}:{email:string}) {
   return <main className="dashboard-shell">
     <header className="dashboard-header"><a className="wordmark" href="/">STEP<span>MARK</span><span className="brand-dot">.</span></a>
       <div><span className="account-email">{email}</span> <a href="/settings" className="text-button">账户与数据</a> <button className="text-button" onClick={logout}>退出</button></div></header>
-    <section className="dash-welcome"><h1>今天，你想弄明白什么？</h1>
-      <p>从一个真实问题出发，做一次小实践。也可以用下方对话记录习惯和执行感受。</p>
-      <a className="growth-entry" href="/growth">进入自主实践 <span aria-hidden="true">→</span></a></section>
+    <section className="dash-welcome"><h1>习惯与能力记录</h1>
+      <p>用对话记录习惯和执行感受，查看已有的能力证据。</p></section>
     <AssistantChatPanel onChanged={async id=>{await load();if(id)await detail(id);}}/>
     <button type="button" className="assistant-advanced-toggle" onClick={()=>setShowManual(x=>!x)}
       aria-expanded={showManual}>{showManual?"收起手动管理":"展开手动管理与详细记录"}</button>

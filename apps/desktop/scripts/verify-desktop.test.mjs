@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
+import {runInNewContext} from "node:vm";
 const root=new URL("../",import.meta.url);
 const read=path=>readFileSync(new URL(path,root),"utf8");
 test("desktop uses bundled local assets with no remote scripts or network-capable webview",()=>{
@@ -26,6 +27,66 @@ test("native commands do not expose a session token to the webview",()=>{
   assert.match(rust,/fn get_habits\(/);
   assert.match(rust,/fn sign_out\(/);
   assert.doesNotMatch(rust,/tauri_plugin_shell|tauri_plugin_http|window\.eval/);
+});
+
+test("workbench keeps a failed draft, carries context, and displays a copyable result",async()=>{
+  class Element {
+    constructor(){
+      this.children=[];this.dataset={};this.events={};this.value="";this.textContent="";
+      this.classList={toggle(){}};
+    }
+    addEventListener(name,handler){this.events[name]=handler;}
+    setAttribute(){} removeAttribute(){} focus(){} scrollIntoView(){}
+    append(...children){this.children.push(...children);}
+    replaceChildren(...children){this.children=children;}
+  }
+  const nodes=new Map([...read("ui/index.html").matchAll(/\sid="([^"]+)"/g)].map(match=>[match[1],new Element()]));
+  const calls=[];
+  const result={analysis:"One conditional finding",deliverable:"A reusable draft",nextStep:"Check the next observation"};
+  let shouldFail=true;
+  let copied;
+  const invoke=async(command,args)=>{
+    if(command==="deepseek_status")return {configured:true,savedHere:true};
+    if(command==="get_status")return {signedIn:false,apiOrigin:"https://stepmark.xin"};
+    if(command==="work_on_problem"){
+      calls.push(structuredClone(args));
+      if(shouldFail)throw "DeepSeek connection failed";
+      return result;
+    }
+    throw Error("Unexpected command: "+command);
+  };
+  const document={getElementById:id=>nodes.get(id),querySelectorAll:()=>[],createElement:()=>new Element()};
+  const navigator={clipboard:{writeText:async value=>{copied=value;}}};
+  runInNewContext(read("ui/app.js"),{document,navigator,window:{__TAURI__:{core:{invoke}}}});
+  await new Promise(resolve=>setImmediate(resolve));
+  const input=nodes.get("question");
+  const submit=()=>nodes.get("composer").events.submit({preventDefault(){}});
+  input.value="Investigate why the result changed";
+  await submit();
+  assert.equal(input.value,"Investigate why the result changed");
+  assert.equal(nodes.get("work-status").dataset.error,"true");
+  shouldFail=false;
+  await submit();
+  assert.equal(input.value,"");
+  assert.equal(nodes.get("welcome").hidden,true);
+  const turn=nodes.get("conversation").children[0];
+  const output=turn.children[1].children[2];
+  assert.equal(output.children[1].textContent,result.deliverable);
+  output.children[0].children[1].events.click();
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(copied,result.deliverable);
+  input.value="I tested it and got new evidence";
+  await submit();
+  assert.deepEqual(calls.at(-1).history,[{question:"Investigate why the result changed",result}]);
+});
+
+test("DeepSeek is pinned to the official Flash endpoint, with a separate native credential",()=>{
+  const native=read("src-tauri/src/ai_workspace.rs");
+  assert.match(native,/const ENDPOINT: &str = "https:\/\/api\.deepseek\.com\/chat\/completions";/);
+  assert.match(native,/const MODEL: &str = "deepseek-flash";/);
+  assert.match(native,/const ACCOUNT: &str = "deepseek-workspace";/);
+  assert.match(native,/reqwest::redirect::Policy::none\(\)/);
+  assert.match(native,/verify_key\(key\)\.await\?;\s*credential\(\)\?\.set_password\(key\)/);
 });
 
 test("installer is pinned to the owner's canonical HTTPS domain",()=>{

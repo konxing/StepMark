@@ -4,56 +4,102 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light">
-  <title>StepMark Windows</title>
+  <title>StepMark</title>
   <link rel="stylesheet" href="./style.css">
   <script src="./app.js" defer></script>
 </head>
 <body>
   <div class="app">
     <aside class="sidebar">
-      <div class="logo">STEP<span>MARK</span><b>.</b></div>
-      <div class="eyebrow">WINDOWS DESKTOP / PREVIEW</div>
-      <nav aria-label="主要导航">
-        <div class="nav-active">习惯概览 <small>只读</small></div>
-        <div class="nav-muted">AI 成长助手 <small>待接入</small></div>
-        <div class="nav-muted">能力测量 <small>待接入</small></div>
+      <div class="brand"><span class="brand-symbol" aria-hidden="true">S</span>StepMark</div>
+      <nav aria-label="主要导航" class="navigation">
+        <button type="button" data-view="workspace" aria-current="page">工作台</button>
+        <button type="button" data-view="habits">习惯记录</button>
+        <button type="button" data-view="connections">连接设置</button>
       </nav>
       <div class="sidebar-bottom">
-        <p>桌面端使用已验证的邮箱账号；微信小程序账户目前不自动与邮箱账号合并。</p>
-        <span class="dot"></span> 桌面预览版 · 不支持离线写入
+        <span id="connection-indicator" class="indicator" aria-hidden="true"></span>
+        <span id="connection-status">检查 AI 连接</span>
       </div>
     </aside>
+
     <main class="content">
-      <header class="header">
-        <div><span class="eyebrow">YOUR EVIDENCE, YOUR GROWTH</span><h1>我的习惯</h1>
-          <p>查看你已有的习惯。数据直接来自你的 StepMark 账号。</p></div>
-        <div class="account">
-          <div id="account-name">未连接账号</div>
-          <div id="api-label" class="small">检查服务配置中</div>
-        </div>
-      </header>
-      <section class="panel connection" aria-labelledby="connection-title">
-        <div>
-          <h2 id="connection-title">Windows 安全登录</h2>
-          <p id="connection-help">登录将在系统默认浏览器完成，授权令牌只存放在 Windows 凭据管理器中，不进入页面脚本。</p>
-        </div>
-        <div class="actions">
-          <button id="login" type="button">连接账号</button>
-          <button id="refresh" type="button" class="secondary" hidden>刷新习惯</button>
-          <button id="logout" type="button" class="secondary" hidden>注销</button>
+      <section id="view-workspace" class="workspace" aria-labelledby="workspace-title">
+        <header class="topline">
+          <h1 id="workspace-title">工作台</h1>
+          <button id="new-problem" type="button" class="quiet" hidden>新问题</button>
+        </header>
+        <div class="work-area">
+          <div id="welcome" class="welcome">
+            <h2>哪件事卡住了？</h2>
+            <p>说说你在做什么、卡在哪里。一起弄清问题，先做出一份可以用的东西。</p>
+            <div class="examples" aria-label="问题示例">
+              <button type="button" data-example="我看到交换机管理口的静态路由没有出现在全局路由表。帮我列出可能原因和最短验证路径。">
+                <strong>排查技术问题</strong><span>梳理原因，给出验证步骤</span>
+              </button>
+              <button type="button" data-example="我总分不清极限里哪些地方能用等价无穷小。用一对相似的例题讲清区别，然后给我一道新题验收。">
+                <strong>弄懂一个概念</strong><span>讲清区别，给出一道验收题</span>
+              </button>
+              <button type="button" data-example="我想做一个小工具，把每天遇到的 Bug 和复现步骤整理成一份周报。先帮我做一个今晚能跑起来的最小版本。">
+                <strong>做出一个小作品</strong><span>先做一个能试用的版本</span>
+              </button>
+            </div>
+          </div>
+          <div id="conversation" class="conversation" aria-label="工作记录" hidden></div>
+          <form id="composer" class="composer">
+            <label for="question" id="composer-label">你的问题</label>
+            <textarea id="question" name="question" maxlength="4000" rows="3" placeholder="例如，遇到了什么现象？你希望产出什么？" required></textarea>
+            <div class="composer-actions">
+              <span id="composer-help">发送后，当前问题和最近对话会发给 DeepSeek。</span>
+              <button id="send" type="submit" class="primary">交给 AI</button>
+            </div>
+            <div id="ai-unavailable" class="inline-notice" hidden>
+              <span id="ai-unavailable-copy">连接 DeepSeek 后即可开始。</span>
+              <button id="open-connection" type="button" class="quiet">连接设置</button>
+            </div>
+            <p id="work-status" class="status-line" role="status" aria-live="polite"></p>
+          </form>
         </div>
       </section>
-      <div id="message" role="status" aria-live="polite"></div>
-      <section class="summary" aria-label="习惯统计">
-        <div class="metric"><span>当前习惯</span><strong id="habit-count">—</strong><small>仅显示未归档项目</small></div>
-        <div class="metric"><span>数据模式</span><strong class="mode">只读</strong><small>避免离线冲突或重复提交</small></div>
-        <div class="metric"><span>测量解释</span><strong class="mode">证据优先</strong><small>打卡次数不等于能力增长</small></div>
+
+      <section id="view-habits" class="secondary-view" aria-labelledby="habits-title" hidden>
+        <header class="topline"><h1 id="habits-title">习惯记录</h1><button id="refresh" type="button" class="quiet" hidden>刷新</button></header>
+        <div class="panel">
+          <p id="list-hint">连接 StepMark 账号后查看已记录的习惯。</p>
+          <div id="habit-list" class="habit-list"></div>
+          <p id="habit-status" class="status-line" role="status"></p>
+          <button id="habit-login" type="button" class="primary">连接 StepMark 账号</button>
+        </div>
       </section>
-      <section class="panel habits">
-        <div class="panel-heading"><h2>习惯列表</h2><span id="list-hint">连接账号后显示</span></div>
-        <div id="habit-list" class="habit-list"><p class="empty">暂无可显示的个人数据。</p></div>
+
+      <section id="view-connections" class="secondary-view" aria-labelledby="connections-title" hidden>
+        <header class="topline"><h1 id="connections-title">连接设置</h1></header>
+        <div class="connection-panels">
+          <section class="panel" aria-labelledby="ai-title">
+            <div class="panel-heading"><h2 id="ai-title">DeepSeek Flash</h2><span id="provider-label" class="subtle"></span></div>
+            <p>工作台通过本机直接连接 DeepSeek。密钥经验证后保存在 Windows 凭据管理器。</p>
+            <form id="key-form" autocomplete="off">
+              <label for="api-key">DeepSeek API Key</label>
+              <input id="api-key" name="api-key" type="password" autocomplete="off" spellcheck="false" maxlength="180" placeholder="sk-…" required>
+              <div class="actions">
+                <button id="save-key" type="submit" class="primary">验证并保存</button>
+                <button id="test-key" type="button" class="quiet" hidden>测试连接</button>
+                <button id="clear-key" type="button" class="quiet" hidden>移除密钥</button>
+              </div>
+            </form>
+            <p id="key-status" class="status-line" role="status" aria-live="polite"></p>
+          </section>
+          <section class="panel" aria-labelledby="account-title">
+            <div class="panel-heading"><h2 id="account-title">StepMark 账号</h2><span id="api-label" class="subtle"></span></div>
+            <p id="account-name">未连接。连接账号后可查看习惯记录。</p>
+            <div class="actions">
+              <button id="login" type="button" class="primary">在浏览器登录</button>
+              <button id="logout" type="button" class="quiet" hidden>注销</button>
+            </div>
+            <p id="account-status" class="status-line" role="status"></p>
+          </section>
+        </div>
       </section>
-      <footer>STEPMARK / WINDOWS-FIRST · 数据保留在现有后端 · 本地不缓存日记正文</footer>
     </main>
   </div>
 </body>

@@ -47,6 +47,7 @@ export default function SettingsClient({email}:{email:string}){
     <h2>导出个人数据</h2>
     <p>可导出你的自主实践、习惯、执行记录及其全部更正历史、试验性测量和评分证据。文件可能含有私人信息，不会上传到第三方。</p>
     <button className="assess-button" disabled={busy} onClick={exportData}>导出 JSON 数据</button>
+    <p><a href="/growth">查看自主实践记录</a></p>
     <hr className="settings-divider"/>
     <h2>删除账户</h2>
     <p>此操作不可撤销。请重新输入密码，并输入大写 DELETE。微信账户删除需另行完成微信身份重新验证。</p>

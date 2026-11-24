@@ -1,9 +1,8 @@
 import { initialConstructs } from "@stepmark/core";
 const features = [
-  { title: "自主实践", description: "把在意的问题变成一次小行动，记录实际结果，再决定值得追问什么。" },
-  { title: "培养习惯", description: "记录触发情境、行动和感受，观察一个行为如何慢慢变得自然。" },
-  { title: "测量与训练", description: "通过结构化任务建立基线，再到新题和真实场景中检查所学能否迁移。" },
-  { title: "AI 协助", description: "说出问题，AI 帮你拟行动和验证标准。记录实际观察后，AI 也能草拟复盘和下一问。" }
+  { title: "Windows 工作台", description: "把正在做的事交给 DeepSeek 分析，拿到能改、能用、能验证的成果。" },
+  { title: "培养习惯", description: "用对话记录触发情境、行动和感受，观察一个行为如何慢慢变得自然。" },
+  { title: "测量与训练", description: "通过结构化任务建立基线，再到新题和真实场景中检查所学能否迁移。" }
 ];
 export default function Home() {
   return <main className="shell">
@@ -12,7 +11,7 @@ export default function Home() {
     <section className="hero landing-growth">
       <h1>从一个问题开始<br/><span>走出自己的一步</span></h1>
       <p>独立发现和理解问题，学习所需的知识，用工具和他人一起做出东西。StepMark 帮你记录每次尝试的证据，让你有依据地选择下一步。</p>
-      <div className="hero-actions"><a href="/growth" className="primary-link">开启自主实践 <span aria-hidden="true">→</span></a>
+      <div className="hero-actions"><a href="/dashboard" className="primary-link">进入控制台 <span aria-hidden="true">→</span></a>
         <a href="#framework" className="secondary-link">了解能力测量</a></div>
     </section>
     <section id="framework" className="section">
