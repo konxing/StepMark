@@ -15,7 +15,7 @@ import {GET as habitProgressGET} from "../src/app/api/v1/habits/[id]/progress/ro
 import {GET as dueReviewsGET} from "../src/app/api/v1/habits/due/route";
 import {POST as reflectionPOST, GET as reflectionGET} from "../src/app/api/v1/habits/[id]/reflections/route";
 import {PATCH as reviewPATCH, PUT as reviewPUT} from "../src/app/api/v1/habits/[id]/reviews/route";
-import {PATCH as revokeAI, PUT as revokeAIPUT, DELETE as deleteReflection} from "../src/app/api/v1/habits/[id]/reflections/[reflectionId]/route";
+import {PATCH as revokeAI, PUT as revokeAIPUT, DELETE as deleteReflection, POST as addSelfRating} from "../src/app/api/v1/habits/[id]/reflections/[reflectionId]/route";
 import {POST as mobilePOST} from "../src/app/api/v1/auth/wechat/route";
 import {POST as resetPOST} from "../src/app/api/v1/auth/reset-password/route";
 import {POST as deletePOST} from "../src/app/api/v1/account/delete/route";
@@ -403,6 +403,48 @@ test("batched due-review endpoint only exposes own opted-in habits",async()=>{
     assert.equal(JSON.stringify(result).includes("Secret B"),false);
     assert.equal(JSON.stringify(result).includes("Hidden A"),false);
   }finally{await db.user.deleteMany({where:{id:{in:[a.id,b.id]}}});}
+});
+
+test("late self-ratings preserve source records and use the completed action's day",async()=>{
+  const owner=await db.user.create({data:{credential:{create:{
+    email:`late-${randomUUID()}@example.test`,passwordHash:await hashPassword("verified-password-123456"),verifiedAt:new Date()
+  }}},select:{id:true}});
+  const other=await db.user.create({data:{},select:{id:true}});
+  try{
+    const habit=await db.habit.create({data:{userId:owner.id,title:"Observation habit",action:"Check"}});
+    const when=new Date(Date.now()-60*86400000);
+    const event=await db.habitEvent.create({data:{habitId:habit.id,eligible:true,completed:true,
+      opportunityKey:"old",occurredAt:when,source:"test"}});
+    const linked=await db.habitReflection.create({data:{habitId:habit.id,eventId:event.id,
+      note:"I started naturally",aiConsent:true,aiStatus:"COMPLETED",aiLevel:4,aiQuote:"started naturally"}});
+    const unlinked=await db.habitReflection.create({data:{habitId:habit.id,note:"No date"}});
+    const [web,mobile,foreign]=await Promise.all([issueSession(owner.id,"WEB"),
+      issueSession(owner.id,"WECHAT"),issueSession(other.id,"WECHAT")]);
+    function rate(reflectionId:string,initiationLevel:number,token:string,kind:"WEB"|"WECHAT",origin?:string){
+      return addSelfRating(req(`/api/v1/habits/${habit.id}/reflections/${reflectionId}`,"POST",
+        {initiationLevel},token,kind,origin),{params:Promise.resolve({id:habit.id,reflectionId})});
+    }
+    assert.equal((await rate(linked.id,2,foreign.token,"WECHAT")).status,404);
+    assert.equal((await rate(linked.id,2,web.token,"WEB","https://foreign.test")).status,403);
+    assert.equal((await rate(unlinked.id,2,mobile.token,"WECHAT")).status,409);
+    const results=await Promise.all([rate(linked.id,2,web.token,"WEB"),rate(linked.id,2,mobile.token,"WECHAT")]);
+    assert.deepEqual(results.map(response=>response.status),[200,200]);
+    assert.equal((await rate(linked.id,3,web.token,"WEB")).status,409);
+    const persisted=await db.habitReflection.findUniqueOrThrow({where:{id:linked.id}});
+    assert.equal(persisted.initiationLevel,2);
+    assert.equal(persisted.aiLevel,4);
+    assert.equal(persisted.note,"I started naturally");
+    const response=await habitProgressGET(req(`/api/v1/habits/${habit.id}/progress`,"GET",undefined,web.token),
+      {params:Promise.resolve({id:habit.id})});
+    assert.equal(response.status,200);
+    const progress=await response.json();
+    assert.equal(progress.evidenceCount,1);
+    assert.equal(progress.lastRatingAt,when.toISOString());
+    assert.equal(progress.evidenceStale,true);
+    const due=await dueReviewsGET(req("/api/v1/habits/due","GET",undefined,web.token));
+    assert.equal(due.status,200);
+    assert.equal((await due.json()).due[0]?.habitId,habit.id);
+  }finally{await db.user.deleteMany({where:{id:{in:[owner.id,other.id]}}});}
 });
 
 test("WeChat-supported PUT performs secure consent and review changes without PATCH",async()=>{

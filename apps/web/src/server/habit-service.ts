@@ -1,7 +1,29 @@
 import {getDb} from "./db";
+import type {InitiationEvidence,InitiationLevel} from "@stepmark/core";
+import type {Prisma} from "@/generated/prisma/client";
 
 /** Active habits must be visible in the standard web/desktop list. */
 export const MAX_ACTIVE_HABITS=50;
+
+export const recentHabitSelfRatings={
+  where:{initiationLevel:{not:null},OR:[{eventId:null},{event:{eligible:true,completed:true}}]},
+  orderBy:[{createdAt:"desc"},{id:"desc"}],take:120,
+  select:{createdAt:true,initiationLevel:true,event:{select:{occurredAt:true}}}
+} satisfies Prisma.HabitReflectionFindManyArgs;
+
+export function habitSelfRatingEvidence(rows:readonly {
+  createdAt:Date;initiationLevel:number|null;event:{occurredAt:Date}|null;
+}[]):InitiationEvidence[]{
+  const evidence:InitiationEvidence[]=[];
+  for(const row of rows){
+    const level=row.initiationLevel;
+    if(level===null)continue;
+    // A late entry should not make a historical linked action look recent.
+    evidence.push({atMs:(row.event?.occurredAt??row.createdAt).getTime(),
+      level:level as InitiationLevel,source:"self_report",confidence:1});
+  }
+  return evidence;
+}
 
 export async function listOwnHabits(userId:string) {
   // One indexed query. No N+1 event fetches, no cross-user joins.

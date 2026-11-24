@@ -87,6 +87,25 @@ export default function HabitGrowthPanel({habitId,eventId}:{habitId:string;event
         action==="delete"?"已删除这条感受及相关的本地分析。":"已撤回 AI 授权，保留你的原始自评。");
     }catch{setMessage("网络错误，未能完成操作。");}finally{setBusy(false);}
   }
+  async function addSelfRating(reflectionId:string,initiationLevel:number){
+    if(busy)return;
+    setBusy(true);setMessage("");
+    try{
+      const response=await fetch(`/api/v1/habits/${habitId}/reflections/${reflectionId}`,{
+        method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({initiationLevel})
+      });
+      if(response.status===409){
+        await load();
+        setMessage("这条记录已有自评，或关联的行动已更改。记录已刷新。");
+        return;
+      }
+      if(!response.ok)throw new Error();
+      setHistory(rows=>rows.map(row=>row.id===reflectionId?{...row,initiationLevel}:row));
+      setMessage("本人启动感受已保存。");
+      await load().catch(()=>setMessage("本人启动感受已保存，进度暂时无法刷新。"));
+    }catch{setMessage("无法确认是否保存，稍后可重试同一选项。");}
+    finally{setBusy(false);}
+  }
   return <section className="dashboard-panel" aria-label="习惯进度和维护">
     <h2>习惯执行与启动感受</h2>
     {result ? <>
@@ -142,7 +161,16 @@ export default function HabitGrowthPanel({habitId,eventId}:{habitId:string;event
             {entry.initiationLevel!==null?" · 自评 "+(options[entry.initiationLevel]?.[1]??"已记录"):""}
             {entry.aiConsent?" · AI "+entry.aiStatus:" · 未授权 AI"}</small>
           {entry.note&&<p>{entry.note}</p>}
-          {entry.aiQuote&&<small>AI 引用依据：{entry.aiQuote}（仅为暂定分析）</small>}
+          {entry.eventId&&entry.initiationLevel===null&&<details>
+            <summary>补记当时的启动感受</summary>
+            <div className="feeling-options" role="group" aria-label="选择并保存本人启动感受">
+              {options.map(([value,label])=><button type="button" key={value} disabled={busy}
+                onClick={()=>addSelfRating(entry.id,Number(value))}>{label}</button>)}
+            </div>
+          </details>}
+          {entry.aiQuote&&<details><summary>查看 AI 暂定解读</summary>
+            <small>{entry.aiQuote}</small>
+          </details>}
           <div className="habit-actions">
             {entry.aiConsent&&<button type="button" className="text-button" disabled={busy}
               onClick={()=>modifyReflection(entry,"revoke")}>撤回 AI 授权</button>}

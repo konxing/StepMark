@@ -1,10 +1,11 @@
 import {NextRequest,NextResponse} from "next/server";
 import {z} from "zod";
 import {getDb} from "@/server/db";
-import {ApiError,enforceRateLimit,errorResponse,principalFromRequest,requireSameOrigin} from "@/server/security";
+import {ApiError,boundedJson,enforceRateLimit,errorResponse,principalFromRequest,requireSameOrigin} from "@/server/security";
 
 export const runtime="nodejs";
 type Context={params:Promise<{id:string;reflectionId:string}>};
+const selfRatingSchema=z.object({initiationLevel:z.number().int().min(0).max(4)}).strict();
 
 async function target(request:NextRequest,context:Context){
   const principal=await principalFromRequest(request);
@@ -18,7 +19,26 @@ async function target(request:NextRequest,context:Context){
     select:{id:true,aiStatus:true,aiConsent:true}
   });
   if(!existing)throw new ApiError(404,"NOT_FOUND");
-  return {id,reflectionId,existing};
+  return {id,reflectionId,existing,userId:principal.userId};
+}
+
+/** Add the user's own rating to a completed action without changing its note or AI annotation. */
+export async function POST(request:NextRequest,context:Context){
+  try{
+    const {id,reflectionId,userId}=await target(request,context);
+    const {initiationLevel}=await boundedJson(request,selfRatingSchema,512);
+    const db=getDb();
+    const where={id:reflectionId,habitId:id,habit:{userId,archivedAt:null},event:{habitId:id,eligible:true,completed:true}};
+    const updated=await db.habitReflection.updateMany({
+      where:{...where,initiationLevel:null},data:{initiationLevel}
+    });
+    if(updated.count===0){
+      const recorded=await db.habitReflection.findFirst({where,select:{initiationLevel:true}});
+      if(!recorded)throw new ApiError(409,"SELF_RATING_REQUIRES_COMPLETED_ACTION");
+      if(recorded.initiationLevel!==initiationLevel)throw new ApiError(409,"SELF_RATING_ALREADY_RECORDED");
+    }
+    return NextResponse.json({initiationLevel},{headers:{"Cache-Control":"no-store"}});
+  }catch(error){return errorResponse(error);}
 }
 
 /**

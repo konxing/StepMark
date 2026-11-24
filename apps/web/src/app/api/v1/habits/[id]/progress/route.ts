@@ -1,7 +1,8 @@
 import {NextRequest,NextResponse} from "next/server";
 import {z} from "zod";
-import {calculateHabitProgress,type InitiationEvidence} from "@stepmark/core";
+import {calculateHabitProgress} from "@stepmark/core";
 import {getDb} from "@/server/db";
+import {habitSelfRatingEvidence,recentHabitSelfRatings} from "@/server/habit-service";
 import {ApiError,errorResponse,principalFromRequest} from "@/server/security";
 export const runtime="nodejs";
 /**
@@ -25,22 +26,13 @@ export async function GET(request:NextRequest,ctx:{params:Promise<{id:string}>})
       // Fetch DIRECT user-rated evidence independently. A large number of
       // recent AI-only notes must never push historical self-ratings out of
       // the bounded evaluation window.
-      db.habitReflection.findMany({where:{habitId:id,initiationLevel:{not:null}},
-        orderBy:[{createdAt:"desc"},{id:"desc"}],take:120,
-        select:{createdAt:true,initiationLevel:true}}),
+      db.habitReflection.findMany({...recentHabitSelfRatings,where:{habitId:id,...recentHabitSelfRatings.where}}),
       // AI annotations are descriptive counts only, not rating inputs.
       db.habitReflection.count({where:{habitId:id,initiationLevel:null,
         aiStatus:"COMPLETED",aiLevel:{not:null}}})
     ]);
-    const observations:InitiationEvidence[]=[];
-    for(const reflection of reflections){
-      if(reflection.initiationLevel!==null) {
-        observations.push({atMs:reflection.createdAt.getTime(),level:reflection.initiationLevel as 0|1|2|3|4,
-          source:"self_report",confidence:1});
-      }
-    }
     const progress=calculateHabitProgress({completedRepetitions:completed,
-      completedOpportunities:completed,eligibleOpportunities:eligible,observations,
+      completedOpportunities:completed,eligibleOpportunities:eligible,observations:habitSelfRatingEvidence(reflections),
       nowMs:Date.now(),lastCompletedAtMs:lastEvent?.occurredAt.getTime()??null,
       seed:habit.id,reviewEnabled:habit.reviewEnabled});
     return NextResponse.json({habitId:id,reviewEnabled:habit.reviewEnabled,...progress,

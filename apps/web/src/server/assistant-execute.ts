@@ -1,7 +1,7 @@
 import {Prisma} from "@/generated/prisma/client";
-import {calculateHabitProgress,type InitiationEvidence} from "@stepmark/core";
+import {calculateHabitProgress} from "@stepmark/core";
 import {getDb} from "./db";
-import {MAX_ACTIVE_HABITS} from "./habit-service";
+import {habitSelfRatingEvidence,MAX_ACTIVE_HABITS,recentHabitSelfRatings} from "./habit-service";
 import {ApiError} from "./security";
 import {observationDay,type SafeAssistantCommand,validateClientLocalDate,verifiedInitiationEvidence,assistantMessageDigest} from "./assistant-command";
 
@@ -136,21 +136,12 @@ export async function executeAssistantCommand(args:{
           // Use exactly the same evidence definition as /progress and due reviews.
           // Filtering after take() would let many AI-only entries evict older
           // person-reported ratings from a conversational progress check.
-          tx.habitReflection.findMany({where:{habitId:target.id,initiationLevel:{not:null}},
-            orderBy:[{createdAt:"desc"},{id:"desc"}],take:120,
-            select:{createdAt:true,initiationLevel:true}})
+          tx.habitReflection.findMany({...recentHabitSelfRatings,
+            where:{habitId:target.id,...recentHabitSelfRatings.where}})
         ]);
-        const observations:InitiationEvidence[]=[];
-        for(const r of notes){
-          if(r.initiationLevel!==null){
-            observations.push({atMs:r.createdAt.getTime(),
-              level:r.initiationLevel as 0|1|2|3|4,
-              source:"self_report",confidence:1});
-          }
-        }
         const status=calculateHabitProgress({completedRepetitions:completed,
           eligibleOpportunities:eligible,completedOpportunities:completed,
-          observations,nowMs:Date.now(),lastCompletedAtMs:last?.occurredAt.getTime()??null,
+          observations:habitSelfRatingEvidence(notes),nowMs:Date.now(),lastCompletedAtMs:last?.occurredAt.getTime()??null,
           seed:target.id,reviewEnabled:target.reviewEnabled});
         const execution=status.observedCompletionRate===null?"暂无已记录的执行机会。":
           `已记录 ${status.eligibleOpportunities} 次执行机会，完成 ${completed} 次（${Math.round(status.observedCompletionRate*100)}%）。`;

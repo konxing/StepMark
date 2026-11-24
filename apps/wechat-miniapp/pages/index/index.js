@@ -313,6 +313,20 @@ Page({
     }catch(e){this.setData({status:e.message||"修改失败；如果 AI 正在处理，请稍后重试。"});}
     finally{this.setData({creating:false});}
   },
+  async addSelfRating(e){
+    if(this.data.creating)return;
+    const habitId=this.data.selectedHabitId;
+    const reflectionId=e.currentTarget.dataset.id;
+    const initiationLevel=Number(e.detail.value);
+    if(!habitId||!reflectionId||!Number.isInteger(initiationLevel)||initiationLevel<0||initiationLevel>=this.data.feelingOptions.length)return;
+    this.setData({creating:true});
+    try{
+      await this.api(`/api/v1/habits/${habitId}/reflections/${reflectionId}`,"POST",{initiationLevel});
+      if(this.data.selectedHabitId===habitId)await this.refreshProgress(habitId);
+      this.setData({status:"本人启动感受已保存。"});
+    }catch(e){this.setData({status:e.message||"无法确认是否保存，稍后可重试同一选项。"});}
+    finally{this.setData({creating:false});}
+  },
   async toggleReview(e){
     const habit=this.data.modules.find(h=>h.id===e.currentTarget.dataset.id);
     if(!habit)return;

@@ -162,6 +162,11 @@
         <view class="section-title">我的近期感受</view>
         <view wx:for="{{recentReflections}}" wx:key="id" class="reflection-item">
           <text class="meta">{{item.note || '已记录一次自然启动等级'}}</text>
+          <text wx:if="{{item.initiationLevel != null}}" class="meta">本人自评：{{feelingOptions[item.initiationLevel]}}</text>
+          <picker wx:elif="{{item.eventId}}" range="{{feelingOptions}}" disabled="{{creating}}"
+            data-id="{{item.id}}" bindchange="addSelfRating">
+            <view class="picker-control">补记当时的启动感受</view>
+          </picker>
           <text wx:if="{{item.aiConsent}}" class="meta">AI 状态：{{item.aiStatusLabel}}</text>
           <view class="reflection-actions">
             <button wx:if="{{item.aiConsent}}" data-id="{{item.id}}" data-action="revoke"

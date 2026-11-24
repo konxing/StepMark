@@ -1,5 +1,6 @@
-import {calculateHabitProgress,type InitiationEvidence} from "@stepmark/core";
+import {calculateHabitProgress} from "@stepmark/core";
 import {getDb} from "./db";
+import {habitSelfRatingEvidence,recentHabitSelfRatings} from "./habit-service";
 
 /**
  * One owner-scoped habits query with bounded nested reflections and two batched
@@ -11,12 +12,7 @@ export async function listDueHabitReviews(userId:string,now:Date=new Date()){
     where:{userId,archivedAt:null,reviewEnabled:true},
     orderBy:[{createdAt:"desc"},{id:"desc"}],take:100,
     select:{id:true,title:true,reviewEnabled:true,
-      reflections:{
-        // Filter in SQL, not after take(): AI-only and unrated notes cannot
-        // crowd direct ratings out of the due-review schedule.
-        where:{initiationLevel:{not:null}},
-        orderBy:[{createdAt:"desc"},{id:"desc"}],take:120,
-        select:{createdAt:true,initiationLevel:true}}}
+      reflections:recentHabitSelfRatings}
   });
   const ids=habits.map(h=>h.id);
   if(!ids.length)return {due:[],totalDue:0};
@@ -42,17 +38,10 @@ export async function listDueHabitReviews(userId:string,now:Date=new Date()){
   const due: {habitId:string;title:string;progress:number;reviewReason:string;nextReviewAt:string}[]=[];
   for(const habit of habits){
     const count=countMap.get(habit.id)??{eligible:0,done:0};
-    const observations:InitiationEvidence[]=[];
-    for(const x of habit.reflections){
-      if(x.initiationLevel!==null){
-        observations.push({atMs:x.createdAt.getTime(),level:x.initiationLevel as 0|1|2|3|4,
-          source:"self_report",confidence:1});
-      }
-    }
     const status=calculateHabitProgress({
       completedRepetitions:count.done,completedOpportunities:count.done,
       eligibleOpportunities:count.eligible,nowMs:now.getTime(),
-      observations,lastCompletedAtMs:lastMap.get(habit.id)??null,seed:habit.id
+      observations:habitSelfRatingEvidence(habit.reflections),lastCompletedAtMs:lastMap.get(habit.id)??null,seed:habit.id
     });
     if(status.reviewDue&&status.nextReviewAt){
       due.push({habitId:habit.id,title:habit.title,progress:status.progress,

@@ -25,3 +25,9 @@ A subsequent audit found a subtle selection failure: the progress endpoint fetch
 ## v2.2 conversational parity (2026-11-15)
 
 `executeAssistantCommand(check_progress)` was still using a `take:80` mixed-reflection query after the dashboard correction. AI-only notes could cause the conversational answer to disagree with the dashboard. It now uses the same owner-scoped database-side self-report filter and deterministic 120-row ordering. Added a real PostgreSQL test with 95 newer AI annotations, an old direct rating, a second tenant and a read-only AI check-progress command. No new AI request or DB migration.
+
+## Linked action dates and retrospective self-ratings (2026-11-24)
+
+Progress, review scheduling and chat share the same evidence selection. A linked self-rating uses the completed, eligible action’s time for temporal weighting and daily deduplication. Unlinked historical self-ratings retain their entry timestamps as before. A late entry therefore cannot make a linked action from weeks ago count as fresh evidence.
+
+Users can explicitly add one self-rating to an existing reflection linked to a completed action. Choices use the same scale on Web and WeChat. The original note and provisional AI fields are preserved. There is no AI-selected default, separate duplicate record or additional external request. Write-once semantics prevent concurrent conflicting clicks from replacing the first saved choice. Historical ability scores and schema are unaffected.

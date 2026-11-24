@@ -36,7 +36,7 @@ export async function POST(request:NextRequest,ctx:Context){
     const db=getDb();
     if(body.eventId){
       const event=await db.habitEvent.findFirst({
-        where:{id:body.eventId,habitId,completed:true,habit:{userId:p.userId}},
+        where:{id:body.eventId,habitId,eligible:true,completed:true,habit:{userId:p.userId}},
         select:{id:true}
       });
       if(!event)throw new ApiError(404,"EVENT_NOT_FOUND");
