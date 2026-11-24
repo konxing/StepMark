@@ -14,12 +14,17 @@ test("fixed providers and assistant fallback preserve deployed configuration",()
   assert.equal(resolveAiProvider("assistant",{...env,AI_ASSISTANT_PROVIDER:"openrouter",
     AI_ASSISTANT_API_KEY:"other",AI_ASSISTANT_MODEL:"model-1"}).url,
     "https://openrouter.ai/api/v1/chat/completions");
+  assert.equal(resolveAiProvider("assistant",{...env,AI_ASSISTANT_PROVIDER:"deepseek",
+    AI_ASSISTANT_API_KEY:"test-only",AI_ASSISTANT_MODEL:"model-1"}).url,
+    "https://api.deepseek.com/chat/completions");
   assert.throws(()=>resolveAiProvider("habit",{...env,AI_HABIT_MODEL:"invalid model"}));
   assert.throws(()=>resolveAiProvider("habit",{...env,AI_HABIT_PROVIDER:"unknown"}));
 });
 test("custom OpenAI-compatible endpoint is server-allowlisted, HTTPS and public",()=>{
   const good="https://llm.example.com/v1/chat/completions";
   assert.equal(validateCompatibleEndpoint(good,"llm.example.com"),good);
+  assert.equal(validateCompatibleEndpoint("https://llm.example.com/chat/completions","llm.example.com"),
+    "https://llm.example.com/chat/completions");
   assert.equal(resolveAiProvider("assistant",{
     AI_ASSISTANT_PROVIDER:"compatible",AI_ASSISTANT_API_KEY:"secret",
     AI_ASSISTANT_MODEL:"qwen/test-1",AI_ASSISTANT_ENDPOINT:good,
@@ -35,6 +40,7 @@ test("custom OpenAI-compatible endpoint is server-allowlisted, HTTPS and public"
     "https://user:pass@llm.example.com/v1/chat/completions",
     "https://llm.example.com/v1/chat/completions?token=x",
     "https://llm.example.com/v1/other",
+    "https://llm.example.com//chat/completions",
     "https://llm.example.com.evil.net/v1/chat/completions"
   ]){
     assert.throws(()=>validateCompatibleEndpoint(endpoint,"llm.example.com"),endpoint);

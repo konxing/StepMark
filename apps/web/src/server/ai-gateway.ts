@@ -11,9 +11,11 @@ export type AiProviderConfig={key:string;model:string;url:string};
 type Environment=Record<string,string|undefined>;
 const endpoints:Record<string,string>={
   openai:"https://api.openai.com/v1/chat/completions",
-  openrouter:"https://openrouter.ai/api/v1/chat/completions"
+  openrouter:"https://openrouter.ai/api/v1/chat/completions",
+  deepseek:"https://api.deepseek.com/chat/completions"
 };
 const modelPattern=/^[a-zA-Z0-9._:/-]{1,100}$/;
+const completionPath=/^\/(?:[a-zA-Z0-9_-]+\/)*chat\/completions$/;
 
 function setting(env:Environment,purpose:AiPurpose,suffix:string):string|undefined{
   const assistant=env["AI_ASSISTANT_"+suffix];
@@ -31,7 +33,7 @@ export function validateCompatibleEndpoint(raw:string,allowedHost:string):string
      host.endsWith(".local")||host.endsWith(".internal")||
      host.endsWith(".test")||!/^([a-z0-9-]+\.)+[a-z0-9-]+$/.test(host)||
      host!==allowedHost.trim().toLowerCase()||
-     !/^\/[a-zA-Z0-9/_-]{0,180}\/chat\/completions$/.test(url.pathname)){
+     url.pathname.length>198||!completionPath.test(url.pathname)){
     throw new Error("AI_PROVIDER_NOT_CONFIGURED");
   }
   return url.href;
@@ -67,12 +69,14 @@ const envelopeSchema=z.object({
 export async function callAiJson(config:AiProviderConfig,args:{
   messages:readonly {role:"system"|"user";content:string}[];
   timeoutMs:number;maxTokens:number;maxResponseBytes:number;
+  disableThinking?:boolean;
 }):Promise<unknown>{
   const response=await fetch(config.url,{
     method:"POST",cache:"no-store",redirect:"error",
     signal:AbortSignal.timeout(args.timeoutMs),
     headers:{"Authorization":"Bearer "+config.key,"Content-Type":"application/json"},
     body:JSON.stringify({model:config.model,temperature:0,max_tokens:args.maxTokens,
+      ...(args.disableThinking?{thinking:{type:"disabled"}}:{}),
       response_format:{type:"json_object"},messages:args.messages})
   });
   if(!response.ok)throw new Error("AI_UPSTREAM_FAILED");

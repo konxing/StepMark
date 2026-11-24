@@ -58,6 +58,29 @@ model User {
   estimates  AbilityEstimate[]
   auditLogs  AuditLog[]
   assistantActions AssistantAction[]
+  growthPractices GrowthPractice[]
+}
+
+model GrowthPractice {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @db.Uuid
+  requestId       String   @db.Uuid
+  dimension       String   @db.VarChar(24)
+  title           String   @db.VarChar(120)
+  question        String   @db.VarChar(600)
+  nextAction      String   @db.VarChar(500)
+  successCriteria String   @db.VarChar(500)
+  evidence        String   @default("") @db.VarChar(1500)
+  reflection      String   @default("") @db.VarChar(1000)
+  nextQuestion    String   @default("") @db.VarChar(600)
+  revision        Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  completedAt     DateTime?
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, requestId])
+  @@index([userId, createdAt, id])
 }
 
 model Credential {

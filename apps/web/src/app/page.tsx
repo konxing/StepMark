@@ -1,37 +1,33 @@
 import { initialConstructs } from "@stepmark/core";
 const features = [
-  { number: "01", title: "测量能力", description: "通过结构化任务和重复测量建立个人基线，不用聊天印象代替评估。" },
-  { number: "02", title: "培养习惯", description: "追踪机会、情境、执行和自动化程度，不将连续打卡等同习惯形成。" },
-  { number: "03", title: "验证进步", description: "用新的测验验证提升，把练习效果与真正的能力迁移分开。" },
-  { number: "04", title: "AI 个性化", description: "预留可审计的 AI 教练与评分接口。启用前需人工基准校准。" }
+  { title: "自主实践", description: "把在意的问题变成一次小行动，记录实际结果，再决定值得追问什么。" },
+  { title: "培养习惯", description: "记录触发情境、行动和感受，观察一个行为如何慢慢变得自然。" },
+  { title: "测量与训练", description: "通过结构化任务建立基线，再到新题和真实场景中检查所学能否迁移。" },
+  { title: "AI 协助", description: "说出问题，AI 帮你拟行动和验证标准。记录实际观察后，AI 也能草拟复盘和下一问。" }
 ];
 export default function Home() {
   return <main className="shell">
     <header className="topbar"><a className="wordmark" href="/">STEP<span>MARK</span><span className="brand-dot">.</span></a>
       <nav className="top-links"><a href="/login">登录</a><a href="/register">创建账户</a></nav></header>
-    <section className="hero">
-      <div className="eyebrow"><span className="pulse" /> YOUR CAPACITY. YOUR EVIDENCE.</div>
-      <h1>让成长<br/><span>有迹可循。</span></h1>
-      <p>不以打卡次数定义自律，不以一次分数定义能力。StepMark 用可追溯的证据，连接能力评估、习惯训练和真实进步。</p>
-      <div className="hero-actions"><a href="#framework" className="primary-link">了解测量框架 <span aria-hidden="true">↗</span></a>
-        <a href="#principles" className="secondary-link">科学原则 ↓</a></div>
-      <p className="warning">当前为研究 Alpha 预览。演示测验尚未完成独立校准，不能将原始答题表现解释为正式能力分数或人口常模。</p>
+    <section className="hero landing-growth">
+      <h1>从一个问题开始<br/><span>走出自己的一步</span></h1>
+      <p>独立发现和理解问题，学习所需的知识，用工具和他人一起做出东西。StepMark 帮你记录每次尝试的证据，让你有依据地选择下一步。</p>
+      <div className="hero-actions"><a href="/growth" className="primary-link">开启自主实践 <span aria-hidden="true">→</span></a>
+        <a href="#framework" className="secondary-link">了解能力测量</a></div>
     </section>
     <section id="framework" className="section">
-      <div className="section-heading"><span className="kicker">MEASUREMENT DOMAINS</span><h2>从可测量的维度开始</h2><p>这些是初始研究构念，并非已经校准的人口常模。</p></div>
+      <div className="section-heading"><h2>能力测量的研究方向</h2><p>研究预览阶段的演示测验仍待独立校准。答题表现用于个人练习与研究。</p></div>
       <div className="domains">
-      {initialConstructs.map((domain, index) => <article className="domain" key={domain.code}>
-        <span className="domain-index">0{index+1} / CONSTRUCT</span>
-        <div className="domain-mark" aria-hidden="true">{["◇","◈","✳","◎"][index]}</div>
+      {initialConstructs.map(domain => <article className="domain" key={domain.code}>
         <h3>{domain.title}</h3><p>{domain.description}</p>
         <div className="domain-bottom"><span>代码：{domain.code}</span><span className="tag">待校准</span></div>
       </article>)}
       </div>
     </section>
     <section id="principles" className="section dark-section">
-      <div className="section-heading"><span className="kicker">OUR PRINCIPLES</span><h2>证据先于分数</h2></div>
-      <div className="feature-grid">{features.map(f => <article key={f.number} className="feature">
-        <span className="feature-number">{f.number}</span><h3>{f.title}</h3><p>{f.description}</p></article>)}</div>
+      <div className="section-heading"><h2>怎样把成长落到实处</h2></div>
+      <div className="feature-grid">{features.map(f => <article key={f.title} className="feature">
+        <h3>{f.title}</h3><p>{f.description}</p></article>)}</div>
     </section>
     <footer><span>STEPMARK / FOUNDATION</span><span>能力用表现证明 · 习惯用行为证明 · 成长用证据证明</span></footer>
   </main>;

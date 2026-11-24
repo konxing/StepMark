@@ -15,8 +15,11 @@ export default function AccountForm({mode}:{mode:Mode}) {
       });
       if(response.ok && mode==="login"){
         const next=new URLSearchParams(location.search).get("next");
-        // Only the exact desktop consent endpoint is a valid post-login return.
-        // Never follow an arbitrary URL supplied by a query parameter.
+        if(next==="/growth"){
+          location.assign("/growth");
+          return;
+        }
+        // Only follow the same-origin desktop consent endpoint.
         const target=next?.startsWith("/api/v1/auth/desktop/authorize?") ?
           new URL(next,location.origin) : null;
         location.assign(target?.origin===location.origin &&
