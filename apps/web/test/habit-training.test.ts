@@ -1,14 +1,19 @@
 import assert from "node:assert/strict";
+import {randomUUID} from "node:crypto";
 import {test} from "node:test";
 import {NextRequest} from "next/server";
 import {getDb} from "../src/server/db";
-import {issueSession,SESSION_COOKIE} from "../src/server/security";
+import {hashPassword,issueSession,SESSION_COOKIE} from "../src/server/security";
 import {taskContentDigest} from "../src/server/assessment-integrity";
 import {GET,PUT} from "../src/app/api/v1/habits/[id]/training/route";
 
 test("linked practice lists only the completed opportunities between the person's independently scored forms",async()=>{
   const db=getDb();
-  const [owner,outsider]=await Promise.all([db.user.create({data:{}}),db.user.create({data:{}})]);
+  const passwordHash=await hashPassword("habit-training-fixture-password");
+  const createAccount=()=>db.user.create({data:{credential:{create:{
+    email:"training_"+randomUUID()+"@example.test",passwordHash,verifiedAt:new Date()
+  }}}});
+  const [owner,outsider]=await Promise.all([createAccount(),createAccount()]);
   try{
     const habit=await db.habit.create({data:{userId:owner.id,title:"核对推理依据",action:"找一条反证"}});
     const ownerToken=(await issueSession(owner.id,"WEB")).token;
