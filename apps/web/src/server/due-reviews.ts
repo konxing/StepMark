@@ -19,11 +19,11 @@ export async function listDueHabitReviews(userId:string,now:Date=new Date()){
   const counts=await readHabitOpportunityCounts(db,ids);
   const due: {habitId:string;title:string;progress:number;reviewReason:string;nextReviewAt:string}[]=[];
   for(const habit of habits){
-    const {completed,eligible,lastCompletedAtMs}=counts.get(habit.id)!;
+    const {completed,eligible,lastCompletedAtMs,recentOpportunities}=counts.get(habit.id)!;
     const status=calculateHabitProgress({
       completedRepetitions:completed,completedOpportunities:completed,
       eligibleOpportunities:eligible,nowMs:now.getTime(),
-      observations:habitSelfRatingEvidence(habit.reflections),lastCompletedAtMs,seed:habit.id
+      observations:habitSelfRatingEvidence(habit.reflections),lastCompletedAtMs,recentOpportunities,seed:habit.id
     });
     if(status.reviewDue&&status.nextReviewAt){
       due.push({habitId:habit.id,title:habit.title,progress:status.progress,

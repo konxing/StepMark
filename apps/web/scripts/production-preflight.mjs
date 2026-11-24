@@ -15,18 +15,22 @@ function nonPlaceholder(value) {
   return typeof value==="string" && value.trim()===value && value.length>0 &&
     !/(REPLACE|CHANGE_ME|YOUR[_-]|EXAMPLE|PLACEHOLDER|CI[_-]TEST)/i.test(value);
 }
-export function validateProductionEnv(env=process.env) {
+export function validateProductionEnv(env=process.env,{windowsLoopback=false}={}) {
   if(env.NODE_ENV!=="production")invalid("NODE_ENV");
-  if(env.APP_ORIGIN!=="https://stepmark.xin")invalid("APP_ORIGIN");
+  const windowsLocal=windowsLoopback&&env.STEPMARK_INGRESS_MODE==="windows-local";
+  const expectedOrigin=windowsLocal?"http://127.0.0.1:8080":"https://stepmark.xin";
+  if(env.APP_ORIGIN!==expectedOrigin)invalid("APP_ORIGIN");
 
   const raw=env.DATABASE_URL;
   if(!nonPlaceholder(raw) || raw.length>4096)invalid("DATABASE_URL");
   let db;
   try{db=new URL(raw);}catch{invalid("DATABASE_URL");}
+  const bareHost=db.hostname.replace(/^\[|\]$/g,"");
+  const localDatabase=["localhost","127.0.0.1","::1"].includes(bareHost);
   if(!["postgresql:","postgres:"].includes(db.protocol) ||
      !db.username || !db.password || !db.hostname || !db.pathname || db.pathname==="/" ||
-     db.hash || db.hostname==="localhost" || db.hostname.endsWith(".localhost") ||
-     ["127.0.0.1","::1"].includes(db.hostname.replace(/^\[|\]$/g,"")) ||
+     db.hash || db.hostname.endsWith(".localhost") ||
+     (localDatabase&&!windowsLoopback) ||
      db.hostname==="postgres-private-host" ||
      (isIP(db.hostname)!==0 && db.hostname==="0.0.0.0"))invalid("DATABASE_URL");
   let user,pass;
@@ -34,7 +38,11 @@ export function validateProductionEnv(env=process.env) {
   catch{invalid("DATABASE_URL");}
   if(!nonPlaceholder(user)||!nonPlaceholder(pass))invalid("DATABASE_URL");
   const modes=db.searchParams.getAll("sslmode");
-  if(modes.length!==1 || !["require","verify-ca","verify-full"].includes(modes[0]))
+  const tlsModes=["require","verify-ca","verify-full"];
+  const databaseModeValid=windowsLoopback&&localDatabase?
+    modes.length<=1&&(modes.length===0||["disable",...tlsModes].includes(modes[0])):
+    modes.length===1&&tlsModes.includes(modes[0]);
+  if(!databaseModeValid)
     invalid("DATABASE_URL sslmode");
 
   // The deployment requires a random 32-byte base64url secret, not a readable
@@ -48,7 +56,9 @@ export function validateProductionEnv(env=process.env) {
 
   const mode=env.STEPMARK_INGRESS_MODE;
   const trusted=env.TRUSTED_CLIENT_IP_HEADER;
-  if(mode!=="caddy-direct" || trusted!=="x-real-ip")
+  const ingressValid=windowsLoopback?(windowsLocal||mode==="windows-loopback")&&!trusted:
+    mode==="caddy-direct"&&trusted==="x-real-ip";
+  if(!ingressValid)
     invalid("STEPMARK_INGRESS_MODE / TRUSTED_CLIENT_IP_HEADER");
   if(env.DB_POOL_MAX!==undefined &&
      !/^(?:[1-9]|1[0-2])$/.test(env.DB_POOL_MAX))invalid("DB_POOL_MAX");
@@ -66,7 +76,7 @@ export function validateProductionEnv(env=process.env) {
     invalid("WECHAT_APP_ID / WECHAT_APP_SECRET");
   // With neither provider configured, new users cannot sign in through any
   // supported registration path. Fail rather than serve an unusable release.
-  if(!resend && !wxId)invalid("AUTH_PROVIDER");
+  if(!resend && !wxId && !windowsLocal)invalid("AUTH_PROVIDER");
   return {emailConfigured:Boolean(resend),wechatConfigured:Boolean(wxId)};
 }
 

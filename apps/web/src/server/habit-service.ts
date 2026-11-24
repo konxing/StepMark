@@ -1,6 +1,7 @@
 import {getDb} from "./db";
+import {HABIT_RECENT_OPPORTUNITY_LIMIT} from "@stepmark/core";
 import type {InitiationEvidence,InitiationLevel} from "@stepmark/core";
-import type {Prisma} from "@/generated/prisma/client";
+import {Prisma} from "@/generated/prisma/client";
 import {z} from "zod";
 
 /** Active habits must be visible in the standard web/desktop list. */
@@ -31,26 +32,48 @@ export function habitSelfRatingEvidence(rows:readonly {
   return evidence;
 }
 
-type OpportunityCounts={eligible:number;completed:number;lastCompletedAtMs:number|null};
+type OpportunityCounts={
+  eligible:number;completed:number;lastCompletedAtMs:number|null;
+  recentOpportunities:{eligible:number;completed:number};
+};
 
 /** One query keeps the numerator and denominator on the same snapshot. */
 export async function readHabitOpportunityCounts(
-  db:Pick<Prisma.TransactionClient,"habitEvent">,habitIds:string[]
+  db:Pick<Prisma.TransactionClient,"$queryRaw">,habitIds:string[]
 ):Promise<Map<string,OpportunityCounts>>{
   const counts=new Map<string,OpportunityCounts>(
-    habitIds.map(id=>[id,{eligible:0,completed:0,lastCompletedAtMs:null}])
+    habitIds.map(id=>[id,{eligible:0,completed:0,lastCompletedAtMs:null,recentOpportunities:{eligible:0,completed:0}}])
   );
-  const groups=await db.habitEvent.groupBy({
-    by:["habitId","completed"],where:{habitId:{in:habitIds},eligible:true},
-    _count:{_all:true},_max:{occurredAt:true}
-  });
+  if(!habitIds.length)return counts;
+  const ids=Prisma.join(habitIds.map(id=>Prisma.sql`${id}::uuid`));
+  const groups=await db.$queryRaw<{
+    habitId:string;eligible:number;completed:number;lastCompletedAt:Date|null;recentEligible:number;recentCompleted:number;
+  }[]>`
+    SELECT total.*, sample."recentEligible", sample."recentCompleted"
+    FROM (
+      SELECT "habitId", COUNT(*)::int AS eligible,
+        (COUNT(*) FILTER (WHERE completed))::int AS completed,
+        MAX("occurredAt") FILTER (WHERE completed) AS "lastCompletedAt"
+      FROM "HabitEvent"
+      WHERE "habitId" IN (${ids}) AND eligible
+      GROUP BY "habitId"
+    ) AS total
+    CROSS JOIN LATERAL (
+      SELECT COUNT(*)::int AS "recentEligible",
+        (COUNT(*) FILTER (WHERE completed))::int AS "recentCompleted"
+      FROM (
+        SELECT completed FROM "HabitEvent" AS event
+        WHERE event."habitId"=total."habitId" AND eligible
+        ORDER BY "occurredAt" DESC, id DESC
+        LIMIT ${HABIT_RECENT_OPPORTUNITY_LIMIT}
+      ) AS recent
+    ) AS sample
+  `;
   for(const group of groups){
-    const count=counts.get(group.habitId)!;
-    count.eligible+=group._count._all;
-    if(group.completed){
-      count.completed=group._count._all;
-      count.lastCompletedAtMs=group._max.occurredAt?.getTime()??null;
-    }
+    counts.set(group.habitId,{
+      eligible:group.eligible,completed:group.completed,lastCompletedAtMs:group.lastCompletedAt?.getTime()??null,
+      recentOpportunities:{eligible:group.recentEligible,completed:group.recentCompleted}
+    });
   }
   return counts;
 }

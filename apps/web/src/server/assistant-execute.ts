@@ -138,16 +138,17 @@ export async function executeAssistantCommand(args:{
           tx.habitReflection.findMany({...recentHabitSelfRatings,
             where:{habitId:target.id,...recentHabitSelfRatings.where}})
         ]);
-        const {completed,eligible,lastCompletedAtMs}=counts.get(target.id)!;
+        const {completed,eligible,lastCompletedAtMs,recentOpportunities}=counts.get(target.id)!;
         const status=calculateHabitProgress({completedRepetitions:completed,
           eligibleOpportunities:eligible,completedOpportunities:completed,
-          observations:habitSelfRatingEvidence(notes),nowMs:Date.now(),lastCompletedAtMs,
+          observations:habitSelfRatingEvidence(notes),nowMs:Date.now(),lastCompletedAtMs,recentOpportunities,
           seed:target.id,reviewEnabled:target.reviewEnabled});
         const execution=status.observedCompletionRate===null?"暂无已记录的执行机会。":
           `已记录 ${status.eligibleOpportunities} 次执行机会，完成 ${completed} 次（${Math.round(status.observedCompletionRate*100)}%）。`;
         const feedback=status.evidenceCount===0?"自然启动程度暂无本人自评。":
           `自然启动程度有 ${status.evidenceCount} 天的本人自评。${status.evidenceStale?"最近的感受证据已过时，建议简短复查。":""}`;
-        result={reply:`「${target.title}」${execution}${feedback}`,
+        const consistency=status.recentExecution?.inconsistent?"近期多次有机会但未执行，先核对触发情境是否合适。":"";
+        result={reply:`「${target.title}」${execution}${feedback}${consistency}`,
           change:null,progress:{habitId:target.id,percent:status.progress,
             repetitions:completed,evidenceStale:status.evidenceStale}};
       }else if(command.intent==="clarify"){

@@ -16,8 +16,9 @@ StepMark 帮人逐步获得自主参与创造和劳动的能力：独立发现�
   服务端事务消费授权码。桌面 bearer 与网页 HttpOnly cookie、微信 bearer 分离。
 - 访问令牌仅由 Rust 处理，保存到 Windows Credential Manager，不返回给 JS、
   不写入 localStorage、日志或应用数据目录。桌面令牌只允许读取 /api/v1/me 和
-  /api/v1/habits；写入、导出、测评和网站 AI API 不开放给桌面令牌。
-- 显示未归档习惯的只读列表。当前无离线缓存、离线队列、自动更新或跨设备冲突合并。
+  /api/v1/habits，以及本人习惯的进度和关联复测。
+- 「习惯与复测」可展开查看养成分数、累计和近期执行、本人自评与关联逻辑推理初测及复测。
+  作答入口在系统浏览器打开本机的测评网页。
 - 现有 PostgreSQL/Prisma 表和历史用户数据完全不变。
 
 **账号限制：** 当前桌面端通过邮箱网页账号授权；微信 OpenID 与邮箱账号尚未自动绑定。
@@ -33,31 +34,24 @@ StepMark 帮人逐步获得自主参与创造和劳动的能力：独立发现�
    若尚未登录，浏览器会先进入 /login，成功后返回授权确认页。
 5. cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml 执行 Rust 安全边界测试。
 
-## Windows 安装包（已绑定 stepmark.xin）
+## Windows 本机安装包
 
-用户已确认购买 **stepmark.xin**。桌面客户端的正式 API origin 固定为
-**https://stepmark.xin**（不含 www，不另设 api 子域），与网站共享
-/api/v1。域名购买本身不等于 DNS、TLS、后端和数据库已部署。
+本机预览包使用 `http://127.0.0.1:8080` 连接账户端。
+先在同一台电脑用 [服务器管理器](../../deploy/windows/README.md) 启动网页后台，
+再点「连接 StepMark 账号」。本机和公网账号的桌面凭据分别保存。
 
 - 每次推送 Windows 桌面相关代码到 main，GitHub Actions 的
   [Windows Desktop](../../.github/workflows/desktop-windows.yml) 工作流都会
   编译 Rust/Tauri 生产协议、执行本地 UI 安全检查、构建 **未签名 NSIS
   Windows 预览安装包**，并上传 14 天有效的 Actions artifact。
 - 下载：GitHub 仓库 → Actions → Windows Desktop → 最新成功的 main 运行 →
-  Artifacts → StepMark-Windows-stepmark.xin-unsigned-preview。
+  Artifacts → StepMark-Windows-Local-unsigned-preview。
   安装包 artifact 同时包含 SHA256SUMS.txt，可在 Windows PowerShell 通过
   Get-FileHash -Algorithm SHA256 校验下载文件；仅供可信测试者。
   未签名安装包可能被 Windows SmartScreen 拦截，不应要求普通用户绕过警告。
-- 同一工作流运行 node apps/desktop/scripts/check-deployment.mjs：
-  验证域名 DNS、HTTPS 证书和未登录的 /api/v1/me、/api/v1/habits
-  都返回预期 401 JSON。**此探测暂为非阻断**，允许网站部署前先验证
-  安装包构建；失败表示联网登录尚不可用，不能据此宣布上线。
-- 现有 Next.js 生产环境设置 APP_ORIGIN=https://stepmark.xin，
-  配置公开 HTTPS 反向代理、PostgreSQL、强随机服务端密钥，
-  按现有运维手册执行迁移。不要将 .env、数据库或 AI Key 放入桌面包。
 - 本地 release 构建可在 apps/desktop 下设置
-  STEPMARK_API_ORIGIN=https://stepmark.xin 并运行
-  npx @tauri-apps/cli@2 build；开发 debug 构建仍可使用 localhost:3000。
+  `STEPMARK_API_ORIGIN=http://127.0.0.1:8080` 并运行
+  `npx @tauri-apps/cli@2 build`。公网部署恢复后也可以指定 HTTPS origin 重新构建。
 
 正式发行前仍需：DNS/TLS 与生产数据库实际部署、Windows 真机登录/注销、
 WebView2 安装验证、代码签名与 SmartScreen 信誉、隐私/数据留存审查、

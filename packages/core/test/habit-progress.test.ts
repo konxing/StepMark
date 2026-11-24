@@ -119,7 +119,7 @@ test("high-confidence AI diary labels never modify growth or review timing",()=>
   const extra=calculateHabitProgress({...data,observations:[
     {atMs:now-DAY/2,level:4,source:"ai_interpretation" as const,confidence:1},
     {atMs:now-DAY,level:0,source:"ai_interpretation" as const,confidence:.99},...person]});
-  assert.equal(extra.policyVersion,"habit-progress-v2");
+  assert.equal(extra.policyVersion,"habit-progress-v3");
   assert.equal(extra.aiAnnotationCount,2);
   assert.equal(extra.evidenceCount,3);
   assert.equal(extra.progress,direct.progress);
@@ -133,4 +133,20 @@ test("high-confidence AI diary labels never modify growth or review timing",()=>
   assert.equal(aiOnly.automaticitySignal,null);
   assert.ok(aiOnly.progress<=45);
   assert.equal(aiOnly.reviewReason,"low_evidence");
+});
+
+test("repeated observed misses cap apparent stability while one miss and unrecorded time leave it alone",()=>{
+  const input={completedRepetitions:90,completedOpportunities:90,eligibleOpportunities:100,nowMs:now,
+    observations:[evidence(1,4),evidence(13,4),evidence(25,4)]};
+  const normal=calculateHabitProgress({...input,recentOpportunities:{eligible:12,completed:12}});
+  const once=calculateHabitProgress({...input,recentOpportunities:{eligible:12,completed:11}});
+  const missed=calculateHabitProgress({...input,recentOpportunities:{eligible:12,completed:4}});
+  assert.equal(normal.stage,"maintaining");
+  assert.equal(once.progress,normal.progress);
+  assert.equal(missed.progress,79.9);
+  assert.equal(missed.reviewReason,"recent_misses");
+  assert.equal(missed.automaticitySignal,normal.automaticitySignal);
+  assert.equal(calculateHabitProgress({...input,nowMs:now+90*DAY,
+    recentOpportunities:{eligible:12,completed:4}}).progress,missed.progress);
+  assert.throws(()=>calculateHabitProgress({...input,recentOpportunities:{eligible:13,completed:12}}));
 });

@@ -11,6 +11,8 @@ import {POST as desktopLogoutPOST} from "../src/app/api/v1/auth/desktop/logout/r
 import {GET as habitsGET,POST as habitsPOST} from "../src/app/api/v1/habits/route";
 import {GET as meGET} from "../src/app/api/v1/me/route";
 import {GET as exportGET} from "../src/app/api/v1/account/export/route";
+import {GET as progressGET} from "../src/app/api/v1/habits/[id]/progress/route";
+import {GET as trainingGET,PUT as trainingPUT} from "../src/app/api/v1/habits/[id]/training/route";
 
 const origin="http://localhost:3000";
 function req(path:string,method="GET",body?:unknown,token?:string,desktop=false,requestOrigin=origin){
@@ -53,8 +55,8 @@ test("browser consent -> one-time PKCE exchange -> scoped desktop reads -> logou
   }}},select:{id:true}});
   const b=await db.user.create({data:{},select:{id:true}});
   try{
-    await db.habit.create({data:{userId:a.id,title:"Visible habit",action:"Read daily"}});
-    await db.habit.create({data:{userId:b.id,title:"Other person's private habit",action:"Hidden"}});
+    const ownHabit=await db.habit.create({data:{userId:a.id,title:"Visible habit",action:"Read daily"}});
+    const otherHabit=await db.habit.create({data:{userId:b.id,title:"Other person's private habit",action:"Hidden"}});
     const browser=(await issueSession(a.id,"WEB")).token;
     const verifier=randomBytes(32).toString("base64url");
     const state=randomBytes(32).toString("base64url");
@@ -96,6 +98,13 @@ test("browser consent -> one-time PKCE exchange -> scoped desktop reads -> logou
     const body=await habits.text();
     assert.ok(body.includes("Visible habit"));
     assert.ok(!body.includes("Other person's private habit"));
+    const own={params:Promise.resolve({id:ownHabit.id})};
+    const other={params:Promise.resolve({id:otherHabit.id})};
+    const ownPath="/api/v1/habits/"+ownHabit.id;
+    assert.equal((await progressGET(req(ownPath+"/progress","GET",undefined,token,true),own)).status,200);
+    assert.equal((await progressGET(req("/api/v1/habits/"+otherHabit.id+"/progress","GET",undefined,token,true),other)).status,404);
+    assert.equal((await trainingGET(req(ownPath+"/training","GET",undefined,token,true),own)).status,200);
+    assert.equal((await trainingPUT(req(ownPath+"/training","PUT",{target:"reasoning.logic"},token,true),own)).status,403);
     assert.equal((await habitsPOST(req("/api/v1/habits","POST",{title:"Forbidden",action:"No"},token,true))).status,403);
     assert.equal((await exportGET(req("/api/v1/account/export?kind=habits","GET",undefined,token,true))).status,403);
     assert.equal((await exchangePOST(req("/api/v1/auth/desktop/exchange","POST",payload))).status,400,"replay rejected");

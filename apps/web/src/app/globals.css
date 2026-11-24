@@ -89,3 +89,27 @@
   .dashboard-header{flex-wrap:wrap}
   .habit-actions{flex-wrap:wrap}
 }
+.dashboard-shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem 1rem;
+  margin: 0 0 1rem;
+}
+.dashboard-shortcuts a {
+  padding: .35rem 0;
+  text-underline-offset: .24em;
+}
+#habit-progress, #habit-records, #assistant-records { scroll-margin-top: 1.5rem; }
+.habit-measures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(min(100%,9rem),1fr));
+  gap: .5rem 1rem;
+  margin: .9rem 0;
+}
+.habit-measures p { margin: 0; overflow-wrap: anywhere; }
+.habit-measures small, .habit-measures strong { display: block; }
+.habit-training {
+  border-top: 1px solid rgba(96,112,103,.25);
+  margin-top: 1rem;
+  padding-top: .85rem;
+}

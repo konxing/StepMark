@@ -4,6 +4,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import type { z } from "zod";
 import { getDb } from "./db";
+import { usesWindowsLocalOrigin } from "./local-origin";
 
 export const SESSION_COOKIE = "sm_session";
 const WEB_SESSION_MS = 14 * 24 * 60 * 60 * 1000;
@@ -34,7 +35,8 @@ export function appOrigin(): string {
   let parsed: URL;
   try { parsed = new URL(raw); } catch { throw new ApiError(503, "SERVICE_NOT_CONFIGURED"); }
   if (parsed.origin !== raw || parsed.username || parsed.password ||
-      (parsed.protocol !== "https:" && !(process.env.NODE_ENV !== "production" && parsed.hostname === "localhost"))) {
+      (parsed.protocol !== "https:" && !usesWindowsLocalOrigin() &&
+       !(process.env.NODE_ENV !== "production" && parsed.hostname === "localhost"))) {
     throw new ApiError(503, "SERVICE_NOT_CONFIGURED");
   }
   return parsed.origin;
@@ -173,6 +175,7 @@ export async function enforceRateLimit(kind: string, subject: string, limit: num
 export type Principal = {userId:string; kind:"WEB"|"WECHAT"|"DESKTOP"; email:string|null};
 const DESKTOP_PREFIX="sm_desktop_";
 const DESKTOP_READ_PATHS=new Set(["/api/v1/me","/api/v1/habits"]);
+const DESKTOP_HABIT_DETAIL=/^\/api\/v1\/habits\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(progress|training)$/i;
 export async function lookupSession(token: string | undefined, kind: "WEB"|"WECHAT", desktop=false): Promise<Principal|null> {
   if (!token || token.length < 32 || token.length > 128) return null;
   // A desktop bearer can never be silently accepted as a browser cookie.
@@ -192,8 +195,8 @@ export async function principalFromRequest(request: NextRequest): Promise<Princi
     if (!authorization.startsWith("Bearer ")) throw new ApiError(401, "UNAUTHENTICATED");
     const token=authorization.slice(7);
     if(token.startsWith(DESKTOP_PREFIX)){
-      // Explicit v1 desktop scope: only two read-only API routes.
-      if(request.method!=="GET" || !DESKTOP_READ_PATHS.has(request.nextUrl.pathname))
+      const path=request.nextUrl.pathname;
+      if(request.method!=="GET"||(!DESKTOP_READ_PATHS.has(path)&&!DESKTOP_HABIT_DETAIL.test(path)))
         throw new ApiError(403,"DESKTOP_SCOPE_DENIED");
       const desktop=await lookupSession(token,"WEB",true);
       if(!desktop)throw new ApiError(401,"UNAUTHENTICATED");
@@ -215,12 +218,13 @@ export async function issueSession(userId: string, kind: "WEB"|"WECHAT"): Promis
 }
 export function setWebCookie(response: NextResponse, token: string): void {
   response.cookies.set(SESSION_COOKIE,token,{
-    httpOnly:true, secure:process.env.NODE_ENV==="production",
+    httpOnly:true, secure:process.env.NODE_ENV==="production"&&!usesWindowsLocalOrigin(),
     sameSite:"lax", path:"/", maxAge:WEB_SESSION_MS / 1000
   });
 }
 export function clearWebCookie(response: NextResponse): void {
-  response.cookies.set(SESSION_COOKIE,"",{httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"lax",path:"/",maxAge:0});
+  response.cookies.set(SESSION_COOKIE,"",{httpOnly:true,
+    secure:process.env.NODE_ENV==="production"&&!usesWindowsLocalOrigin(),sameSite:"lax",path:"/",maxAge:0});
 }
 
 export function normalizedEmail(email:string):string {

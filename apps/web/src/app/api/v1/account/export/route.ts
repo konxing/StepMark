@@ -27,7 +27,8 @@ export async function GET(request:NextRequest){
     switch(kind.data){
       case "habits":
         data=await db.habit.findMany({where:{userId:principal.userId},...paging,
-          select:{id:true,title:true,cue:true,action:true,createdAt:true,archivedAt:true}});break;
+          select:{id:true,title:true,cue:true,action:true,createdAt:true,archivedAt:true,
+            associations:{select:{constructCode:true,evidenceLevel:true,updatedAt:true}}}});break;
       case "events":
         data=await db.habitEvent.findMany({where:{habit:{userId:principal.userId}},...paging,
           select:{id:true,habitId:true,opportunityKey:true,eligible:true,completed:true,occurredAt:true,createdAt:true,revision:true}});break;

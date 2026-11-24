@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'apps/desktop/**'
+      - 'deploy/windows/**'
       - '.github/workflows/desktop-windows.yml'
       - 'apps/web/src/server/desktop-auth.ts'
       - 'apps/web/src/app/api/v1/auth/desktop/**'
@@ -10,6 +11,7 @@ on:
   pull_request:
     paths:
       - 'apps/desktop/**'
+      - 'deploy/windows/**'
       - '.github/workflows/desktop-windows.yml'
   workflow_dispatch:
 permissions:
@@ -19,8 +21,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 45
     env:
-      # Domain approved by the StepMark owner. Do not replace with a PR input.
-      STEPMARK_API_ORIGIN: https://stepmark.xin
+      STEPMARK_API_ORIGIN: http://127.0.0.1:8080
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -29,11 +30,11 @@ jobs:
           workspaces: apps/desktop/src-tauri
       - name: Rust tests with production Tauri protocol
         run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --features custom-protocol
-      - name: Verify bundled UI and domain policy
+      - name: Verify bundled UI and local account policy
         run: |
           node --check apps/desktop/ui/app.js
           node --test apps/desktop/scripts/verify-desktop.test.mjs
-      - name: Build unsigned Windows NSIS preview installer for stepmark.xin
+      - name: Build unsigned Windows NSIS preview installer for the local server
         if: github.event_name != 'pull_request'
         working-directory: apps/desktop
         run: npx --yes @tauri-apps/cli@2 build --ci
@@ -50,17 +51,29 @@ jobs:
           Write-Host "Windows preview installer: $($file.Name)"
           Write-Host "SHA256: $sha"
           Write-Host 'Preview only: this build is NOT code-signed.'
-      - name: Probe public HTTPS and unauthenticated API readiness
-        if: github.event_name != 'pull_request'
-        continue-on-error: true
-        run: node apps/desktop/scripts/check-deployment.mjs
       - name: Upload unsigned Windows installer (preview only)
         if: github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: StepMark-Windows-stepmark.xin-unsigned-preview
+          name: StepMark-Windows-Local-unsigned-preview
           path: |
             apps/desktop/src-tauri/target/release/bundle/nsis/*.exe
             apps/desktop/src-tauri/target/release/bundle/nsis/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
+  server-manager:
+    runs-on: windows-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the Windows server manager
+        shell: pwsh
+        run: ./deploy/windows/build-manager.ps1 -OutputDirectory server-manager-dist
+      - name: Upload unsigned server manager
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: StepMark-Windows-Server-Manager
+          path: server-manager-dist/
           if-no-files-found: error
           retention-days: 14

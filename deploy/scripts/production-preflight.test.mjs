@@ -53,6 +53,25 @@ test("requires non-placeholder PostgreSQL credentials and explicit TLS",()=>{
   rejected("DATABASE_URL","not-a-database-url");
 });
 
+test("the Windows loopback origin can use local PostgreSQL and rejects unverified forwarding",()=>{
+  const windows={...base,DATABASE_URL:"postgresql://stepmark_app:valid-password@127.0.0.1:5432/stepmark",
+    STEPMARK_INGRESS_MODE:"windows-loopback",TRUSTED_CLIENT_IP_HEADER:undefined};
+  assert.equal(validateProductionEnv(windows,{windowsLoopback:true}).emailConfigured,true);
+  assert.throws(()=>validateProductionEnv(windows));
+  assert.throws(()=>validateProductionEnv({...windows,TRUSTED_CLIENT_IP_HEADER:"cf-connecting-ip"},{windowsLoopback:true}));
+  assert.throws(()=>validateProductionEnv({...windows,
+    DATABASE_URL:windows.DATABASE_URL.replace("127.0.0.1","db.private.invalid")},{windowsLoopback:true}));
+});
+
+test("local Windows startup accepts only the exact loopback origin while public startup requires HTTPS",()=>{
+  const local={...base,APP_ORIGIN:"http://127.0.0.1:8080",STEPMARK_INGRESS_MODE:"windows-local",
+    TRUSTED_CLIENT_IP_HEADER:undefined,RESEND_API_KEY:undefined,AUTH_FROM_EMAIL:undefined};
+  assert.deepEqual(validateProductionEnv(local,{windowsLoopback:true}),{emailConfigured:false,wechatConfigured:false});
+  assert.throws(()=>validateProductionEnv(local));
+  assert.throws(()=>validateProductionEnv({...local,APP_ORIGIN:"http://192.168.1.10:8080"},{windowsLoopback:true}));
+  assert.throws(()=>validateProductionEnv({...local,APP_ORIGIN:"https://stepmark.xin"},{windowsLoopback:true}));
+});
+
 test("requires a 32-byte base64url secret and rejects obvious weak values",()=>{
   rejected("RATE_LIMIT_SECRET","REPLACE_WITH_CRYPTOGRAPHICALLY_RANDOM_32_PLUS_BYTES");
   rejected("RATE_LIMIT_SECRET","a-readable-secret-that-is-not-random");
