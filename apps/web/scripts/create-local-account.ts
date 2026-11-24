@@ -1,13 +1,14 @@
 import {z} from "zod";
-import nextEnvironment from "@next/env";
+import {loadEnvConfig} from "@next/env";
 import {getDb} from "../src/server/db";
 import {hashPassword,normalizedEmail} from "../src/server/security";
 
 async function main(){
   const email=z.email().max(254).safeParse(normalizedEmail(process.argv[2]??""));
   if(!email.success||process.argv.length!==3||process.stdin.isTTY)throw new Error("INVALID_INPUT");
-  nextEnvironment.loadEnvConfig(process.cwd(),false,{info(){},error(){}});
-  const database=new URL(process.env.DATABASE_URL??"");
+  loadEnvConfig(process.cwd(),false,{info(){},error(){}});
+  if(!process.env.DATABASE_URL)throw new Error("DATABASE_NOT_CONFIGURED");
+  const database=new URL(process.env.DATABASE_URL);
   if(!["postgresql:","postgres:"].includes(database.protocol)||
      !["localhost","127.0.0.1","[::1]"].includes(database.hostname)){
     throw new Error("LOCAL_DATABASE_REQUIRED");
@@ -36,6 +37,8 @@ void main().catch(error=>{
   const message=error instanceof Error?error.message:"";
   if(message==="ACCOUNT_EXISTS")console.error("该账号已存在，请使用原账号登录。");
   else if(message==="INVALID_PASSWORD"||message==="INVALID_INPUT")console.error("请输入有效邮箱和 12 到 128 字符的密码。");
+  else if(message==="DATABASE_NOT_CONFIGURED")console.error("请在网站环境文件配置 DATABASE_URL。");
+  else if(message==="LOCAL_DATABASE_REQUIRED")console.error("本机建号只接受本机 PostgreSQL 地址。");
   else console.error("无法建立账号。请检查本机 PostgreSQL、数据库配置和迁移。");
   process.exitCode=1;
 });

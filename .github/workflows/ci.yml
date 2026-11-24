@@ -89,12 +89,12 @@ jobs:
         run: node --test apps/web/scripts/prune-expired.test.mjs
       - name: Seed original demonstration tasks
         run: npm run db:seed --workspace @stepmark/web
-      - name: Multiuser integration tests
-        run: npm run test:integration --workspace @stepmark/web
       - name: Production build
         run: npm run build
       - name: Verify local production sign-in and desktop authorization
         run: node --test deploy/windows/local-site.test.mjs
+      - name: Multiuser integration tests
+        run: npm run test:integration --workspace @stepmark/web
       - name: Assert patched transitive Effect dependency is locked
         run: node --test deploy/scripts/security-lock.test.mjs
       - name: Security dependency audit

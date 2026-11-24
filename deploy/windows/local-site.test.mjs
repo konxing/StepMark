@@ -49,7 +49,10 @@ test("local production startup, login and desktop PKCE stay on loopback",{timeou
       if(healthy)break;
       await delay(200);
     }
-    assert.ok(healthy,"local production server did not start");
+    if(!healthy){
+      if(site.processHandle.exitCode!==null)assert.fail((await site.done).output);
+      assert.fail("local production server did not start");
+    }
 
     const homepage=await fetch(origin+"/login");
     assert.equal(homepage.status,200);
