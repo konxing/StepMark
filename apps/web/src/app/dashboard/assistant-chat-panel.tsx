@@ -1,10 +1,12 @@
 "use client";
 import {useState} from "react";
+import WorkEvidencePanel from "./work-evidence-panel";
 
 type Reply={
   reply:string;
   change:null|{kind:string;habitId:string;habitTitle:string};
   progress:null|{habitId:string;percent:number;repetitions:number;evidenceStale:boolean}
+  workEvidenceAdded?:number;
 };
 type Bubble={id:string;role:"assistant"|"user";text:string};
 function localDay(){
@@ -15,10 +17,12 @@ export default function AssistantChatPanel({
   onChanged
 }:{onChanged:(habitId:string|null)=>Promise<void>}){
   const [messages,setMessages]=useState<Bubble[]>([
-    {id:"welcome",role:"assistant",text:"你可以直接告诉我：想建立什么习惯、今天是否执行、开始行动时有什么感受，或想查看哪项习惯的进度。明确的记录会由服务器安全保存。"}
+    {id:"welcome",role:"assistant",text:"说说你做了什么、怎么做的、最后怎么样了。你也可以聊习惯或问我下一步怎么验证。"}
   ]);
   const [draft,setDraft]=useState("");
   const [consent,setConsent]=useState(false);
+  const [recordEvidence,setRecordEvidence]=useState(true);
+  const [evidenceRevision,setEvidenceRevision]=useState(0);
   const [busy,setBusy]=useState(false);
   const [notice,setNotice]=useState("");
   const [retry,setRetry]=useState<{message:string;requestId:string}|null>(null);
@@ -36,7 +40,7 @@ export default function AssistantChatPanel({
     try {
       const res=await fetch("/api/v1/assistant",{
         method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({message,requestId,localDate:localDay(),consentToAI:true})
+        body:JSON.stringify({message,requestId,localDate:localDay(),consentToAI:true,recordGrowthEvidence:recordEvidence})
       });
       const data=await res.json().catch(()=>null) as (Reply&{error?:{code:string}})|null;
       if(!res.ok){
@@ -54,7 +58,9 @@ export default function AssistantChatPanel({
       }
       if(!data||typeof data.reply!=="string")throw new Error("AI 返回的数据无效，请稍后重试。");
       setRetry(null);
-      setMessages(previous=>[...previous,{id:crypto.randomUUID(),role:"assistant" as const,text:data.reply}].slice(-16));
+      const reply=data.workEvidenceAdded?`${data.reply}\n已更新 ${data.workEvidenceAdded} 条成长证据。`:data.reply;
+      setMessages(previous=>[...previous,{id:crypto.randomUUID(),role:"assistant" as const,text:reply}].slice(-16));
+      if(data.workEvidenceAdded)setEvidenceRevision(value=>value+1);
       if(data.change||data.progress){
         try{await onChanged(data.change?.habitId??data.progress?.habitId??null);}
         catch{setNotice("记录已成功处理，但页面统计暂时刷新失败；请重新进入成长进度查看。");}
@@ -72,23 +78,23 @@ export default function AssistantChatPanel({
     <div className="assistant-messages" role="log" aria-live="polite" aria-label="对话消息">
       {messages.map(item=><p className={"assistant-bubble "+(item.role==="user"?"assistant-bubble-user":"")} key={item.id}>{item.text}</p>)}
     </div>
-    <div className="assistant-suggestions">
-      {["帮我添加一个睡前阅读10页的习惯","我今天完成了睡前阅读","查看睡前阅读的习惯进度"].map(x=>
-        <button key={x} type="button" disabled={busy} onClick={()=>setDraft(x)}>{x}</button>)}
-    </div>
     <form onSubmit={send} className="assistant-send-form">
       <label htmlFor="assistant-message">向 AI 描述你的行动或提问</label>
       <div className="assistant-compose">
         <textarea id="assistant-message" value={draft} onChange={e=>setDraft(e.target.value)}
-          maxLength={600} rows={2} placeholder="例如：今天做了睡前阅读，开始时一点也没纠结…"/>
+          maxLength={600} rows={2} placeholder="说说你做了什么，或有什么实际结果…"/>
         <button type="submit" disabled={busy||draft.trim().length<2}>{busy?"处理中…":"发送"}</button>
       </div>
       <label className="assistant-consent">
-        <input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/>
+        <input type="checkbox" checked={consent} disabled={busy} onChange={e=>setConsent(e.target.checked)}/>
         <span>允许将本次对话文字及习惯名称发送给已配置的 AI 服务商。关闭则不发送；当前会话内保留此选择。</span>
       </label>
-      <p className="assistant-chat-help">AI 只能建议受控操作；服务器校验身份、原话和目标习惯后才会写入。聊天记录暂时只显示在本页，不会自动保存为长期聊天历史。</p>
+      {consent&&<label className="assistant-consent">
+        <input type="checkbox" checked={recordEvidence} disabled={busy} onChange={e=>setRecordEvidence(e.target.checked)}/>
+        <span>从我报告的行动自动保存成长证据（仅保留相关原话）。</span>
+      </label>}
       {notice&&<p className="assistant-error" role="status">{notice}</p>}
     </form>
+    <WorkEvidencePanel revision={evidenceRevision}/>
   </section>;
 }

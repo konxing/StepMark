@@ -4,23 +4,25 @@ import {getDb} from "./db";
 import {habitSelfRatingEvidence,MAX_ACTIVE_HABITS,recentHabitSelfRatings} from "./habit-service";
 import {ApiError} from "./security";
 import {observationDay,type SafeAssistantCommand,validateClientLocalDate,verifiedInitiationEvidence,assistantMessageDigest} from "./assistant-command";
+import {WORK_EVIDENCE_RUBRIC,type groundedWorkEvidence} from "./work-evidence";
 
 export type AssistantResult={
   reply:string;
   change:null|{kind:"habit_created"|"opportunity_recorded"|"reflection_recorded";habitId:string;habitTitle:string};
   progress:null|{habitId:string;percent:number;repetitions:number;evidenceStale:boolean};
+  workEvidenceAdded?:number;
 };
 const limitText=(value:string,length=500)=>value.slice(0,length);
 
 export async function executeAssistantCommand(args:{
   userId:string;requestId:string;message:string;localDate:string;
-  command:SafeAssistantCommand;model:string
+  command:SafeAssistantCommand;model:string;workEvidence?:ReturnType<typeof groundedWorkEvidence>
 }):Promise<AssistantResult>{
-  const {userId,requestId,message,command,model}=args;
+  const {userId,requestId,message,command,model,workEvidence=[]}=args;
   const localDate=validateClientLocalDate(args.localDate);
   // Do not persist ordinary conversational replies or private free-text chat.
   // Only explicit mutations require durable replay receipts.
-  if(command.intent==="chat"||command.intent==="clarify")
+  if((command.intent==="chat"||command.intent==="clarify")&&!workEvidence.length)
     return {reply:limitText(command.reply||"我没有改动任何记录。"),
       change:null,progress:null};
   const digest=assistantMessageDigest(message);
@@ -153,9 +155,25 @@ export async function executeAssistantCommand(args:{
       }else if(command.intent==="clarify"){
         result.reply=limitText(command.reply||"请再说具体一点，我不会在不确定时修改记录。");
       }
-      if(command.intent!=="check_progress"){
+      if(workEvidence.length){
+        const saved=await tx.workEvidence.createMany({skipDuplicates:true,data:workEvidence.map(row=>({
+          ...row,userId,reportDay:localDate,modelId:model.slice(0,100),rubric:WORK_EVIDENCE_RUBRIC
+        }))});
+        let changed=saved.count;
+        for(const row of workEvidence){
+          if(!row.outcomeQuote)continue;
+          const enriched=await tx.workEvidence.updateMany({where:{userId,domain:row.domain,digest:row.digest,stage:1},
+            data:{stage:2,outcomeQuote:row.outcomeQuote,modelId:model.slice(0,100)}});
+          changed+=enriched.count;
+        }
+        result.workEvidenceAdded=changed;
+      }
+      if(command.intent!=="check_progress"||workEvidence.length){
+        const receipt=workEvidence.length&&!result.change&&!result.progress?{
+          ...result,reply:"这条消息已处理。"
+        }:result;
         await tx.assistantAction.create({data:{userId,requestId,messageDigest:digest,intent:command.intent,
-          result:JSON.parse(JSON.stringify(result)) as Prisma.InputJsonValue}});
+          result:JSON.parse(JSON.stringify(receipt)) as Prisma.InputJsonValue}});
       }
       return result;
     });

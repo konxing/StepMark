@@ -13,6 +13,7 @@ export async function checkDatabase(connectionString=process.env.DATABASE_URL){
     await pool.query('SELECT 1 FROM "User" LIMIT 0');
     await pool.query('SELECT 1 FROM "HabitEvent" LIMIT 0');
     await pool.query('SELECT 1 FROM "GrowthPractice" LIMIT 0');
+    await pool.query('SELECT 1 FROM "WorkEvidence" LIMIT 0');
     await pool.query('SELECT 1 FROM "RateLimitBucket" LIMIT 0');
   }finally{await pool.end();}
 }

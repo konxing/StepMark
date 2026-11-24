@@ -6,12 +6,14 @@ import {ApiError,boundedJson,enforceRateLimit,errorResponse,principalFromRequest
 import {assistantProviderConfig,proposeAssistantCommand} from "@/server/assistant-provider";
 import {authorizeAssistantCommand,validateClientLocalDate,assistantMessageDigest} from "@/server/assistant-command";
 import {executeAssistantCommand} from "@/server/assistant-execute";
+import {groundedWorkEvidence} from "@/server/work-evidence";
 export const runtime="nodejs";
 const requestSchema=z.object({
   message:z.string().trim().min(2).max(600),
   requestId:z.uuid(),
   localDate:z.iso.date(),
-  consentToAI:z.literal(true)
+  consentToAI:z.literal(true),
+  recordGrowthEvidence:z.boolean().optional()
 }).strict();
 export async function POST(request:NextRequest){
   try{
@@ -36,11 +38,12 @@ export async function POST(request:NextRequest){
     const habits=await listOwnHabits(principal.userId);
     let result;
     try{
-      const proposal=await proposeAssistantCommand(body.message,habits);
+      const proposal=await proposeAssistantCommand(body.message,habits,body.recordGrowthEvidence);
       const allowed=authorizeAssistantCommand(proposal.plan,body.message,habits);
       result=await executeAssistantCommand({userId:principal.userId,
         requestId:body.requestId,localDate:body.localDate,message:body.message,
-        command:allowed,model:proposal.model});
+        command:allowed,model:proposal.model,workEvidence:body.recordGrowthEvidence?
+          groundedWorkEvidence(proposal.growthEvidence,body.message,principal.userId):[]});
     }catch(error){
       if(error instanceof ApiError)throw error;
       throw new ApiError(502,"ASSISTANT_UNAVAILABLE");

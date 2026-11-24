@@ -3,11 +3,12 @@ const TOKEN_KEY="stepmark_mobile_access";
 const EXPIRES_KEY="stepmark_mobile_expires";
 Page({
   data:{modules:[],dueReviews:[],status:"正在连接…",loading:false,authenticated:false,
-    chatMessages:[{id:"chat-welcome",role:"assistant",text:"告诉我你想培养的习惯、今天有没有完成，以及开始行动时的感受。我会在明确且安全的情况下帮你记录。"}],
+    chatMessages:[{id:"chat-welcome",role:"assistant",text:"说说你做了什么、怎么做的、结果怎么样。你也可以跟我聊习惯。"}],
     chatInput:"",chatBusy:false,chatConsent:false,chatStatus:"",
+    recordGrowthEvidence:true,workEvidenceOpen:false,workEvidenceBusy:false,
+    workEvidenceStatus:"",workEvidenceSummary:[],workEvidenceItems:[],workEvidenceNext:null,
     chatBottomId:"chat-welcome",chatRetryId:"",chatRetryMessage:"",
     showAdvanced:false,
-    chatSuggestions:["帮我添加一个睡前阅读10页的习惯","我今天完成了睡前阅读","查看睡前阅读的习惯进度"],
     creating:false,title:"",action:"",cue:"",selectedHabitId:"",progress:null,
     reflectionEventId:"",recentEvents:[],correcting:false,
     auditEventId:"",auditRows:[],auditNextOffset:null,auditLoading:false,
@@ -64,7 +65,7 @@ Page({
   toggleAdvanced(){this.setData({showAdvanced:!this.data.showAdvanced});},
   onChatInput(e){this.setData({chatInput:e.detail.value});},
   onChatConsent(e){this.setData({chatConsent:Boolean(e.detail.value),chatStatus:""});},
-  chooseChatSuggestion(e){this.setData({chatInput:e.currentTarget.dataset.text||"",chatStatus:""});},
+  onGrowthEvidenceConsent(e){this.setData({recordGrowthEvidence:Boolean(e.detail.value)});},
   appendChat(role,text){
     const id="chat-"+Date.now()+"-"+Math.floor(Math.random()*1000000);
     this.setData({chatMessages:this.data.chatMessages.concat([{id,role,text}]).slice(-14),
@@ -95,10 +96,13 @@ Page({
     if(!retry)this.appendChat("user",message);
     try{
       const result=await this.api("/api/v1/assistant","POST",{
-        message,requestId,localDate:this.localCalendarDay(),consentToAI:true
+        message,requestId,localDate:this.localCalendarDay(),consentToAI:true,
+        recordGrowthEvidence:this.data.recordGrowthEvidence
       });
       if(typeof result.reply!=="string")throw new Error("AI 响应不完整");
-      this.appendChat("assistant",result.reply);
+      this.appendChat("assistant",result.workEvidenceAdded?
+        `${result.reply}\n已更新 ${result.workEvidenceAdded} 条成长证据。`:result.reply);
+      if(result.workEvidenceAdded&&this.data.workEvidenceOpen)await this.loadWorkEvidence(0);
       this.setData({chatStatus:"",chatRetryId:"",chatRetryMessage:""});
       const habitId=result.change&&result.change.habitId||
         (result.progress&&result.progress.habitId);
@@ -112,6 +116,40 @@ Page({
       this.setData({chatInput:message,chatStatus:e.message||
         "无法确认是否已保存，请先核查习惯记录，再决定是否重试。"});
     }finally{this.setData({chatBusy:false});}
+  },
+  async toggleWorkEvidence(){
+    const opened=!this.data.workEvidenceOpen;
+    this.setData({workEvidenceOpen:opened});
+    if(opened)await this.loadWorkEvidence(0);
+  },
+  async loadWorkEvidence(offset){
+    if(this.data.workEvidenceBusy)return;
+    const token=wx.getStorageSync(TOKEN_KEY);
+    this.setData({workEvidenceBusy:true,workEvidenceStatus:""});
+    try{
+      const page=await this.api(`/api/v1/assistant/evidence?offset=${offset}`,"GET");
+      if(token!==wx.getStorageSync(TOKEN_KEY))return;
+      const items=page.items.map(item=>({...item,label:page.labels[item.domain]||item.domain}));
+      this.setData({workEvidenceSummary:page.summary,workEvidenceNext:page.nextOffset,
+        workEvidenceItems:offset?[...this.data.workEvidenceItems,...items]:items});
+    }catch(e){this.setData({workEvidenceStatus:e.message||"成长证据暂时无法读取。"});}
+    finally{this.setData({workEvidenceBusy:false});}
+  },
+  moreWorkEvidence(){if(this.data.workEvidenceNext!==null)return this.loadWorkEvidence(this.data.workEvidenceNext);},
+  retryWorkEvidence(){return this.loadWorkEvidence(0);},
+  async deleteWorkEvidence(e){
+    if(this.data.workEvidenceBusy)return;
+    const id=e.currentTarget.dataset.id;
+    const confirmed=await new Promise(resolve=>wx.showModal({title:"删除成长证据",
+      content:"删除这条证据后，对应统计也会更新。",success:result=>resolve(result.confirm),fail:()=>resolve(false)}));
+    if(!confirmed||this.data.workEvidenceBusy)return;
+    this.setData({workEvidenceBusy:true,workEvidenceStatus:""});
+    try{
+      await this.api(`/api/v1/assistant/evidence?id=${encodeURIComponent(id)}`,"DELETE");
+      this.setData({workEvidenceItems:this.data.workEvidenceItems.filter(item=>item.id!==id),workEvidenceBusy:false});
+      await this.loadWorkEvidence(0);
+    }catch(e){this.setData({workEvidenceStatus:e.message||"删除结果未确认。"});}
+    finally{this.setData({workEvidenceBusy:false});}
   },
   async openPractice(){
     if(this.data.practiceOpen){
@@ -342,6 +380,8 @@ Page({
     wx.removeStorageSync(TOKEN_KEY);wx.removeStorageSync(EXPIRES_KEY);
     this.setData({authenticated:false,modules:[],dueReviews:[],recentEvents:[],
       chatInput:"",chatConsent:false,chatRetryId:"",chatRetryMessage:"",
+      recordGrowthEvidence:true,workEvidenceOpen:false,workEvidenceBusy:false,
+      workEvidenceStatus:"",workEvidenceSummary:[],workEvidenceItems:[],workEvidenceNext:null,
       chatMessages:[{id:"chat-welcome",role:"assistant",text:"登录后，我可以帮你记录行动与感受。"}],
       chatBottomId:"chat-welcome",chatStatus:"",
       auditEventId:"",auditRows:[],auditNextOffset:null,practiceOpen:false,

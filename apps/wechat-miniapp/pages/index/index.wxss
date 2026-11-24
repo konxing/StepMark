@@ -47,10 +47,6 @@ page{width:100%;overflow-x:hidden;background:#f5f6f2}
   border-radius:18rpx;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-all}
 .chat-ai{background:#fff;color:#355842;border:1rpx solid #dce9de}
 .chat-mine{background:#245d40;color:#fff;margin-left:auto}
-.chat-suggestions{display:flex;flex-wrap:wrap;gap:9rpx;margin:20rpx 0}
-.chat-suggestions button{background:#edf6ed;color:#366c4e;border:1rpx solid #d5e7d7;
-  border-radius:25rpx;padding:12rpx 17rpx;margin:0;
-  font-size:22rpx;line-height:1.45;text-align:left}
 .chat-compose{display:flex;align-items:stretch;gap:12rpx;width:100%}
 .chat-textarea{box-sizing:border-box;flex:1;width:0;min-width:0;min-height:110rpx;
   max-height:220rpx;padding:15rpx;background:#fff;border:1rpx solid #b9d1bf;

@@ -59,6 +59,25 @@ model User {
   auditLogs  AuditLog[]
   assistantActions AssistantAction[]
   growthPractices GrowthPractice[]
+  workEvidence WorkEvidence[]
+}
+
+model WorkEvidence {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  domain       String   @db.VarChar(30)
+  stage        Int
+  actionQuote  String   @db.VarChar(180)
+  outcomeQuote String?  @db.VarChar(180)
+  digest       String   @db.VarChar(64)
+  reportDay    String   @db.VarChar(10)
+  modelId      String   @db.VarChar(100)
+  rubric       String   @db.VarChar(40)
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId, domain, digest])
+  @@index([userId, reportDay])
+  @@index([userId, createdAt, id])
 }
 
 model GrowthPractice {

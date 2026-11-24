@@ -67,9 +67,7 @@
 .assistant-messages{display:flex;flex-direction:column;align-items:flex-start;gap:12px;height:min(42vh,340px);min-height:160px;max-width:100%;overflow-y:auto;overscroll-behavior:contain;border:1px solid #e4ebe3;border-radius:12px;padding:17px;background:#f7faf6}
 .assistant-bubble{max-width:90%;min-width:0;margin:0;background:#fff;border:1px solid #e3ebe1;padding:12px 16px;border-radius:14px 14px 14px 4px;overflow-wrap:anywhere;white-space:pre-wrap;font-size:14px;line-height:1.75}
 .assistant-bubble-user{align-self:flex-end;color:#fff;background:#275c42;border-color:#275c42;border-radius:14px 14px 4px 14px}
-.assistant-suggestions{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0}
-.assistant-suggestions button{font:inherit;cursor:pointer;max-width:100%;white-space:normal;text-align:left;font-size:12px;color:#356449;background:#ecf4ed;border:1px solid #d2e5d6;padding:9px 12px;border-radius:20px}
-.assistant-send-form{max-width:100%;min-width:0}
+.assistant-send-form{max-width:100%;min-width:0;margin-top:14px}
 .assistant-send-form>label:first-child{display:block;font-size:12px;font-weight:700;color:#496853;margin-bottom:10px}
 .assistant-compose{display:flex;align-items:stretch;gap:9px;max-width:100%}
 .assistant-compose textarea{min-width:0;flex:1;min-height:75px;padding:12px;border:1px solid #b8cdbb;border-radius:9px;font:inherit;resize:vertical;overflow-wrap:anywhere}

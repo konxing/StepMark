@@ -5,10 +5,11 @@ import {ApiError,enforceRateLimit,errorResponse,principalFromRequest} from "@/se
 import {getLogicFormOverview} from "@/server/assessment-forms";
 import {projectDeferredAssessment} from "@/server/deferred-assessment";
 import {growthPracticeSelect} from "@/server/growth-practice";
+import {workEvidenceSelect} from "@/server/work-evidence";
 
 export const runtime="nodejs";
 /** Small owner-scoped pages prevent large JSON responses and avoid exposing secrets. */
-const kindSchema=z.enum(["habits","events","corrections","reflections","practice","automaticity","assessments","estimates","judgements","assistant_actions","growth_practices"]);
+const kindSchema=z.enum(["habits","events","corrections","reflections","practice","automaticity","assessments","estimates","judgements","assistant_actions","growth_practices","work_evidence"]);
 export async function GET(request:NextRequest){
   try{
     const principal=await principalFromRequest(request);
@@ -41,6 +42,8 @@ export async function GET(request:NextRequest){
       case "growth_practices":
         data=await db.growthPractice.findMany({where:{userId:principal.userId},...paging,
           select:growthPracticeSelect});break;
+      case "work_evidence":
+        data=await db.workEvidence.findMany({where:{userId:principal.userId},...paging,select:workEvidenceSelect});break;
       case "reflections":
         data=await db.habitReflection.findMany({where:{habit:{userId:principal.userId}},...paging,
           select:{id:true,habitId:true,eventId:true,note:true,initiationLevel:true,
