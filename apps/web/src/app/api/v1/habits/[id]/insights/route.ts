@@ -2,7 +2,7 @@ import {NextRequest,NextResponse} from "next/server";
 import {z} from "zod";
 import {adherencePosterior,wilsonInterval} from "@stepmark/core";
 import {getDb} from "@/server/db";
-import {findOwnHabit} from "@/server/habit-service";
+import {findOwnHabit,readHabitOpportunityCounts} from "@/server/habit-service";
 import {ApiError,errorResponse,principalFromRequest} from "@/server/security";
 export const runtime="nodejs";
 /**
@@ -17,13 +17,13 @@ export async function GET(request:NextRequest,ctx:{params:Promise<{id:string}>})
     const habit=await findOwnHabit(p.userId,id);
     if(!habit)throw new ApiError(404,"NOT_FOUND");
     const db=getDb();
-    const [eligibleOpportunities,completions,checks]=await Promise.all([
-      db.habitEvent.count({where:{habitId:id,eligible:true}}),
-      db.habitEvent.count({where:{habitId:id,eligible:true,completed:true}}),
+    const [counts,checks]=await Promise.all([
+      readHabitOpportunityCounts(db,[id]),
       db.automaticityCheck.findMany({where:{habitId:id},
         orderBy:{measuredAt:"desc"},take:1,
         select:{indexScore:true,measuredAt:true}})
     ]);
+    const {eligible:eligibleOpportunities,completed:completions}=counts.get(id)!;
     const posterior=adherencePosterior(completions,eligibleOpportunities);
     const interval=wilsonInterval(completions,eligibleOpportunities);
     return NextResponse.json({

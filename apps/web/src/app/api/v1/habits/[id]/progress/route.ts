@@ -2,11 +2,11 @@ import {NextRequest,NextResponse} from "next/server";
 import {z} from "zod";
 import {calculateHabitProgress} from "@stepmark/core";
 import {getDb} from "@/server/db";
-import {habitSelfRatingEvidence,recentHabitSelfRatings} from "@/server/habit-service";
+import {habitSelfRatingEvidence,readHabitOpportunityCounts,recentHabitSelfRatings} from "@/server/habit-service";
 import {ApiError,errorResponse,principalFromRequest} from "@/server/security";
 export const runtime="nodejs";
 /**
- * Owner scoping is mandatory. 120 recent direct ratings evaluated, 12 distinct UTC days retained; no LLM call
+ * Owner scoping is mandatory. 120 recent direct ratings evaluated, 12 distinct days retained; no LLM call
  * is made in a latency-sensitive GET. Repetition count alone has a low progress cap.
  */
 export async function GET(request:NextRequest,ctx:{params:Promise<{id:string}>}){
@@ -18,11 +18,8 @@ export async function GET(request:NextRequest,ctx:{params:Promise<{id:string}>})
     const habit=await db.habit.findFirst({where:{id,userId:p.userId,archivedAt:null},
       select:{id:true,reviewEnabled:true}});
     if(!habit)throw new ApiError(404,"NOT_FOUND");
-    const [completed,eligible,lastEvent,reflections,aiAnnotationCount]=await Promise.all([
-      db.habitEvent.count({where:{habitId:id,eligible:true,completed:true}}),
-      db.habitEvent.count({where:{habitId:id,eligible:true}}),
-      db.habitEvent.findFirst({where:{habitId:id,completed:true},orderBy:{occurredAt:"desc"},
-        select:{occurredAt:true}}),
+    const [counts,reflections,aiAnnotationCount]=await Promise.all([
+      readHabitOpportunityCounts(db,[id]),
       // Fetch DIRECT user-rated evidence independently. A large number of
       // recent AI-only notes must never push historical self-ratings out of
       // the bounded evaluation window.
@@ -31,9 +28,10 @@ export async function GET(request:NextRequest,ctx:{params:Promise<{id:string}>})
       db.habitReflection.count({where:{habitId:id,initiationLevel:null,
         aiStatus:"COMPLETED",aiLevel:{not:null}}})
     ]);
+    const {completed,eligible,lastCompletedAtMs}=counts.get(id)!;
     const progress=calculateHabitProgress({completedRepetitions:completed,
       completedOpportunities:completed,eligibleOpportunities:eligible,observations:habitSelfRatingEvidence(reflections),
-      nowMs:Date.now(),lastCompletedAtMs:lastEvent?.occurredAt.getTime()??null,
+      nowMs:Date.now(),lastCompletedAtMs,
       seed:habit.id,reviewEnabled:habit.reviewEnabled});
     return NextResponse.json({habitId:id,reviewEnabled:habit.reviewEnabled,...progress,
       aiAnnotationCount,aiAnnotationCountScope:"historical_unconfirmed_ai_only"},

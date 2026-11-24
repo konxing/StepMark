@@ -40,6 +40,49 @@ function req(path:string,method:string,body?:unknown,token?:string,kind:"WEB"|"W
   });
 }
 
+test("habit progress uses local action dates and the same eligible counts as insights",async()=>{
+  const owner=await db.user.create({data:{},select:{id:true}});
+  try{
+    const habit=await db.habit.create({data:{userId:owner.id,title:"Local morning",action:"Practise a skill"}});
+    const earlier=await db.habitEvent.create({data:{habitId:habit.id,
+      opportunityKey:"daily:2025-11-22",occurredAt:new Date("2025-11-22T01:00:00Z"),
+      eligible:true,completed:true,source:"test"}});
+    const later=await db.habitEvent.create({data:{habitId:habit.id,
+      opportunityKey:"daily:2025-11-23",occurredAt:new Date("2025-11-22T23:00:00Z"),
+      eligible:true,completed:true,source:"test"}});
+    await db.habitEvent.createMany({data:[
+      {habitId:habit.id,opportunityKey:"daily:2025-11-24",occurredAt:new Date("2025-11-24T01:00:00Z"),
+        eligible:true,completed:false,source:"test"},
+      {habitId:habit.id,opportunityKey:"daily:2025-11-25",occurredAt:new Date("2025-11-25T01:00:00Z"),
+        eligible:false,completed:false,source:"test"}
+    ]});
+    await db.habitReflection.createMany({data:[earlier,later].map(event=>({
+      habitId:habit.id,eventId:event.id,initiationLevel:4
+    }))});
+
+    const {token}=await issueSession(owner.id,"WECHAT");
+    const context={params:Promise.resolve({id:habit.id})};
+    const root="/api/v1/habits/"+habit.id;
+    const [progressResponse,insightsResponse,dueResponse]=await Promise.all([
+      habitProgressGET(req(root+"/progress","GET",undefined,token,"WECHAT"),context),
+      insightGET(req(root+"/insights","GET",undefined,token,"WECHAT"),context),
+      dueReviewsGET(req("/api/v1/habits/due","GET",undefined,token,"WECHAT"))
+    ]);
+    assert.deepEqual([progressResponse.status,insightsResponse.status,dueResponse.status],[200,200,200]);
+    const [progress,insights,due]=await Promise.all([
+      progressResponse.json(),insightsResponse.json(),dueResponse.json()
+    ]);
+    assert.equal(progress.evidenceCount,2);
+    assert.equal(progress.lastRatingAt,later.occurredAt.toISOString());
+    assert.equal(progress.eligibleOpportunities,3);
+    assert.equal(progress.completedRepetitions,2);
+    assert.equal(insights.observedRate,progress.observedCompletionRate);
+    assert.equal(due.due.find((review:{habitId:string})=>review.habitId===habit.id)?.progress,progress.progress);
+  }finally{
+    await db.user.delete({where:{id:owner.id}});
+  }
+});
+
 test("per-user queries, CSRF rejection, idempotency and revocation",async()=>{
   const email="user_"+randomUUID()+"@example.test";
   const password="very-strong-test-password-123";

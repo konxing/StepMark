@@ -8,6 +8,8 @@ export type InitiationLevel = 0|1|2|3|4;
 export type ReflectionSource = "self_report"|"ai_interpretation";
 export interface InitiationEvidence {
   atMs:number;
+  /** Local calendar date recorded with a dated opportunity, when available. */
+  localDate?:string|undefined;
   level:InitiationLevel;
   source:ReflectionSource;
   confidence:number; // for AI only; self-report is always retained as stated
@@ -68,8 +70,8 @@ export function calculateHabitProgress(input:HabitProgressInput):HabitProgress {
       (input.lastCompletedAtMs!=null && (!Number.isFinite(input.lastCompletedAtMs) || input.lastCompletedAtMs>nowMs+5*60*1000))) {
     throw new RangeError("invalid habit progress inputs");
   }
-  // Curated event-level subjective observations, at most one per calendar day.
-  // Intra-day repeated feedback must not inflate confidence.
+  // Dated opportunities carry the user's calendar day. Older records lacking
+  // one keep their UTC day fallback. Elapsed time still uses the actual timestamp.
   const observations=[...input.observations].sort((a,b)=>b.atMs-a.atMs);
   const unique:InitiationEvidence[]=[];
   let aiAnnotationCount=0;
@@ -87,11 +89,15 @@ export function calculateHabitProgress(input:HabitProgressInput):HabitProgress {
       aiAnnotationCount++;
       continue;
     }
-    const key=new Date(o.atMs).toISOString().slice(0,10);
-    if(dates.has(key))continue;
+    if(o.localDate!==undefined){
+      const date=new Date(o.localDate+"T00:00:00.000Z");
+      if(!/^\d{4}-\d{2}-\d{2}$/u.test(o.localDate)||!Number.isFinite(date.getTime())||
+        date.toISOString().slice(0,10)!==o.localDate)throw new RangeError("invalid local evidence date");
+    }
+    const key=o.localDate??new Date(o.atMs).toISOString().slice(0,10);
+    if(unique.length>=12||dates.has(key))continue;
     dates.add(key);
     unique.push(o);
-    if(unique.length>=12)break;
   }
   const n=completedRepetitions;
   const repetitionSignal=100*(-Math.expm1(-n/55)); // demo shape, NOT a norm

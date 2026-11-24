@@ -127,7 +127,7 @@ Page({
     const token=wx.getStorageSync(TOKEN_KEY);
     this.setData({workEvidenceBusy:true,workEvidenceStatus:""});
     try{
-      const page=await this.api(`/api/v1/assistant/evidence?offset=${offset}`,"GET");
+      const page=await this.api(`/api/v1/assistant/evidence?offset=${offset}&localDate=${this.localCalendarDay()}`,"GET");
       if(token!==wx.getStorageSync(TOKEN_KEY))return;
       const items=page.items.map(item=>({...item,label:page.labels[item.domain]||item.domain}));
       this.setData({workEvidenceSummary:page.summary,workEvidenceNext:page.nextOffset,

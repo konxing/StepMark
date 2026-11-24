@@ -34,14 +34,15 @@
       </view>
       <button class="progress-button" bindtap="toggleWorkEvidence">{{workEvidenceOpen ? '收起成长证据' : '查看成长证据'}}</button>
       <view wx:if="{{workEvidenceOpen}}">
-        <text class="meta">近 30 天按报告日期计数。同一天、同一方向只计一天。</text>
+        <text class="meta">近 30 天按本地报告日期计数。同一天、同一方向只计一天。相同的行动原话保留首次归类。</text>
         <view wx:for="{{workEvidenceSummary}}" wx:key="domain" class="reflection-item">
-          <text>{{item.label}} · {{item.reportedDays ? item.reportedDays + ' 天有行动，' + item.outcomeDays + ' 天有结果' : '证据不足'}}</text>
+          <text>{{item.label}} · {{item.reportedDays ? item.reportedDays + ' 天报告行动，' + item.outcomeDays + ' 天有对应结果原话' : '等待行动证据'}}</text>
         </view>
         <view wx:for="{{workEvidenceItems}}" wx:key="id" class="reflection-item">
           <text class="meta">{{item.label}} · 报告于 {{item.reportDay}}</text>
-          <view>{{item.actionQuote}}</view>
+          <view><text selectable="true">{{item.actionQuote}}</text></view>
           <view wx:if="{{item.outcomeQuote}}">{{item.outcomeQuote}}</view>
+          <text wx:if="{{item.outcomeNeedsReview}}" class="meta">这条旧记录的结果关联待核对。沿用这句行动原话，接着描述实际结果，可更新统计。</text>
           <button class="progress-button" data-id="{{item.id}}" disabled="{{workEvidenceBusy}}" bindtap="deleteWorkEvidence">删除这条证据</button>
         </view>
         <button wx:if="{{workEvidenceNext != null}}" class="progress-button" disabled="{{workEvidenceBusy}}" bindtap="moreWorkEvidence">加载更早的证据</button>

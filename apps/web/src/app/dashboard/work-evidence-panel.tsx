@@ -3,7 +3,7 @@ import {useCallback,useEffect,useRef,useState} from "react";
 
 type EvidencePage={
   summary:{domain:string;label:string;reportedDays:number;outcomeDays:number}[];
-  items:{id:string;domain:string;actionQuote:string;outcomeQuote:string|null;reportDay:string}[];
+  items:{id:string;domain:string;actionQuote:string;outcomeQuote:string|null;reportDay:string;outcomeNeedsReview:boolean}[];
   labels:Record<string,string>;nextOffset:number|null;
 };
 const endpoint="/api/v1/assistant/evidence";
@@ -18,7 +18,10 @@ export default function WorkEvidencePanel({revision}:{revision:number}){
     const id=++loadId.current;
     setBusy(true);setNotice("");
     try{
-      const response=await fetch(`${endpoint}?offset=${offset}`,{cache:"no-store"});
+      const now=new Date();
+      const localDate=[now.getFullYear(),String(now.getMonth()+1).padStart(2,"0"),
+        String(now.getDate()).padStart(2,"0")].join("-");
+      const response=await fetch(`${endpoint}?offset=${offset}&localDate=${localDate}`,{cache:"no-store"});
       if(!response.ok)throw new Error();
       const page=await response.json() as EvidencePage;
       if(loadId.current!==id)return;
@@ -43,18 +46,20 @@ export default function WorkEvidencePanel({revision}:{revision:number}){
 
   return <details onToggle={event=>setOpened(event.currentTarget.open)}>
     <summary>查看成长证据</summary>
-    <p>近 30 天按报告日期计数。同一天、同一方向只计一天。数字反映聊天里报告的行动和结果。</p>
+    <p>近 30 天按你的本地报告日期计数。同一天、同一方向只计一天。相同的行动原话保留首次归类。</p>
     {data&&<>
       <ul>{data.summary.map(row=><li key={row.domain}>{row.label}：{row.reportedDays?
-        `${row.reportedDays} 天有行动，${row.outcomeDays} 天有结果`:"证据不足"}</li>)}</ul>
+        `${row.reportedDays} 天报告行动，${row.outcomeDays} 天有对应结果原话`:"等待行动证据"}</li>)}</ul>
       {data.items.map(item=><article key={item.id} className="habit-row">
         <small>{data.labels[item.domain]??item.domain} · 报告于 {item.reportDay}</small>
         <p>{item.actionQuote}</p>{item.outcomeQuote&&<p>{item.outcomeQuote}</p>}
+        {item.outcomeNeedsReview&&<p>这条旧记录的结果关联待核对。沿用这句行动原话，接着描述实际结果，可更新统计。</p>}
         <button type="button" className="text-button" disabled={busy} onClick={()=>void remove(item.id)}>删除这条证据</button>
       </article>)}
       {data.nextOffset!==null&&<button type="button" className="text-button" disabled={busy}
         onClick={()=>void load(data.nextOffset!)}>加载更早的证据</button>}
     </>}
+    {data&&<p>以上根据你提供的原话整理。要判断能力变化，可继续完成独立测评。<a href="/assess">查看测评</a></p>}
     {busy&&<p role="status">正在处理…</p>}
     {notice&&<p role="status">{notice} <button type="button" className="text-button" disabled={busy}
       onClick={()=>void load()}>重试</button></p>}

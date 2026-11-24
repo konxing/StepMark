@@ -1,7 +1,7 @@
 import {Prisma} from "@/generated/prisma/client";
 import {calculateHabitProgress} from "@stepmark/core";
 import {getDb} from "./db";
-import {habitSelfRatingEvidence,MAX_ACTIVE_HABITS,recentHabitSelfRatings} from "./habit-service";
+import {habitSelfRatingEvidence,MAX_ACTIVE_HABITS,readHabitOpportunityCounts,recentHabitSelfRatings} from "./habit-service";
 import {ApiError} from "./security";
 import {observationDay,type SafeAssistantCommand,validateClientLocalDate,verifiedInitiationEvidence,assistantMessageDigest} from "./assistant-command";
 import {WORK_EVIDENCE_RUBRIC,type groundedWorkEvidence} from "./work-evidence";
@@ -130,20 +130,18 @@ export async function executeAssistantCommand(args:{
         const target=await tx.habit.findFirst({where:{id:command.target.id,userId,archivedAt:null},
           select:{id:true,title:true,reviewEnabled:true}});
         if(!target)throw new ApiError(404,"HABIT_NOT_FOUND");
-        const [completed,eligible,last,notes]=await Promise.all([
-          tx.habitEvent.count({where:{habitId:target.id,eligible:true,completed:true}}),
-          tx.habitEvent.count({where:{habitId:target.id,eligible:true}}),
-          tx.habitEvent.findFirst({where:{habitId:target.id,completed:true},
-            orderBy:{occurredAt:"desc"},select:{occurredAt:true}}),
+        const [counts,notes]=await Promise.all([
+          readHabitOpportunityCounts(tx,[target.id]),
           // Use exactly the same evidence definition as /progress and due reviews.
           // Filtering after take() would let many AI-only entries evict older
           // person-reported ratings from a conversational progress check.
           tx.habitReflection.findMany({...recentHabitSelfRatings,
             where:{habitId:target.id,...recentHabitSelfRatings.where}})
         ]);
+        const {completed,eligible,lastCompletedAtMs}=counts.get(target.id)!;
         const status=calculateHabitProgress({completedRepetitions:completed,
           eligibleOpportunities:eligible,completedOpportunities:completed,
-          observations:habitSelfRatingEvidence(notes),nowMs:Date.now(),lastCompletedAtMs:last?.occurredAt.getTime()??null,
+          observations:habitSelfRatingEvidence(notes),nowMs:Date.now(),lastCompletedAtMs,
           seed:target.id,reviewEnabled:target.reviewEnabled});
         const execution=status.observedCompletionRate===null?"暂无已记录的执行机会。":
           `已记录 ${status.eligibleOpportunities} 次执行机会，完成 ${completed} 次（${Math.round(status.observedCompletionRate*100)}%）。`;
@@ -156,14 +154,29 @@ export async function executeAssistantCommand(args:{
         result.reply=limitText(command.reply||"请再说具体一点，我不会在不确定时修改记录。");
       }
       if(workEvidence.length){
-        const saved=await tx.workEvidence.createMany({skipDuplicates:true,data:workEvidence.map(row=>({
-          ...row,userId,reportDay:localDate,modelId:model.slice(0,100),rubric:WORK_EVIDENCE_RUBRIC
-        }))});
-        let changed=saved.count;
+        // Serialize evidence writes for this owner so a second request cannot
+        // insert the same action under a different suggested domain.
+        await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId}::uuid FOR NO KEY UPDATE`;
+        const existing=await tx.workEvidence.findMany({
+          where:{userId,digest:{in:workEvidence.map(row=>row.digest)}},
+          orderBy:[{createdAt:"asc"},{id:"asc"}],
+          select:{id:true,digest:true,stage:true,rubric:true}
+        });
+        let changed=0;
         for(const row of workEvidence){
-          if(!row.outcomeQuote)continue;
-          const enriched=await tx.workEvidence.updateMany({where:{userId,domain:row.domain,digest:row.digest,stage:1},
-            data:{stage:2,outcomeQuote:row.outcomeQuote,modelId:model.slice(0,100)}});
+          const match=existing.find(item=>item.digest===row.digest);
+          if(!match){
+            await tx.workEvidence.create({data:{
+              ...row,userId,reportDay:localDate,modelId:model.slice(0,100),rubric:WORK_EVIDENCE_RUBRIC
+            }});
+            changed++;
+            continue;
+          }
+          if(!row.outcomeQuote||(match.stage===2&&match.rubric===WORK_EVIDENCE_RUBRIC))continue;
+          const enriched=await tx.workEvidence.updateMany({
+            where:{id:match.id,userId},
+            data:{stage:2,outcomeQuote:row.outcomeQuote,modelId:model.slice(0,100),rubric:WORK_EVIDENCE_RUBRIC}
+          });
           changed+=enriched.count;
         }
         result.workEvidenceAdded=changed;

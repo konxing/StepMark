@@ -1,8 +1,8 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {calculateHabitProgress} from "../src/index.ts";
+import {calculateHabitProgress,type InitiationEvidence} from "../src/index.ts";
 const DAY=86400000,now=1800000000000;
-const base=(n:number,observations:{atMs:number;level:0|1|2|3|4;source:"self_report";confidence:number}[]=[])=>
+const base=(n:number,observations:InitiationEvidence[]=[])=>
   calculateHabitProgress({completedRepetitions:n,eligibleOpportunities:n,completedOpportunities:n,observations,
     nowMs:now,lastCompletedAtMs:now-1*DAY,seed:"fixed-user"});
 const evidence=(daysAgo:number,level:0|1|2|3|4)=>({atMs:now-daysAgo*DAY,level,source:"self_report" as const,confidence:1});
@@ -51,6 +51,19 @@ test("same-day repeated notes do not inflate subjective evidence count",()=>{
   const x=base(40,[evidence(1,4),evidence(1,4),evidence(2,4)]);
   assert.equal(x.evidenceCount,2);
   assert.ok(x.progress<=80);
+});
+test("linked ratings are grouped by the recorded local date across UTC midnight",()=>{
+  const reading=(time:string,localDate:string,level:0|4):InitiationEvidence=>({
+    atMs:Date.parse(time),localDate,level,source:"self_report",confidence:1
+  });
+  const first=reading("2026-11-22T01:00:00Z","2026-11-22",4);
+  const second=reading("2026-11-22T23:00:00Z","2026-11-23",0);
+  const laterSameDay=reading("2026-11-23T01:00:00Z","2026-11-23",4);
+  assert.equal(base(3,[first,second]).evidenceCount,2);
+  const repeated=base(3,[first,second,laterSameDay]);
+  assert.equal(repeated.evidenceCount,2);
+  assert.equal(repeated.automaticitySignal,100);
+  assert.throws(()=>base(3,[{...first,localDate:"2026-11-31"}]),/invalid local evidence date/);
 });
 test("missing opportunity, false count and invalid AI confidence are guarded",()=>{
   assert.throws(()=>calculateHabitProgress({completedRepetitions:2,completedOpportunities:3,eligibleOpportunities:3,nowMs:now,observations:[]}));

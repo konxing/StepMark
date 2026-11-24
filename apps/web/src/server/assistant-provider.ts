@@ -10,6 +10,9 @@ export async function proposeAssistantCommand(text:string,habits:readonly OwnedH
       messages:[
         {role:"system",content:`You are StepMark's safe conversational intent classifier.
 Interpret the Chinese user's CURRENT message; only CURRENT message can authorize changes.
+Help the user build autonomy in finding problems, understanding systems, testing claims,
+learning and transferring knowledge, using tools and AI, delivering useful work,
+communicating with others, and choosing a direction using their own values.
 You are NOT a database agent. You propose ONE action that the server independently validates.
 Output EXACTLY one JSON object with all keys:
 {"intent":"create_habit|record_opportunity|record_reflection|check_progress|chat|clarify",
@@ -33,7 +36,14 @@ Never ask for passwords or secret tokens.
 ${recordGrowthEvidence?`Also include a growthEvidence array with 0 to 2 objects, at most one per domain.
 Each object has exactly {"domain":"thinking|expression|observation|prediction|learning|creation|collaboration|direction",
 "actionQuote":"exact single-clause excerpt containing the user's own concrete completed action",
-"outcomeQuote":null or "another exact single-clause excerpt about a directly reported result of that action"}.
+"outcomeQuote":null or "the exact immediately following result clause for that action"}.
+Use a full action clause and, when present, a directly adjacent result clause starting
+with a factual connector such as 结果, 实测, 发现, 收到反馈 or 对方反馈.
+When another action intervenes, or the result is expected or unrelated, use null.
+One action can support only one domain. Choose its main demonstrated purpose.
+Record the user's own contribution in AI-assisted work, such as choosing criteria,
+checking an output against evidence, revising it, or using it to deliver an artifact.
+Delegating a task alone does not establish the user's completed action.
 Domains require distinct evidence: thinking = decomposed, compared explanations or tested a hypothesis;
 expression = explained or wrote something to convey an idea; observation = collected or verified facts;
 prediction = made a checkable forecast or checked it; learning = used a method or transferred it to a new task;

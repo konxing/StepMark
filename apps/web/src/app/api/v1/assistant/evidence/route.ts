@@ -2,7 +2,8 @@ import {NextRequest,NextResponse} from "next/server";
 import {z} from "zod";
 import {getDb} from "@/server/db";
 import {ApiError,enforceRateLimit,errorResponse,principalFromRequest,requireSameOrigin} from "@/server/security";
-import {workDomains,workEvidenceSelect} from "@/server/work-evidence";
+import {validateClientLocalDate} from "@/server/assistant-command";
+import {WORK_EVIDENCE_RUBRIC,workDomains,workEvidenceSelect} from "@/server/work-evidence";
 
 export const runtime="nodejs";
 const headers={"Cache-Control":"private, no-store"};
@@ -14,18 +15,43 @@ export async function GET(request:NextRequest){
     const rawOffset=request.nextUrl.searchParams.get("offset")??"0";
     if(!/^(0|[1-9]\d{0,4})$/u.test(rawOffset))throw new ApiError(400,"INVALID_OFFSET");
     const offset=Number(rawOffset);
+    const now=new Date();
+    const localDate=request.nextUrl.searchParams.get("localDate")??now.toISOString().slice(0,10);
+    try{validateClientLocalDate(localDate,now);}catch{throw new ApiError(400,"INVALID_LOCAL_DATE");}
+    const start=new Date(localDate+"T00:00:00.000Z");
+    start.setUTCDate(start.getUTCDate()-29);
+    const firstDay=start.toISOString().slice(0,10);
     const db=getDb();
     const [items,rows]=await Promise.all([
       db.workEvidence.findMany({where:{userId},orderBy:[{createdAt:"desc"},{id:"desc"}],
         skip:offset,take:pageSize+1,select:workEvidenceSelect}),
-      db.workEvidence.groupBy({by:["domain","reportDay"],where:{userId,createdAt:{gte:new Date(Date.now()-30*86400000)}},
-        _max:{stage:true}})
+      // Keep the earliest report when older data contains the same action
+      // under multiple domains. Summaries stay inside the reported date window.
+      db.$queryRaw<{domain:string;reportedDays:number;outcomeDays:number}[]>`
+        SELECT recent."domain", COUNT(DISTINCT recent."reportDay")::int AS "reportedDays",
+          COUNT(DISTINCT recent."reportDay") FILTER (
+            WHERE recent."stage" = 2 AND recent."rubric" = ${WORK_EVIDENCE_RUBRIC}
+          )::int AS "outcomeDays"
+        FROM "WorkEvidence" AS recent
+        WHERE recent."userId" = ${userId}::uuid
+          AND recent."reportDay" BETWEEN ${firstDay} AND ${localDate}
+          AND NOT EXISTS (
+            SELECT 1
+            FROM "WorkEvidence" AS earlier
+            WHERE earlier."userId" = recent."userId" AND earlier."digest" = recent."digest"
+              AND (earlier."createdAt",earlier."id") < (recent."createdAt",recent."id")
+          )
+        GROUP BY recent."domain"
+      `
     ]);
+    const byDomain=new Map(rows.map(row=>[row.domain,row]));
     const summary=Object.entries(workDomains).map(([domain,label])=>{
-      const days=rows.filter(row=>row.domain===domain);
-      return {domain,label,reportedDays:days.length,outcomeDays:days.filter(row=>row._max.stage===2).length};
+      const row=byDomain.get(domain);
+      return {domain,label,reportedDays:row?.reportedDays??0,outcomeDays:row?.outcomeDays??0};
     });
-    return NextResponse.json({items:items.slice(0,pageSize),summary,labels:workDomains,
+    const page=items.slice(0,pageSize).map(item=>({...item,
+      outcomeNeedsReview:!!item.outcomeQuote&&item.rubric!==WORK_EVIDENCE_RUBRIC}));
+    return NextResponse.json({items:page,summary,labels:workDomains,
       nextOffset:items.length>pageSize?offset+pageSize:null},{headers});
   }catch(error){return errorResponse(error);}
 }

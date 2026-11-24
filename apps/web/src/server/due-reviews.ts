@@ -1,10 +1,10 @@
 import {calculateHabitProgress} from "@stepmark/core";
 import {getDb} from "./db";
-import {habitSelfRatingEvidence,recentHabitSelfRatings} from "./habit-service";
+import {habitSelfRatingEvidence,readHabitOpportunityCounts,recentHabitSelfRatings} from "./habit-service";
 
 /**
- * One owner-scoped habits query with bounded nested reflections and two batched
- * aggregate queries. No per-habit database waterfall and no external AI calls.
+ * One owner-scoped habits query with bounded reflections and one batched
+ * aggregate query.
  */
 export async function listDueHabitReviews(userId:string,now:Date=new Date()){
   const db=getDb();
@@ -16,32 +16,14 @@ export async function listDueHabitReviews(userId:string,now:Date=new Date()){
   });
   const ids=habits.map(h=>h.id);
   if(!ids.length)return {due:[],totalDue:0};
-  const [counts,lastEvent]=await Promise.all([
-    db.habitEvent.groupBy({
-      by:["habitId","eligible","completed"],
-      where:{habitId:{in:ids}},_count:{_all:true}
-    }),
-    db.habitEvent.groupBy({
-      by:["habitId"],where:{habitId:{in:ids},completed:true},_max:{occurredAt:true}
-    })
-  ]);
-  const countMap=new Map<string,{eligible:number;done:number}>();
-  for(const row of counts){
-    const v=countMap.get(row.habitId)??{eligible:0,done:0};
-    if(row.eligible){
-      v.eligible+=row._count._all;
-      if(row.completed)v.done+=row._count._all;
-    }
-    countMap.set(row.habitId,v);
-  }
-  const lastMap=new Map(lastEvent.map(row=>[row.habitId,row._max.occurredAt?.getTime()??null]));
+  const counts=await readHabitOpportunityCounts(db,ids);
   const due: {habitId:string;title:string;progress:number;reviewReason:string;nextReviewAt:string}[]=[];
   for(const habit of habits){
-    const count=countMap.get(habit.id)??{eligible:0,done:0};
+    const {completed,eligible,lastCompletedAtMs}=counts.get(habit.id)!;
     const status=calculateHabitProgress({
-      completedRepetitions:count.done,completedOpportunities:count.done,
-      eligibleOpportunities:count.eligible,nowMs:now.getTime(),
-      observations:habitSelfRatingEvidence(habit.reflections),lastCompletedAtMs:lastMap.get(habit.id)??null,seed:habit.id
+      completedRepetitions:completed,completedOpportunities:completed,
+      eligibleOpportunities:eligible,nowMs:now.getTime(),
+      observations:habitSelfRatingEvidence(habit.reflections),lastCompletedAtMs,seed:habit.id
     });
     if(status.reviewDue&&status.nextReviewAt){
       due.push({habitId:habit.id,title:habit.title,progress:status.progress,
