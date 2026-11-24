@@ -12,7 +12,6 @@ use tokio::{
 use url::Url;
 
 mod ai_workspace;
-mod retest;
 
 const CREDENTIAL_SERVICE: &str = "StepMark Desktop";
 const CREDENTIAL_ACCOUNT: &str = "session";
@@ -344,9 +343,7 @@ pub fn run() {
             ai_workspace::check_deepseek,
             ai_workspace::save_deepseek_key,
             ai_workspace::clear_deepseek_key,
-            ai_workspace::work_on_problem,
-            retest::get_retest,
-            retest::submit_retest
+            ai_workspace::work_on_problem
         ])
         .run(tauri::generate_context!())
         .expect("StepMark desktop initialization failed");

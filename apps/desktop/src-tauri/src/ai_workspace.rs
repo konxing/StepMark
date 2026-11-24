@@ -1,5 +1,4 @@
 use super::read_limited_json;
-use crate::retest::Topic;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::time::Duration;
@@ -15,8 +14,8 @@ const WORKSPACE_PROMPT: &str = concat!(
     "Work on the user's actual case now. Make immediate useful progress: reason through the facts, explain the concept, draft the message or artifact, or write practical steps they can run. Avoid generic plans, motivational filler, unnecessary homework, and scoring. ",
     "Make reasonable low-risk assumptions explicit. If essential information is missing, give a useful conditional result first and ask at most one focused question in nextStep. Connect any next step to an observation that would change the decision. When the user reports an actual result, revise the deliverable and explain what the evidence changes. ",
     "Do not invent observations, sources or test results or claim to have run tools or contacted anyone. Flag uncertain claims as such. Respect privacy and avoid asking for secrets. ",
-    "Return one JSON object in the user's language. Example: {\"analysis\":\"The concrete finding and why it matters\",\"deliverable\":\"A useful draft, worked example or validation procedure, ready to copy\",\"nextStep\":\"The single most useful next action or question\",\"retestTopic\":null}. ",
-    "Set retestTopic to limits only for limits and equivalent infinitesimal substitution, or evidence only for exercises in interpreting evidence, comparison, or causality. Otherwise set it to null. The app uses an independent question bank for that retest. ",
+    "Follow the subject and goal the user chooses. Where relevant, suggest a next step that tests the user's own work or assumption in a different situation. Base that check on the user's task and intended outcome. ",
+    "Return one JSON object in the user's language. Example: {\"analysis\":\"The concrete finding and why it matters\",\"deliverable\":\"A useful draft, worked example or validation procedure, ready to copy\",\"nextStep\":\"The single most useful next action or question\"}. ",
     "Use plain text and line breaks in values. Keep analysis below 1100 characters and deliverable below 4500 characters. Leave deliverable empty only when the analysis already answers the whole question. Leave nextStep empty when the work is complete."
 );
 
@@ -26,8 +25,6 @@ pub(crate) struct WorkResult {
     analysis: String,
     deliverable: String,
     next_step: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    retest_topic: Option<Topic>,
 }
 
 impl WorkResult {
@@ -210,7 +207,7 @@ mod tests {
 
     #[test]
     fn history_preserves_turn_order_and_system_prompt() {
-        let result = WorkResult { analysis: "Finding".into(), deliverable: "Artifact".into(), next_step: String::new(), retest_topic: None };
+        let result = WorkResult { analysis: "Finding".into(), deliverable: "Artifact".into(), next_step: String::new() };
         let history = vec![WorkTurn { question: "First question".into(), result }];
         let messages = workspace_messages(" Second question ", history).unwrap();
         assert_eq!(messages[0]["role"], "system");

@@ -3,7 +3,7 @@
 const invoke=window.__TAURI__?.core?.invoke;
 const el=id=>document.getElementById(id);
 const navigation=[...document.querySelectorAll("[data-view]")];
-const examples=[...document.querySelectorAll("[data-example]")];
+const starters=[...document.querySelectorAll("[data-starter]")];
 const conversation=[];
 const contextTurns=6;
 const provider={configured:false,savedHere:false,verified:false};
@@ -11,9 +11,7 @@ let accountBusy=false;
 let providerBusy=false;
 let workBusy=false;
 let signedIn=false;
-let retestBusy=false;
-let retestQuestion=null;
-let retestChoice=null;
+let starterPrompt="";
 
 function textElement(tag,value,className){
   const element=document.createElement(tag);
@@ -38,7 +36,6 @@ function showView(view,focus=false){
       if(focus)button.focus();
     }else button.removeAttribute("aria-current");
   }
-  if(view==="retest")void loadRetest();
 }
 
 function syncWorkspace(){
@@ -48,11 +45,12 @@ function syncWorkspace(){
   el("new-problem").hidden=!started;
   el("new-problem").disabled=workBusy;
   el("question").disabled=workBusy;
-  el("question").placeholder=started?"补充事实、反馈结果，或让 AI 继续完善成果。":"例如，遇到了什么现象？你希望产出什么？";
+  el("question").placeholder=started?"补充事实、反馈结果，或让 AI 继续完善成果。":
+    starterPrompt||"说说你希望解决什么，或希望得到什么成果。";
   el("composer-label").textContent=started?"继续这件事":"你的问题";
   el("send").textContent=workBusy?"正在处理…":started?"继续":"交给 AI";
   el("send").disabled=!provider.configured||workBusy||providerBusy;
-  for(const example of examples)example.disabled=workBusy;
+  for(const starter of starters)starter.disabled=workBusy;
 }
 
 function syncProvider(){
@@ -133,16 +131,6 @@ function addTurn({question,result}){
     next.className="next-step";
     next.append(textElement("h3","下一步"),textElement("p",result.nextStep));
     reply.append(next);
-  }
-  if(result.retestTopic==="limits"||result.retestTopic==="evidence"){
-    const retest=textElement("button","独立做一道题","quiet retest-link");
-    retest.type="button";
-    retest.addEventListener("click",()=>{
-      if(retestBusy)return;
-      el("retest-topic").value=result.retestTopic;
-      showView("retest",true);
-    });
-    reply.append(retest);
   }
   turn.append(textElement("p",question,"question-bubble"),reply);
   el("conversation").append(turn);
@@ -256,102 +244,18 @@ async function initializeAccount(){
   }finally{setAccountBusy(false);}
 }
 
-const retestDate=new Intl.DateTimeFormat("zh-CN",{dateStyle:"medium",timeStyle:"short"});
-
-function setRetestBusy(value){
-  retestBusy=value;
-  for(const id of ["retest-topic","retest-refresh"])el(id).disabled=value;
-  el("retest-submit").disabled=value||retestChoice===null;
-}
-
-function renderRetest(review,submittedId){
-  retestQuestion=review.question;
-  retestChoice=null;
-  el("retest-form").hidden=!retestQuestion;
-  el("retest-feedback").hidden=true;
-  el("retest-refresh").hidden=!review.nextAt;
-  el("retest-next").textContent=review.nextAt?`下一道新题在 ${retestDate.format(review.nextAt)} 开放。`:
-    !retestQuestion?"这组新题已完成。你可以换一组，或回看解析。":"";
-  const attempts=review.attempts;
-  el("retest-summary").textContent=attempts.length?
-    `首答 ${attempts.length} / ${review.total} 道，答对 ${attempts.filter(entry=>entry.correct).length} 道。`:"还没有作答记录。";
-  el("retest-history").hidden=attempts.length===0;
-  el("retest-attempts").replaceChildren(...attempts.map(entry=>{
-    const row=document.createElement("li");
-    row.append(textElement("strong",entry.correct?"答对":"待巩固"),
-      textElement("p",entry.explanation),textElement("small",retestDate.format(entry.attempt.recordedAt)));
-    return row;
-  }));
-  const submitted=attempts.find(entry=>entry.attempt.itemId===submittedId);
-  if(submitted){
-    const feedback=el("retest-feedback");
-    feedback.hidden=false;
-    feedback.replaceChildren(textElement("strong",submitted.correct?"这次答对了":"这次需要再巩固"),
-      textElement("p",submitted.explanation));
-  }
-  if(!retestQuestion)return;
-  el("retest-prompt").textContent=retestQuestion.prompt;
-  el("retest-options").replaceChildren(...retestQuestion.options.map((label,index)=>{
-    const option=document.createElement("label");
-    const input=document.createElement("input");
-    input.name="retest-answer";
-    input.type="radio";
-    input.addEventListener("change",()=>{
-      retestChoice=index;
-      el("retest-submit").disabled=retestBusy;
-    });
-    option.append(input,textElement("span",label));
-    return option;
-  }));
-}
-
-async function loadRetest(){
-  if(retestBusy)return;
-  if(!invoke){status("retest-status","请在 StepMark Windows 客户端打开复测。",true);return;}
-  el("retest-form").hidden=true;
-  el("retest-feedback").hidden=true;
-  el("retest-history").hidden=true;
-  el("retest-summary").textContent="";
-  el("retest-next").textContent="";
-  setRetestBusy(true);
-  status("retest-status","正在读取本机复测记录…");
-  try{
-    renderRetest(await invoke("get_retest",{topic:el("retest-topic").value}));
-    status("retest-status","");
-  }catch(error){
-    el("retest-refresh").hidden=false;
-    status("retest-status",String(error),true);
-  }finally{setRetestBusy(false);}
-}
-
-async function submitRetest(event){
-  event.preventDefault();
-  if(retestBusy||!retestQuestion||retestChoice===null)return;
-  const {id}=retestQuestion;
-  setRetestBusy(true);
-  el("retest-question").disabled=true;
-  try{
-    const review=await invoke("submit_retest",{topic:el("retest-topic").value,id,choice:retestChoice});
-    renderRetest(review,id);
-    status("retest-status","首次答案已保存。");
-  }catch(error){status("retest-status",String(error),true);}
-  finally{
-    el("retest-question").disabled=false;
-    setRetestBusy(false);
-  }
-}
-
 function initialize(){
   for(const button of navigation)button.addEventListener("click",()=>showView(button.dataset.view));
   el("open-connection").addEventListener("click",()=>showView("connections",true));
-  for(const example of examples)example.addEventListener("click",()=>{
-    const input=el("question");
-    if(!input.value.trim())input.value=example.dataset.example;
-    input.focus();
+  for(const starter of starters)starter.addEventListener("click",()=>{
+    starterPrompt=starter.dataset.starter;
+    syncWorkspace();
+    el("question").focus();
   });
   el("new-problem").addEventListener("click",()=>{
     if(workBusy||!window.confirm("当前对话只保留在这个窗口。确定要开启新问题吗？"))return;
     conversation.length=0;
+    starterPrompt="";
     el("conversation").replaceChildren();
     el("question").value="";
     status("work-status","");
@@ -359,9 +263,6 @@ function initialize(){
     el("question").focus();
   });
   el("composer").addEventListener("submit",sendQuestion);
-  el("retest-topic").addEventListener("change",loadRetest);
-  el("retest-refresh").addEventListener("click",loadRetest);
-  el("retest-form").addEventListener("submit",submitRetest);
   el("key-form").addEventListener("submit",event=>{
     event.preventDefault();
     if(providerBusy||workBusy||!invoke)return;
