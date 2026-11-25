@@ -6,7 +6,7 @@ import {fileURLToPath} from "node:url";
 import {loadEnvConfig} from "@next/env";
 import {resolveAiProvider} from "../src/server/ai-gateway";
 import {proposeAssistantCommand} from "../src/server/assistant-provider";
-import {judgeHabitNote} from "../src/server/habit-ai";
+import {inspectHabitNote,type HabitNoteAnnotation} from "../src/server/habit-ai";
 import {authorizeAssistantCommand} from "../src/server/assistant-command";
 import {groundedWorkEvidence} from "../src/server/work-evidence";
 import {safeAiErrorCode} from "../src/server/ai-network";
@@ -60,12 +60,20 @@ function comparison(rows:readonly RunRow[],repeats:number){
     const baseline=evidenceMetrics(workExamples,rules);
     const raw=evidenceMetrics(workExamples,work.map(row=>row?.raw),work.map(row=>row?.ok??false));
     const guarded=evidenceMetrics(workExamples,work.map(row=>row?.guarded),work.map(row=>row?.ok??false));
-    const habitRows=habitExamples.map(example=>{
+    const habitEvaluations=habitExamples.map(example=>{
       const row=round.find(row=>row.suite==="habit"&&row.id===example.id);
-      const level=(row?.raw as {level?:number|null}|undefined)?.level??null;
-      return {id:example.id,correct:Boolean(row?.ok)&&level===example.expected,
-        falsePositive:example.expected===null&&level!==null,falseNegative:example.expected!==null&&level===null};
+      const proposal=row?.modelOutput as {initiationLevel:number|null}|undefined;
+      const annotation=row?.raw as HabitNoteAnnotation|undefined;
+      return {example,ok:row?.ok===true,proposedLevel:proposal?.initiationLevel??null,
+        validatedLevel:annotation?.level??null};
     });
+    const habitRows=(field:"proposedLevel"|"validatedLevel")=>habitEvaluations.map(row=>{
+      const level=row[field];
+      const {id,expected}=row.example;
+      return {id,correct:row.ok&&level===expected,
+        falsePositive:expected===null&&level!==null,falseNegative:expected!==null&&level===null};
+    });
+    const validatedHabitRows=habitRows("validatedLevel");
     const ruleHabitRows=habitExamples.map(example=>{
       const level=ruleHabitLevel(example.note);
       return {id:example.id,correct:level===example.expected,
@@ -85,7 +93,12 @@ function comparison(rows:readonly RunRow[],repeats:number){
     });
     const rawCommands=commandRows(false),safeCommands=commandRows(true);
     return {repeat:index+1,work:{ruleBaseline:baseline,aiRaw:raw,aiGuarded:guarded,paired:pairedCases(baseline.rows,guarded.rows)},
-      habit:{ruleBaseline:classificationMetrics(ruleHabitRows),ai:classificationMetrics(habitRows),paired:pairedCases(ruleHabitRows,habitRows)},
+      habit:{ruleBaseline:classificationMetrics(ruleHabitRows),
+        aiRaw:classificationMetrics(habitRows("proposedLevel")),ai:classificationMetrics(validatedHabitRows),
+        modelAbstentions:habitEvaluations.filter(row=>row.ok&&row.proposedLevel===null).map(row=>row.example.id),
+        guardRejections:habitEvaluations.filter(row=>row.ok&&row.proposedLevel!==null&&row.validatedLevel===null)
+          .map(row=>row.example.id),
+        paired:pairedCases(ruleHabitRows,validatedHabitRows)},
       command:{ruleBaseline:classificationMetrics(ruleRows),aiRaw:classificationMetrics(rawCommands),
         aiGuarded:classificationMetrics(safeCommands),paired:pairedCases(ruleRows,safeCommands)}};
   });
@@ -152,7 +165,10 @@ async function main(){
     const output=await proposeAssistantCommand(example.message,[],true);
     return {raw:candidates(output.growthEvidence),guarded:groundedWorkEvidence(output.growthEvidence,example.message,benchmarkUser),
       modelOutput:{plan:output.plan,growthEvidence:output.growthEvidence}};
-  }})),...habitExamples.map(example=>({suite:"habit" as const,id:example.id,run:async()=>({raw:await judgeHabitNote(example.note)})})),
+  }})),...habitExamples.map(example=>({suite:"habit" as const,id:example.id,run:async()=>{
+    const {proposal,annotation}=await inspectHabitNote(example.note);
+    return {raw:annotation,modelOutput:proposal};
+  }})),
     ...commandExamples.map(example=>({suite:"command" as const,id:example.id,run:async()=>{
       const output=await proposeAssistantCommand(example.message,example.habits,false);
       return {raw:decision(output.plan),guarded:decision(authorizeAssistantCommand(output.plan,example.message,example.habits)),modelOutput:output.plan};

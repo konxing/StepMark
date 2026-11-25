@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {callAiJson,resolveAiProvider,validateCompatibleEndpoint} from "../src/server/ai-gateway";
-import {judgeHabitNote} from "../src/server/habit-ai";
+import {inspectHabitNote,judgeHabitNote} from "../src/server/habit-ai";
 
 const env={
   AI_HABIT_PROVIDER:"openai",
@@ -116,6 +116,13 @@ test("habit note stays evidence-only through the common gateway",async()=>{
     assert.equal(coded.level,4);
     assert.equal(coded.modelId,"model-v1");
     assert.equal(coded.promptVersion,"habit-note-coding-v2");
+
+    const incorrectProposal={initiationLevel:4,confidence:0.95,quote:"很自然地开始阅读"};
+    globalThis.fetch=async()=>Response.json({choices:[{message:{content:JSON.stringify(incorrectProposal)}}]});
+    const diagnostic=await inspectHabitNote("看到书就很自然地开始阅读。");
+    assert.deepEqual(diagnostic.proposal,incorrectProposal);
+    assert.equal(diagnostic.annotation.level,null);
+    assert.equal((await judgeHabitNote("看到书就很自然地开始阅读。")).level,null);
   }finally{
     globalThis.fetch=originalFetch;
     for(const [name,value] of Object.entries({
