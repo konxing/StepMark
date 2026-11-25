@@ -2,7 +2,7 @@
 import HabitGrowthPanel from "./habit-growth-panel";
 import MeasurementEvidencePanel from "./measurement-evidence-panel";
 import AssistantChatPanel from "./assistant-chat-panel";
-import {useCallback,useEffect,useState} from "react";
+import {useCallback,useEffect,useRef,useState} from "react";
 type Habit={id:string;title:string;cue:string|null;action:string;createdAt:string;_count:{events:number;checks:number}};
 type Correction={id:string;revision:number;previousEligible:boolean;previousCompleted:boolean;
   updatedEligible:boolean;updatedCompleted:boolean;source:string;correctedAt:string};
@@ -17,6 +17,8 @@ export default function DashboardClient({email}:{email:string}) {
   const [title,setTitle]=useState(""),[action,setAction]=useState(""),[cue,setCue]=useState("");
   const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
   const [selected,setSelected]=useState<string|null>(null);
+  const [detailRevision,setDetailRevision]=useState(0);
+  const detailRequest=useRef(0);
   const [reflectionEventId,setReflectionEventId]=useState<string|null>(null);
   const [events,setEvents]=useState<{id:string;opportunityKey:string;eligible:boolean;completed:boolean;occurredAt:string;revision:number}[]>([]);
   const [correcting,setCorrecting]=useState<string|null>(null);
@@ -65,7 +67,7 @@ export default function DashboardClient({email}:{email:string}) {
       if(!res.ok && res.status!==409)throw new Error("SAVE_FAILED");
       const parsed= res.ok ? await res.json() as {event:{id:string}} : null;
       await load();await detail(habitId,kind==="done"?(parsed?.event.id??null):null);
-      const names={done:"执行已保存；可选填一次感受。",missed:"记录为有机会但未执行。不会直接扣减习惯进度。",
+      const names={done:"执行已保存，可以补记这次启动感受。",missed:"已记录有机会但未执行。",
         no_cue:"记录为今天没有出现触发情境，不计为执行失败。"};
       setMessage(res.status===409?"本日已有不同状态的记录；如需纠错请查看记录。":names[kind]);
     }catch{setMessage("记录失败，请重试。");}finally{setBusy(false);}
@@ -117,15 +119,24 @@ export default function DashboardClient({email}:{email:string}) {
     finally{setCorrecting(null);}
   }
   async function detail(id:string,eventId:string|null=null){
+    const request=++detailRequest.current;
     try{
-      const r=await fetch(`/api/v1/habits/${encodeURIComponent(id)}/insights`,{cache:"no-store"});
-      if(!r.ok)throw new Error();
-      const report=await r.json() as NonNullable<typeof insights>;
+      const [insightResponse,eventResponse]=await Promise.all([
+        fetch(`/api/v1/habits/${encodeURIComponent(id)}/insights`,{cache:"no-store"}),
+        fetch("/api/v1/observations?habitId="+encodeURIComponent(id),{cache:"no-store"})
+      ]);
+      if(!insightResponse.ok||!eventResponse.ok)throw new Error();
+      const [report,history]=await Promise.all([
+        insightResponse.json() as Promise<NonNullable<typeof insights>>,
+        eventResponse.json() as Promise<{events:typeof events}>
+      ]);
+      if(request!==detailRequest.current)return;
       setSelected(id);setReflectionEventId(eventId);setInsights(report);
+      setEvents(history.events);setDetailRevision(value=>value+1);
       setShowCorrections(false);
       setHistoryEventId(null);setHistoryRows([]);setHistoryNextOffset(null);
-      await refreshEvents(id);
-    }catch{setMessage("无法读取记录。");}
+      requestAnimationFrame(()=>document.getElementById("habit-progress")?.scrollIntoView({block:"start"}));
+    }catch{if(request===detailRequest.current)setMessage("无法读取记录。");}
   }
   async function logout(){
     await fetch("/api/v1/auth/logout",{method:"POST"});location.assign("/login");
@@ -134,8 +145,10 @@ export default function DashboardClient({email}:{email:string}) {
     <header className="dashboard-header"><a className="wordmark" href="/">STEP<span>MARK</span><span className="brand-dot">.</span></a>
       <div><span className="account-email">{email}</span> <a href="/settings" className="text-button">账户与数据</a> <button className="text-button" onClick={logout}>退出</button></div></header>
     <section className="dash-welcome"><h1>习惯与能力记录</h1>
-      <p>用对话记录习惯和执行感受，查看已有的能力证据。</p></section>
-    <AssistantChatPanel onChanged={async id=>{await load();if(id)await detail(id);}}/>
+      <p>记录今天的执行，查看习惯进度和相关能力复测。</p></section>
+    <nav className="dashboard-shortcuts" aria-label="记录与测评">
+      <a href="#habit-records">习惯进度</a><a href="#assistant-records">AI 对话</a><a href="/assess">能力测评</a>
+    </nav>
     <button type="button" className="assistant-advanced-toggle" onClick={()=>setShowManual(x=>!x)}
       aria-expanded={showManual}>{showManual?"收起手动管理":"展开手动管理与详细记录"}</button>
     {dueReviews.length>0&&<section className="dashboard-panel due-review-panel">
@@ -145,13 +158,12 @@ export default function DashboardClient({email}:{email:string}) {
         {dueReviews.slice(0,4).map(review=><button type="button" key={review.habitId}
           onClick={()=>detail(review.habitId)}>
           <span>{review.title}</span>
-          <small>{review.reviewReason==="recent_difficulty"?"最近启动更费力": "看看现在是否仍然自然"}</small>
+          <small>{review.reviewReason==="recent_difficulty"?"最近启动更费力":review.reviewReason==="recent_misses"?
+            "复查触发情境与行动难度":"看看现在是否仍然自然"}</small>
         </button>)}
       </div>
     </section>}
-    <p className="assessment-link"><a href="/assess">开始实验性逻辑推理测量 ↗</a> · <a href="/practice">进行独立题库的推理专项训练 ↗</a></p>
-    <MeasurementEvidencePanel/>
-    <section className={showManual?"dashboard-grid":"dashboard-grid dashboard-grid-single"}>
+    <section id="habit-records" className={showManual?"dashboard-grid":"dashboard-grid dashboard-grid-single"}>
       {showManual&&<article className="dashboard-panel"><h2>手动建立习惯（备用入口）</h2>
         <form className="account-form" onSubmit={create}>
           <label htmlFor="habit-title">习惯名称</label>
@@ -168,14 +180,15 @@ export default function DashboardClient({email}:{email:string}) {
           <div className="habits-list">{habits.map(h=><div className="habit-row" key={h.id}>
             <h3>{h.title}</h3><p>{h.action}</p>{h.cue&&<small>情境：{h.cue}</small>}
             <div className="habit-actions habit-opportunity-actions">
-              {showManual&&<button disabled={busy} onClick={()=>recordOpportunity(h.id,"done")}>已执行</button>}
+              <button disabled={busy} onClick={()=>recordOpportunity(h.id,"done")}>已执行</button>
               {showManual&&<button disabled={busy} className="text-button" onClick={()=>recordOpportunity(h.id,"missed")}>有机会，没执行</button>}
               {showManual&&<button disabled={busy} className="text-button" onClick={()=>recordOpportunity(h.id,"no_cue")}>今天没机会</button>}
               <button className="text-button" onClick={()=>detail(h.id)}>成长进度</button>
             </div>
-            <small>已记录天数：{h._count.events}（并非能力分）</small></div>)}</div>}
+            <small>执行记录 {h._count.events} 条</small></div>)}</div>}
       </article>
     </section>
+    {selected&&<HabitGrowthPanel key={selected} habitId={selected} habitTitle={habits.find(habit=>habit.id===selected)?.title??"习惯"} eventId={reflectionEventId} revision={detailRevision}/>}
     {selected&&insights&&<details className="dashboard-panel">
       <summary>查看执行率的统计细节</summary>
       <p>有触发机会 {insights.eligibleOpportunities} 次，完成 {insights.completions} 次。没有出现触发情境的日子不计入分母。</p>
@@ -223,7 +236,11 @@ export default function DashboardClient({email}:{email:string}) {
         </div>}
       </div>)}
     </section>}
-    {selected&&<HabitGrowthPanel key={selected} habitId={selected} eventId={reflectionEventId}/>}
+    <div id="assistant-records">
+      <AssistantChatPanel onChanged={async id=>{await load();if(id)await detail(id);}}/>
+    </div>
+    <MeasurementEvidencePanel/>
+    <p className="assessment-link"><a href="/practice">推理专项训练</a></p>
     <p className="notice" role="status" aria-live="polite">{message}</p>
   </main>;
 }

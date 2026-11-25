@@ -14,7 +14,7 @@
       <div class="brand"><span class="brand-symbol" aria-hidden="true">S</span>StepMark</div>
       <nav aria-label="主要导航" class="navigation">
         <button type="button" data-view="workspace" aria-current="page">工作台</button>
-        <button type="button" data-view="habits">习惯记录</button>
+        <button type="button" data-view="habits">习惯与复测</button>
         <button type="button" data-view="connections">连接设置</button>
       </nav>
       <div class="sidebar-bottom">
@@ -63,12 +63,13 @@
       </section>
 
       <section id="view-habits" class="secondary-view" aria-labelledby="habits-title" hidden>
-        <header class="topline"><h1 id="habits-title">习惯记录</h1><button id="refresh" type="button" class="quiet" hidden>刷新</button></header>
+        <header class="topline"><h1 id="habits-title">习惯与复测</h1><button id="refresh" type="button" class="quiet" hidden>刷新</button></header>
         <div class="panel">
           <p id="list-hint">连接 StepMark 账号后查看已记录的习惯。</p>
           <div id="habit-list" class="habit-list"></div>
           <p id="habit-status" class="status-line" role="status"></p>
           <button id="habit-login" type="button" class="primary">连接 StepMark 账号</button>
+          <button id="open-assessments" type="button" class="quiet" hidden>打开网页测评</button>
         </div>
       </section>
 
@@ -77,7 +78,7 @@
         <div class="connection-panels">
           <section class="panel" aria-labelledby="ai-title">
             <div class="panel-heading"><h2 id="ai-title">DeepSeek Flash</h2><span id="provider-label" class="subtle"></span></div>
-            <p>工作台用 OpenAI 兼容格式直连 DeepSeek 官方接口。密钥经验证后保存在 Windows 凭据管理器。</p>
+            <p>本机直接连接 DeepSeek。密钥经验证后保存在 Windows 凭据管理器。</p>
             <form id="key-form" autocomplete="off">
               <label for="api-key">DeepSeek API Key</label>
               <input id="api-key" name="api-key" type="password" autocomplete="off" spellcheck="false" maxlength="180" placeholder="sk-…" required>

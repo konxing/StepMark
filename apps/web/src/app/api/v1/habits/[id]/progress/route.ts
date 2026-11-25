@@ -28,10 +28,10 @@ export async function GET(request:NextRequest,ctx:{params:Promise<{id:string}>})
       db.habitReflection.count({where:{habitId:id,initiationLevel:null,
         aiStatus:"COMPLETED",aiLevel:{not:null}}})
     ]);
-    const {completed,eligible,lastCompletedAtMs}=counts.get(id)!;
+    const {completed,eligible,lastCompletedAtMs,recentOpportunities}=counts.get(id)!;
     const progress=calculateHabitProgress({completedRepetitions:completed,
       completedOpportunities:completed,eligibleOpportunities:eligible,observations:habitSelfRatingEvidence(reflections),
-      nowMs:Date.now(),lastCompletedAtMs,
+      nowMs:Date.now(),lastCompletedAtMs,recentOpportunities,
       seed:habit.id,reviewEnabled:habit.reviewEnabled});
     return NextResponse.json({habitId:id,reviewEnabled:habit.reviewEnabled,...progress,
       aiAnnotationCount,aiAnnotationCountScope:"historical_unconfirmed_ai_only"},

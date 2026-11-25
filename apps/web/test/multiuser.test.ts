@@ -76,6 +76,7 @@ test("habit progress uses local action dates and the same eligible counts as ins
     assert.equal(progress.lastRatingAt,later.occurredAt.toISOString());
     assert.equal(progress.eligibleOpportunities,3);
     assert.equal(progress.completedRepetitions,2);
+    assert.deepEqual(progress.recentExecution,{eligible:3,completed:2,inconsistent:false});
     assert.equal(insights.observedRate,progress.observedCompletionRate);
     assert.equal(due.due.find((review:{habitId:string})=>review.habitId===habit.id)?.progress,progress.progress);
   }finally{
@@ -991,7 +992,7 @@ test("AI-only habit ratings never inflate growth or suppress due reviews",async(
     assert.equal(response.status,200);
     const result=await response.json() as {policyVersion:string;progress:number;
       automaticitySignal:number|null;aiAnnotationCount:number;evidenceCount:number;reviewDue:boolean};
-    assert.equal(result.policyVersion,"habit-progress-v2");
+    assert.equal(result.policyVersion,"habit-progress-v3");
     assert.equal(result.evidenceCount,0);
     assert.equal(result.aiAnnotationCount,1);
     assert.equal(result.automaticitySignal,null);

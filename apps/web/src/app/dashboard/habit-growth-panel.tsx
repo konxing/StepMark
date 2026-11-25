@@ -1,7 +1,9 @@
 "use client";
 import {useCallback,useEffect,useState} from "react";
+import HabitTrainingPanel from "./habit-training-panel";
 type Progress={progress:number;repetitionSignal:number;automaticitySignal:number|null;
   eligibleOpportunities?:number;observedCompletionRate?:number|null;
+  recentExecution?:{completed:number;eligible:number;inconsistent:boolean}|null;
   completedRepetitions:number;evidenceCount:number;aiAnnotationCount:number;reviewDue:boolean;nextReviewAt:string|null;
   stage:string;policyVersion:string;reviewEnabled:boolean;reviewReason:string;evidenceStale:boolean;lastRatingAt:string|null};
 type Reflection = {id:string;eventId:string|null;note:string|null;initiationLevel:number|null;
@@ -10,7 +12,12 @@ const options=[
   ["0","非常抗拒"],["1","需要逼自己"],["2","有一点纠结"],
   ["3","比较自然"],["4","几乎不用思考"]
 ] as const;
-export default function HabitGrowthPanel({habitId,eventId}:{habitId:string;eventId?:string|null}) {
+const stages:Record<string,string>={collecting_evidence:"收集证据",developing:"形成中",
+  maintaining:"维护观察",review_due:"建议复查",needs_fresh_evidence:"等待更新自评"};
+
+export default function HabitGrowthPanel({habitId,habitTitle,eventId,revision}:{
+  habitId:string;habitTitle:string;eventId?:string|null;revision:number
+}) {
   const [result,setResult]=useState<Progress|null>(null);
   const [history,setHistory]=useState<Reflection[]>([]);
   const [level,setLevel]=useState<string>("");
@@ -44,7 +51,7 @@ export default function HabitGrowthPanel({habitId,eventId}:{habitId:string;event
     ]);
     setResult(progressData);setHistory(historyData.reflections.slice(0,6));
   },[habitId]);
-  useEffect(()=>{setLinkedEventId(eventId??null);void load().catch(()=>setMessage("进度暂时无法读取。"));},[load,eventId]);
+  useEffect(()=>{setLinkedEventId(eventId??null);void load().catch(()=>setMessage("进度暂时无法读取。"));},[load,eventId,revision]);
   async function save(){
     if(busy||(!note.trim()&&!level))return;
     setBusy(true);setMessage("");
@@ -106,34 +113,33 @@ export default function HabitGrowthPanel({habitId,eventId}:{habitId:string;event
     }catch{setMessage("无法确认是否保存，稍后可重试同一选项。");}
     finally{setBusy(false);}
   }
-  return <section className="dashboard-panel" aria-label="习惯进度和维护">
-    <h2>习惯执行与启动感受</h2>
+  return <section id="habit-progress" className="dashboard-panel" aria-label="习惯养成进度">
+    <h2>{habitTitle} · 养成进度</h2>
     {result ? <>
-      {result.observedCompletionRate===null?<p>暂无已记录的执行机会。</p>:
-        typeof result.observedCompletionRate==="number"?
-          <p>已记录 {result.eligibleOpportunities} 次执行机会，完成 {result.completedRepetitions} 次（{Math.round(result.observedCompletionRate*100)}%）。</p>:
-          <p>已执行 {result.completedRepetitions} 次。</p>}
-      <p>本人启动感受信号：{result.automaticitySignal===null?"尚无直接自评":result.automaticitySignal.toFixed(1)}
-        · 本人有效反馈 {result.evidenceCount} 次</p>
+      <div className="progress-head">
+        <strong>{result.progress.toFixed(1)} <small>/ 100</small></strong>
+        <span>{result.evidenceStale?"历史进度 · 自评待更新":stages[result.stage]??"等待证据"}</span>
+      </div>
+      <div className="growth-track" role="progressbar" aria-label="习惯养成进度"
+        aria-valuemin={0} aria-valuemax={100} aria-valuenow={result.progress}>
+        <div className="growth-fill" style={{width:result.progress+"%"}}/>
+      </div>
+      <div className="habit-measures">
+        <p><small>累计完成</small><strong>{result.completedRepetitions} / {result.eligibleOpportunities??result.completedRepetitions} 次有机会</strong></p>
+        <p><small>近期执行</small><strong>{result.recentExecution?`${result.recentExecution.completed} / ${result.recentExecution.eligible} 次`:"待记录"}</strong></p>
+        <p><small>本人启动感受</small><strong>{result.automaticitySignal===null?"待自评":`${result.automaticitySignal.toFixed(1)} / 100 · ${result.evidenceCount} 天`}</strong></p>
+      </div>
+      <p className="progress-caveat">进度用于查看这项习惯的变化。得分依据实际执行和本人自评，近期最多取 12 次有触发的已记录机会。</p>
+      {result.recentExecution?.inconsistent&&<p className="review-prompt">近期多次有机会但未执行，当前分数低于稳定区间。可以先调整触发情境或把行动缩小。</p>}
       {result.aiAnnotationCount>0&&<p className="progress-caveat">历史记录有 {result.aiAnnotationCount} 条仅 AI 暂定解读，未参与进度和复查判断。</p>}
       {result.evidenceStale&&<p className="review-prompt">
         过去的感受证据已超过 45 天。这是上次有证据支持的进度，并非当前状态的可靠判断；缺少记录不会自动扣分。
       </p>}
-      {result.reviewDue&&<p className="review-prompt">{result.reviewReason==="recent_difficulty"?"最近开始行动似乎更费力了，做一次简短复查吧。":"该做一次低负担复查了：现在开始行动，还是和之前一样自然吗？"}</p>}
+      {result.reviewDue&&<p className="review-prompt">{result.reviewReason==="recent_difficulty"?"最近开始行动似乎更费力了，做一次简短复查吧。":result.reviewReason==="recent_misses"?"请复查这段时间的触发情境和行动难度。":"复查一下，现在开始行动时有多自然？"}</p>}
       {result.nextReviewAt&&<small>预计下次应用内复查：{new Date(result.nextReviewAt).toLocaleDateString("zh-CN")}</small>}
       <button type="button" className="text-button" disabled={busy} onClick={toggleReview}>{result.reviewEnabled?"关闭应用内复查":"开启应用内复查"}</button>
-      <details>
-        <summary>查看实验性成长指标</summary>
-        <div className="progress-head"><strong>{result.progress.toFixed(1)}%</strong>
-          <span>{result.evidenceStale?"证据已过时·保留历史进度":result.reviewDue?"建议复查":result.stage==="maintaining"?"较稳定·维护观察":result.stage==="developing"?"形成中":"收集证据"}</span>
-        </div>
-        <div className="growth-track" role="progressbar" aria-label="实验性习惯成长进度"
-          aria-valuemin={0} aria-valuemax={100} aria-valuenow={result.progress}>
-          <div className="growth-fill" style={{width:result.progress+"%"}}/>
-        </div>
-        <p className="progress-caveat">此指标按执行次数和本人明确感受计算。它只适合查看同一习惯的历史趋势。</p>
-      </details>
-    </>:<p>正在计算进度…</p>}
+    </>:<p role="status">{message||"正在计算进度…"}</p>}
+    <HabitTrainingPanel habitId={habitId} revision={revision}/>
     <div className="growth-form">
       <strong>这一次开始行动时的感受（选填）</strong>
       <div className="feeling-options" role="group" aria-label="开始行动的自然程度">
@@ -163,12 +169,15 @@ export default function HabitGrowthPanel({habitId,eventId}:{habitId:string;event
           {entry.note&&<p>{entry.note}</p>}
           {entry.eventId&&entry.initiationLevel===null&&<details>
             <summary>补记当时的启动感受</summary>
+            {entry.aiLevel!==null&&entry.aiQuote&&<p>
+              AI 建议「{options[entry.aiLevel]?.[1]}」，依据「{entry.aiQuote}」。请选择你自己的真实感受。
+            </p>}
             <div className="feeling-options" role="group" aria-label="选择并保存本人启动感受">
               {options.map(([value,label])=><button type="button" key={value} disabled={busy}
                 onClick={()=>addSelfRating(entry.id,Number(value))}>{label}</button>)}
             </div>
           </details>}
-          {entry.aiQuote&&<details><summary>查看 AI 暂定解读</summary>
+          {entry.aiQuote&&(!entry.eventId||entry.initiationLevel!==null)&&<details><summary>查看 AI 暂定解读</summary>
             <small>{entry.aiQuote}</small>
           </details>}
           <div className="habit-actions">

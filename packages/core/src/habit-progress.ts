@@ -1,9 +1,12 @@
 /**
- * StepMark visual growth indicator, policy v2. This 0-100 value is a user-facing
+ * StepMark visual growth indicator, policy v3. This 0-100 value is a user-facing
  * heuristic, NOT a probability of habit formation nor a validated SRBAI score.
  * Observed repetitions and automaticity are deliberately kept separate.
  */
-export const HABIT_PROGRESS_POLICY_VERSION = "habit-progress-v2";
+import {wilsonInterval} from "./measurement";
+
+export const HABIT_PROGRESS_POLICY_VERSION = "habit-progress-v3";
+export const HABIT_RECENT_OPPORTUNITY_LIMIT = 12;
 export type InitiationLevel = 0|1|2|3|4;
 export type ReflectionSource = "self_report"|"ai_interpretation";
 export interface InitiationEvidence {
@@ -18,6 +21,7 @@ export interface HabitProgressInput {
   completedRepetitions:number;
   eligibleOpportunities:number;
   completedOpportunities:number;
+  recentOpportunities?:{eligible:number;completed:number};
   observations:readonly InitiationEvidence[];
   nowMs:number;
   lastCompletedAtMs?:number|null;
@@ -37,6 +41,7 @@ export interface HabitProgress {
   eligibleOpportunities:number;
   /** Proportion in [0, 1], or null when no eligible opportunities are recorded. */
   observedCompletionRate:number|null;
+  recentExecution:{eligible:number;completed:number;inconsistent:boolean}|null;
   evidenceCount:number;
   /** AI-coded annotations in the function input, never scored; public API may replace this with a separate owner-scoped historical count. */
   aiAnnotationCount:number;
@@ -46,10 +51,11 @@ export interface HabitProgress {
   mostRecentAutomaticity:number|null;
   reviewDue:boolean;
   nextReviewAt:string|null;
-  reviewReason:"none"|"low_evidence"|"routine_check"|"maintenance"|"recent_difficulty";
+  reviewReason:"none"|"low_evidence"|"routine_check"|"maintenance"|"recent_difficulty"|"recent_misses";
   note:string;
 }
 const DAY=24*60*60*1000;
+const STABLE_SCORE=80;
 const levelStrength:Record<InitiationLevel,number>={0:0,1:15,2:35,3:70,4:100};
 function between(value:number,min:number,max:number):number {
   return Math.max(min,Math.min(max,value));
@@ -70,6 +76,18 @@ export function calculateHabitProgress(input:HabitProgressInput):HabitProgress {
       (input.lastCompletedAtMs!=null && (!Number.isFinite(input.lastCompletedAtMs) || input.lastCompletedAtMs>nowMs+5*60*1000))) {
     throw new RangeError("invalid habit progress inputs");
   }
+  const sample=input.recentOpportunities;
+  if(sample&&(!Number.isSafeInteger(sample.eligible)||!Number.isSafeInteger(sample.completed)||
+    sample.completed<0||sample.completed>sample.eligible||sample.completed>completedOpportunities||
+    sample.eligible>Math.min(HABIT_RECENT_OPPORTUNITY_LIMIT,eligibleOpportunities)||
+    sample.eligible-sample.completed>eligibleOpportunities-completedOpportunities)){
+    throw new RangeError("invalid recent habit opportunities");
+  }
+  // A single miss or an absence of observations leaves the score alone. The
+  // sample is anchored to recorded opportunities so time alone cannot lift a cap.
+  const recentInterval=sample&&sample.eligible>=6?wilsonInterval(sample.completed,sample.eligible):null;
+  const recentMisses=recentInterval!==null&&recentInterval.high<0.8;
+  const recentExecution=sample&&sample.eligible>0?{...sample,inconsistent:recentMisses}:null;
   // Dated opportunities carry the user's calendar day. Older records lacking
   // one keep their UTC day fallback. Elapsed time still uses the actual timestamp.
   const observations=[...input.observations].sort((a,b)=>b.atMs-a.atMs);
@@ -128,10 +146,11 @@ export function calculateHabitProgress(input:HabitProgressInput):HabitProgress {
   // One report: cap 65; two temporally separated reports: cap 80.
   const cap=count===0?45:count===1?65:count===2?80:span>=14?96:85;
   const raw=0.45*repetitionSignal+0.55*(automaticitySignal??0);
-  const progress=Number(between(raw,0,cap).toFixed(1));
+  const supportedCap=recentMisses?Math.min(cap,STABLE_SCORE-0.1):cap;
+  const progress=Number(between(raw,0,supportedCap).toFixed(1));
   const evidenceLevel=count===0?"insufficient":count===1?"limited":count===2||span<14?"moderate":"repeated";
   const lastRating=latest?levelStrength[latest.level]:null;
-  const stable=evidenceLevel==="repeated" && n>=20 && progress>=80 &&
+  const stable=evidenceLevel==="repeated" && n>=20 && progress>=STABLE_SCORE &&
     lastRating!==null && lastRating>=70;
   const lastAnchor=latest?.atMs??input.lastCompletedAtMs??null;
   // A substantial downward change in initiation confidence calls for an
@@ -139,8 +158,8 @@ export function calculateHabitProgress(input:HabitProgressInput):HabitProgress {
   const recentDifficulty=count>=2 && latest!.level<=2 &&
     (recent[1]!.level-latest!.level>=2 || recent.slice(0,3).every(x=>x.level<=2));
   const reviewReason=lastAnchor===null?"none":recentDifficulty?"recent_difficulty":
-    stable?"maintenance":count<2?"low_evidence":"routine_check";
-  const baseInterval=recentDifficulty?6:stable?28:count>=2?14:7;
+    recentMisses?"recent_misses":stable?"maintenance":count<2?"low_evidence":"routine_check";
+  const baseInterval=recentDifficulty?6:recentMisses?7:stable?28:count>=2?14:7;
   const interval=Math.max(5,baseInterval+(stable?reviewJitter(input.seed??""):0));
   const nextReviewMs=lastAnchor===null?null:lastAnchor+interval*DAY;
   const due=input.reviewEnabled!==false && nextReviewMs!==null && nowMs>=nextReviewMs;
@@ -152,12 +171,13 @@ export function calculateHabitProgress(input:HabitProgressInput):HabitProgress {
     automaticitySignal:automaticitySignal===null?null:Number(automaticitySignal.toFixed(1)),
     evidenceLevel,stage,completedRepetitions:n,eligibleOpportunities,
     observedCompletionRate:eligibleOpportunities===0?null:completedOpportunities/eligibleOpportunities,
+    recentExecution,
     evidenceCount:count,
     aiAnnotationCount,
     evidenceSpanDays:Number(span.toFixed(1)),evidenceStale,
     lastRatingAt:latest?new Date(latest.atMs).toISOString():null,
     mostRecentAutomaticity:lastRating,
     reviewDue:due,reviewReason,nextReviewAt:input.reviewEnabled===false||nextReviewMs===null?null:new Date(nextReviewMs).toISOString(),
-    note:"Only explicit self-reported initiation ratings contribute to exploratory progress and review scheduling. AI diary interpretations remain provisional regardless of confidence. Missing diaries never count as zero; ability changes require independent tests."
+    note:"Exploratory progress combines recorded repetitions and direct self-ratings. A sustained pattern of recorded missed opportunities limits the score. AI diary interpretations remain provisional. Ability change is evaluated with independent tasks."
   };
 }

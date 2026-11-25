@@ -179,3 +179,7 @@ h1, h2, h3, p { margin: 0; }
   .examples { grid-template-columns: minmax(0, 1fr); }
   .examples button { padding: 7px 10px; gap: 0; }
 }
+.habit-detail { margin-top: 12px; }
+.habit-detail summary { cursor: pointer; text-underline-offset: .25em; }
+.habit-detail div { margin: 10px 0 0; overflow-wrap: anywhere; }
+.habit-detail .habit-score { font-size: 1.35rem; font-weight: 700; }

@@ -103,12 +103,15 @@ test("DeepSeek is pinned to the official Flash endpoint, with a separate native 
   assert.match(native,/verify_key\(key\)\.await\?;\s*credential\(\)\?\.set_password\(key\)/);
 });
 
-test("installer is pinned to the owner's canonical HTTPS domain",()=>{
+test("the Windows preview uses the local account server and keeps DeepSeek separate",()=>{
   const workflow=read("../../.github/workflows/desktop-windows.yml");
-  assert.match(workflow,/STEPMARK_API_ORIGIN: https:\/\/stepmark\.xin/);
+  assert.match(workflow,/STEPMARK_API_ORIGIN: http:\/\/127\.0\.0\.1:8080/);
   assert.match(workflow,/Build unsigned Windows NSIS preview installer/);
   assert.match(workflow,/upload-artifact@v4/);
-  assert.doesNotMatch(workflow,/inputs\.api_origin|http:\/\/stepmark\.xin/);
+  assert.doesNotMatch(workflow,/inputs\.api_origin|stepmark\.xin/);
+  const native=read("src-tauri/src/lib.rs");
+  assert.match(native,/const LOCAL_ORIGIN: &str = "http:\/\/127\.0\.0\.1:8080"/);
+  assert.match(native,/session-local-8080/);
   const probe=read("scripts/check-deployment.mjs");
   assert.match(probe,/const origin="https:\/\/stepmark\.xin"/);
   assert.match(probe,/UNAUTHENTICATED/);

@@ -15,6 +15,7 @@ mod ai_workspace;
 
 const CREDENTIAL_SERVICE: &str = "StepMark Desktop";
 const CREDENTIAL_ACCOUNT: &str = "session";
+const LOCAL_ORIGIN: &str = "http://127.0.0.1:8080";
 const CALLBACK_WAIT: Duration = Duration::from_secs(180);
 const MAX_API_RESPONSE: usize = 256 * 1024;
 
@@ -27,6 +28,9 @@ struct DesktopStatus {
 }
 
 fn validate_origin(raw: &str, debug: bool) -> Result<String, String> {
+    if raw == LOCAL_ORIGIN {
+        return Ok(raw.to_owned());
+    }
     let url = Url::parse(raw).map_err(|_| "未配置有效的 API 服务地址".to_owned())?;
     let localhost = debug && raw == "http://localhost:3000";
     if !localhost && url.scheme() != "https" {
@@ -63,16 +67,20 @@ fn api_origin() -> Result<String, String> {
     validate_origin(raw, cfg!(debug_assertions))
 }
 
-fn client() -> Result<reqwest::Client, String> {
-    reqwest::Client::builder()
+fn client(origin: &str) -> Result<reqwest::Client, String> {
+    let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(12))
-        .redirect(reqwest::redirect::Policy::none())
+        .redirect(reqwest::redirect::Policy::none());
+    let client = if origin.starts_with("http://") { client.no_proxy() } else { client };
+    client
         .build()
         .map_err(|_| "无法初始化安全网络连接".to_owned())
 }
 
 fn credential() -> Result<keyring::Entry, String> {
-    keyring::Entry::new(CREDENTIAL_SERVICE, CREDENTIAL_ACCOUNT)
+    let origin = api_origin()?;
+    let account = if origin == LOCAL_ORIGIN { "session-local-8080" } else { CREDENTIAL_ACCOUNT };
+    keyring::Entry::new(CREDENTIAL_SERVICE, account)
         .map_err(|_| "Windows 凭据存储不可用".to_owned())
 }
 fn saved_token() -> Result<Option<String>, String> {
@@ -206,12 +214,12 @@ async fn read_limited_json(mut response: reqwest::Response) -> Result<Value, Str
 
 async fn api_get(path: &str, token: &str) -> Result<Value, String> {
     let origin = api_origin()?;
-    let response = client()?
+    let response = client(&origin)?
         .get(format!("{}{}", origin, path))
         .bearer_auth(token)
         .send()
         .await
-        .map_err(|_| "网络连接失败，请检查网络或服务器状态".to_owned())?;
+        .map_err(|_| account_connection_error(&origin))?;
     if response.status() == reqwest::StatusCode::UNAUTHORIZED {
         let _ = clear_token();
         return Err("登录已过期，请重新连接账号".to_owned());
@@ -220,6 +228,14 @@ async fn api_get(path: &str, token: &str) -> Result<Value, String> {
         return Err("服务暂时无法读取个人数据".to_owned());
     }
     read_limited_json(response).await
+}
+
+fn account_connection_error(origin: &str) -> String {
+    if origin == LOCAL_ORIGIN {
+        "连不上本机 StepMark，请用服务器管理器启动 127.0.0.1:8080 后重试。".to_owned()
+    } else {
+        "网络连接失败，请检查网络或服务器状态。".to_owned()
+    }
 }
 
 #[tauri::command]
@@ -234,6 +250,15 @@ fn get_status() -> Result<DesktopStatus, String> {
 #[tauri::command]
 async fn sign_in() -> Result<Value, String> {
     let origin = api_origin()?;
+    let http = client(&origin)?;
+    if origin == LOCAL_ORIGIN {
+        let response = http.get(format!("{origin}/api/health")).send().await
+            .map_err(|_| account_connection_error(&origin))?;
+        let health = read_limited_json(response).await?;
+        if health["service"] != "stepmark-web" || health["status"] != "ok" {
+            return Err(account_connection_error(&origin));
+        }
+    }
     let listener = TcpListener::bind(("127.0.0.1", 0))
         .await
         .map_err(|_| "无法启动本机安全授权回调".to_owned())?;
@@ -253,7 +278,7 @@ async fn sign_in() -> Result<Value, String> {
         .append_pair("redirect_uri", &redirect_uri);
     webbrowser::open(url.as_str()).map_err(|_| "无法打开系统默认浏览器".to_owned())?;
     let code = wait_for_callback(listener, &state).await?;
-    let response = client()?
+    let response = http
         .post(format!("{}/api/v1/auth/desktop/exchange", origin))
         .json(&json!({"code":code,"codeVerifier":verifier,"redirectUri":redirect_uri}))
         .send()
@@ -298,6 +323,39 @@ async fn get_habits() -> Result<Value, String> {
     Ok(value)
 }
 
+fn habit_detail_path(habit_id: &str, detail: &str) -> Result<String, String> {
+    let valid = habit_id.len() == 36 && habit_id.bytes().enumerate().all(|(position, byte)| {
+        if matches!(position, 8 | 13 | 18 | 23) { byte == b'-' } else { byte.is_ascii_hexdigit() }
+    });
+    if !valid {
+        return Err("习惯标识无效".to_owned());
+    }
+    Ok(format!("/api/v1/habits/{habit_id}/{detail}"))
+}
+
+async fn get_own_habit_detail(habit_id: String, detail: &str) -> Result<Value, String> {
+    let path = habit_detail_path(&habit_id, detail)?;
+    let token = saved_token()?.ok_or_else(|| "请先连接账号".to_owned())?;
+    api_get(&path, &token).await
+}
+
+#[tauri::command]
+async fn get_habit_progress(habit_id: String) -> Result<Value, String> {
+    get_own_habit_detail(habit_id, "progress").await
+}
+
+#[tauri::command]
+async fn get_habit_training(habit_id: String) -> Result<Value, String> {
+    get_own_habit_detail(habit_id, "training").await
+}
+
+#[tauri::command]
+fn open_assessments() -> Result<(), String> {
+    webbrowser::open(&format!("{}/assess", api_origin()?))
+        .map(|_| ())
+        .map_err(|_| "无法打开测评网页".to_owned())
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct LogoutResult {
@@ -311,7 +369,7 @@ async fn sign_out() -> Result<LogoutResult, String> {
     let mut server_revoked = token.is_none();
     if let Some(ref token) = token {
         if let Ok(origin) = api_origin() {
-            if let Ok(http) = client() {
+            if let Ok(http) = client(&origin) {
                 if let Ok(response) = http
                     .post(format!("{}/api/v1/auth/desktop/logout", origin))
                     .bearer_auth(token)
@@ -338,6 +396,9 @@ pub fn run() {
             sign_in,
             get_me,
             get_habits,
+            get_habit_progress,
+            get_habit_training,
+            open_assessments,
             sign_out,
             ai_workspace::deepseek_status,
             ai_workspace::check_deepseek,
@@ -354,8 +415,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn api_origin_is_explicit_and_never_accepts_http_in_release() {
+    fn habit_detail_rejects_non_uuid_path_input() {
+        let habit_id = "62b35707-c002-4539-9564-a2da0ccd37c9";
+        assert_eq!(habit_detail_path(habit_id, "progress").unwrap(),
+            format!("/api/v1/habits/{habit_id}/progress"));
+        assert!(habit_detail_path("../settings?all", "training").is_err());
+        assert!(habit_detail_path("62b35707-c002-4539-9564-a2da0ccd37cx", "progress").is_err());
+    }
+
+    #[test]
+    fn release_accepts_the_exact_local_origin_or_an_explicit_https_origin() {
         assert!(validate_origin("https://api.stepmark.example", false).is_ok());
+        assert_eq!(validate_origin(LOCAL_ORIGIN, false).unwrap(), LOCAL_ORIGIN);
         for raw in [
             "",
             "http://api.stepmark.example",
@@ -364,6 +435,9 @@ mod tests {
             "https://user:pass@api.stepmark.example",
             "https://localhost",
             "https://127.0.0.1",
+            "http://127.0.0.1:8081",
+            "http://127.0.0.1:8080/",
+            "http://192.168.1.20:8080",
             "https://api.stepmark.example.evil.test:444",
         ] {
             assert!(validate_origin(raw, false).is_err(), "{}", raw);

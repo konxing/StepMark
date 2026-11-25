@@ -58,6 +58,8 @@ export async function getLogicFormOverview(userId:string,now=new Date()){
     const legacyAttemptCount=integrity.filter(x=>x==="legacy_unverified").length;
     const trustworthyBank=validBank&&attemptVersionsValid;
     const complete=trustworthyBank && done.length===FORM_SIZE;
+    const startedAt=trustworthyBank&&done.length?new Date(Math.min(...done.map(t=>
+      attemptById.get(t.id)!.createdAt.getTime()))).toISOString():null;
     const completedAt=complete?new Date(Math.max(...done.map(t=>
       attemptById.get(t.id)!.createdAt.getTime()))).toISOString():null;
     const previous=index===0?null:LOGIC_FORMS[index-1];
@@ -99,7 +101,7 @@ export async function getLogicFormOverview(userId:string,now=new Date()){
     return {code:form.code,title:form.title,phase:form.phase,status,total:trustworthyBank?FORM_SIZE:0,
       integrityStatus,
       legacyAttemptCount,
-      attempted:done.length,correct,completedAt,availableAt:status==="locked"?readyAt:null,
+      attempted:done.length,correct,startedAt,completedAt,availableAt:status==="locked"?readyAt:null,
       dimensions,reviews};
   });
   const first=forms[0]!,second=forms[1]!;

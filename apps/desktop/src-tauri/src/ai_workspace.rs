@@ -115,7 +115,7 @@ async fn complete(key: &str, messages: Vec<Value>, max_tokens: u32) -> Result<Va
         .map_err(|error| if error.is_timeout() {
             "DeepSeek 响应超时，请重试。"
         } else {
-            "连接 DeepSeek 失败，请检查网络或代理。"
+            "无法连接 api.deepseek.com，请检查本机网络、DNS 或代理。"
         }.to_owned())?;
     if !response.status().is_success() {
         return Err(error_for_status(response.status()).into());
