@@ -35,7 +35,7 @@
 - 「网站进程」反映管理器启动的进程，「本机回源」检查 `127.0.0.1:8080/api/health`，「检查公网」可以单独探测公网域名。切换既有部署时，先用原管理工具停止占用 8080 的服务。
 - 「测试 DeepSeek」使用网页后台配置向官方接口发送一条最小请求，检查实际回复；本机数据库或网站尚未启动时也能测试。日志区区分密钥、余额、DNS、代理、网络权限和超时故障。命令行可运行 `npm.cmd run check:ai --workspace @stepmark/web`。
 - 从同一运行下载 `StepMark-Windows-Local-unsigned-preview`。个人客户端的「连接设置 → 测试连接」检查本机到 DeepSeek。网页 AI 的 API Key 与桌面端凭据分别配置。
-- 如果需要从本机开发环境跑真实模型对照，可在仓库目录执行 `npm.cmd run evaluate:measurement --workspace @stepmark/web -- --live`。脚本只发送仓库里的 20 条合成样例，输出匹配、误收和漏收数量。
+- 从普通 Windows PowerShell 在仓库目录执行 `npm.cmd run evaluate:measurement --workspace @stepmark/web -- --live --repeats 2`，可以复跑真实模型对照。脚本发送 49 条合成用例，每条测试两次。运行完成后可在项目缓存查看报告。参见[评测方法](../../docs/validation/ai-comparison-protocol-v2.md)和[实测结果](../../docs/validation/live-deepseek-comparison-2026-11-26.md)。
 
 本机模式监听 `127.0.0.1:8080`，只接收该地址的直接请求。公网部署使用现有的 HTTPS 入口和对应配置，参见 [公网部署](../README.md)。
 

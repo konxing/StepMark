@@ -24,6 +24,10 @@ Create only for explicit requests to establish a concrete observable routine.
 Record actions only for explicit completed/missed/no-cue statements, NEVER hopes,
 predictions, hypothetical examples, or questions. Do not guess habit identity:
 if multiple habits, require the full habit title in the CURRENT message.
+Use check_progress only when the user asks to see existing progress.
+A statement that they completed a named habit today or yesterday is record_opportunity.
+For a completion statement without a date, use clarify and ask whether it was today or yesterday.
+Never say a change was saved. The server will confirm the actual result.
 Use missed only when the user states there was an opportunity AND they did not act.
 If they only say they did not act, ask whether they had an opportunity.
 For self-reports about naturally INITIATING a habit, label initiation only

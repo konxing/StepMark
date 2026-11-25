@@ -24,6 +24,7 @@ const missedWords=/(没做|没完成|没有完成|未执行|没执行|没打卡|
 const noCueWords=/(没(?:有)?机会|没(?:有)?触发|(?:未遇到|没遇到|没(?:有)?出现)[^。！？!?]{0,12}(?:触发|机会|时机))/u;
 const opportunityWords=/(有(?:过|个)?机会|本来可以|(?:遇到|等到)(?:了)?(?:预设的|约定的)?(?:触发|机会|时机))/u;
 const reflectionWords=/(感觉|感受|自然|不用思考|没想|纠结|犹豫|抗拒|费力|顺手|轻松|自然而然)/u;
+const completionPrefix=/^(?:我\s*)?(?:(今天|昨天)\s*)?(?:已经\s*)?(?:完成了|已完成|做了)\s*$/u;
 /**
  * Never let the AI's confident intent label turn a conditional example,
  * future plan, somebody else's actions, or a no-record instruction into a
@@ -32,6 +33,15 @@ const reflectionWords=/(感觉|感受|自然|不用思考|没想|纠结|犹豫|�
 const nonActualEventWords=/(如果|假如|假设|假定|例如|比如|举个例子|打算|计划|想打卡|准备打卡|明天|后天|下周|下个月|将来|以后会|可能|也许|希望明天|我准备|模拟|演示|测试一下|先不要记录|别记录|不用记录|不要记)/u;
 const thirdPartyActor=/(?:我的?朋友|我的?同事|同学|老师|别人|他|她|他们|她们)[^。！？!?]{0,24}(?:完成了|做了|执行了|阅读了|跑了|练了|练习了|没做|没完成)/u;
 
+function completionStatementDay(text:string,title:string):"today"|"yesterday"|null|undefined {
+  const statement=text.trim().replace(/[。.!！]+$/u,"").trimEnd();
+  if(!statement.endsWith(title))return undefined;
+  const prefix=completionPrefix.exec(statement.slice(0,-title.length));
+  if(!prefix)return undefined;
+  if(prefix[1]==="今天")return "today";
+  if(prefix[1]==="昨天")return "yesterday";
+  return null;
+}
 
 function clarification(message:string):SafeAssistantCommand {
   return {intent:"clarify",habitId:null,title:null,action:null,cue:null,
@@ -45,9 +55,9 @@ function clarification(message:string):SafeAssistantCommand {
 export function authorizeAssistantCommand(raw:unknown,userText:string,habits:readonly OwnedHabit[]):SafeAssistantCommand{
   const parsed=commandSchema.safeParse(raw);
   if(!parsed.success)return clarification("我没能可靠理解这条消息，能再说明一次吗？");
-  const v=parsed.data;
+  let v=parsed.data;
   const all=habits.filter(x=>x.id===v.habitId);
-  let target=all.length===1?all[0]!:null;
+  const target=all.length===1?all[0]!:null;
   if(v.intent==="chat"||v.intent==="clarify")return {...v,target:null};
   if(v.intent==="create_habit"){
     if(question.test(userText)||!createWords.test(userText)||!v.title?.trim()||
@@ -70,7 +80,15 @@ export function authorizeAssistantCommand(raw:unknown,userText:string,habits:rea
     if(named.length!==1||named[0]!.id!==target.id)
       return clarification("为了避免把记录写进错误的习惯，请在这句话里直接说出完整习惯名称。");
   }
-  if(v.intent==="check_progress")return {...v,target};
+  if(v.intent==="check_progress"){
+    const statedDay=v.status==="done"?completionStatementDay(userText,target.title):undefined;
+    if(statedDay===undefined)return {...v,target};
+    if(statedDay===null||statedDay!==v.when)
+      return clarification("请明确说出今天还是昨天完成了这项习惯。");
+    // Recover a mistagged completion only for a standalone statement about the
+    // selected habit. The regular ownership, date and event checks still apply.
+    v={...v,intent:"record_opportunity",initiationLevel:null,quote:null};
+  }
   if(!userText.includes(target.title))
     return clarification("为了避免把消息误写到另一项习惯，请在这句话里直接说出习惯的完整名称。");
   if(nonActualEventWords.test(userText)||thirdPartyActor.test(userText))
