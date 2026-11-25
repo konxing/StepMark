@@ -115,7 +115,7 @@ test("habit note stays evidence-only through the common gateway",async()=>{
     const coded=await judgeHabitNote("看到电脑就自然而然打开了笔记");
     assert.equal(coded.level,4);
     assert.equal(coded.modelId,"model-v1");
-    assert.equal(coded.promptVersion,"habit-note-coding-v1");
+    assert.equal(coded.promptVersion,"habit-note-coding-v2");
   }finally{
     globalThis.fetch=originalFetch;
     for(const [name,value] of Object.entries({

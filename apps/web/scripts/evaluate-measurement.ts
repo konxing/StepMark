@@ -32,7 +32,8 @@ function sourceFingerprint(){
     "apps/web/scripts/evaluate-measurement.ts","apps/web/scripts/measurement-cases.ts",
     "apps/web/scripts/measurement-metrics.ts","apps/web/scripts/measurement-invariants.ts",
     "apps/web/src/server/assistant-provider.ts","apps/web/src/server/assistant-command.ts",
-    "apps/web/src/server/habit-ai.ts","apps/web/src/server/work-evidence.ts",
+    "apps/web/src/server/habit-ai.ts","apps/web/src/server/habit-annotation-grounding.ts",
+    "apps/web/src/server/work-evidence.ts",
     "apps/web/src/server/ai-gateway.ts","apps/web/src/server/ai-network.ts",
     "packages/core/src/habit-progress.ts","packages/core/src/measurement-evidence.ts"
   ].map(path=>path+"\n"+hash(readFileSync(resolve(projectDirectory,path),"utf8").replace(/\r\n/g,"\n"))).join("\n"));

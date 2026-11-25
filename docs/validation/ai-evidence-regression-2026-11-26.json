@@ -1,0 +1,148 @@
+{
+  "schemaVersion": "stepmark-grounding-regression-v1",
+  "reportDate": "2026-11-26",
+  "evaluationType": "synthetic faulty-candidate replay; not an AI-versus-no-AI efficacy trial",
+  "datasetSha256": "32259dcc8b484b917b79ec30005b1b10ff838c3d015614aecebe71250dd511f0",
+  "sourceFingerprintSha256": "19943521c180be5a6ad25e44b66da28b15cd92065b14973970bda9388b768d85",
+  "habit": {
+    "cases": 14,
+    "negativeCases": 8,
+    "falsePositivesBefore": 8,
+    "falsePositivesAfter": 0,
+    "exactPositiveLevelsBefore": 6,
+    "exactPositiveLevelsAfter": 6,
+    "rows": [
+      {
+        "id": "forced",
+        "expected": 0,
+        "before": 0,
+        "after": 0
+      },
+      {
+        "id": "deliberation",
+        "expected": 1,
+        "before": 1,
+        "after": 1
+      },
+      {
+        "id": "hesitation",
+        "expected": 2,
+        "before": 2,
+        "after": 2
+      },
+      {
+        "id": "natural",
+        "expected": 3,
+        "before": 3,
+        "after": 3
+      },
+      {
+        "id": "automatic",
+        "expected": 4,
+        "before": 4,
+        "after": 4
+      },
+      {
+        "id": "negated-automatic",
+        "expected": 1,
+        "before": 1,
+        "after": 1
+      },
+      {
+        "id": "completion-only",
+        "expected": null,
+        "before": 4,
+        "after": null
+      },
+      {
+        "id": "proficiency-only",
+        "expected": null,
+        "before": 4,
+        "after": null
+      },
+      {
+        "id": "future-only",
+        "expected": null,
+        "before": 4,
+        "after": null
+      },
+      {
+        "id": "third-party",
+        "expected": null,
+        "before": 4,
+        "after": null
+      },
+      {
+        "id": "hypothetical",
+        "expected": null,
+        "before": 4,
+        "after": null
+      },
+      {
+        "id": "book-quote",
+        "expected": null,
+        "before": 4,
+        "after": null
+      },
+      {
+        "id": "duration-only",
+        "expected": null,
+        "before": 4,
+        "after": null
+      },
+      {
+        "id": "mood-only",
+        "expected": null,
+        "before": 4,
+        "after": null
+      }
+    ]
+  },
+  "workQuoteBoundaries": [
+    {
+      "id": "action-ending-period",
+      "expectedStage": 1,
+      "before": null,
+      "after": 1
+    },
+    {
+      "id": "outcome-ending-period",
+      "expectedStage": 2,
+      "before": 1,
+      "after": 2
+    }
+  ],
+  "workExistingRegression": {
+    "cases": 20,
+    "correctActions": 12,
+    "expectedActions": 12,
+    "correctResults": 8,
+    "expectedResults": 8
+  },
+  "scoringInvariants": {
+    "twentyMildHesitation": 33,
+    "ninetyNoRatings": 36.2,
+    "ninetyAiOnly": 36.2,
+    "ninetyRepeatedNatural": 91.2,
+    "ninetyNaturalWithAi": 91.2,
+    "observedFourOfTwelve": 79.9,
+    "noNewRecordsForSixtyDays": 91.2,
+    "independentTaskDifferencePoints": 33
+  },
+  "liveAttempt": {
+    "startedAt": "2026-11-25T16:29:48.642Z",
+    "status": "blocked",
+    "plannedCalls": 98,
+    "attemptedCalls": 1,
+    "successfulCalls": 0,
+    "errors": [
+      "AI_NETWORK_BLOCKED"
+    ]
+  },
+  "limitations": [
+    "Existing synthetic cases were used during development, not an independent holdout.",
+    "Faulty proposals are hand-built; they are not observed DeepSeek errors.",
+    "AI score improvement and real-world false-positive rates remain unmeasured.",
+    "Single-note levels are provisional; they are not a validated SRBAI scale or calibrated ability score."
+  ]
+}

@@ -49,7 +49,9 @@ function sourceSpan(message:string,quote:string){
     quote.split(sentenceBoundary).filter(part=>part.trim()).length!==1)return null;
   const end=start+quote.length;
   const before=message.slice(0,start).split(sentenceBoundary).at(-1)??"";
-  const after=message.slice(end).split(sentenceBoundary)[0]??"";
+  // A quoted terminal mark already closes this sentence. Do not pull a later
+  // plan, question or result into the evidence being checked.
+  const after=/[。.!！；;\r\n]\s*$/u.test(quote)?"":message.slice(end).split(sentenceBoundary)[0]??"";
   if(insideQuotation(message,start)||/^[？?]/u.test(message.slice(end+after.length)))return null;
   return {start,end,clause:before+quote+after};
 }
