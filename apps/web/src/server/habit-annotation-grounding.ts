@@ -9,7 +9,7 @@ const initiation=/(?:开始|启动|拿起|翻开|打开|动手|着手|迈出|起
 const effort=/(?:抗拒|强迫|逼自己|纠结|犹豫|费劲|费力|挣扎|刻意|反复考虑|提醒)|\b(?:resist\w*|forc\w*|hesitat\w*|deliberat\w*|effort\w*|remind\w*)\b/iu;
 const natural=/(?:自然|顺手|自发|下意识|不假思索|自动)|(?:不|无)(?:用|需|须|必|要)[^，,。！？!?]{0,8}(?:思考|考虑|提醒)|(?:没|没有)[^，,。！？!?]{0,5}(?:思考|考虑)|\b(?:automatic\w*|naturally|spontaneous\w*|without thinking)\b/iu;
 const automatic=/(?:下意识|不假思索|自然而然|不经思考|自动就|自动开始)|(?:不|无)(?:用|需|须|必|要)[^，,。！？!?]{0,5}(?:思考|考虑)|(?:没|没有)[^，,。！？!?]{0,5}(?:思考|考虑)|\b(?:automatically|without (?:thinking|conscious|deliberation))\b/iu;
-const negatedNatural=/(?:并?不是|并非|谈不上|算不上|做不到|还不能|不能|不再|并不|没有|没)\s*(?:做到)?(?:那么|这么|很|真的|真正|完全)?\s*(?:不用|无需|自然|自发|自动|下意识|不假思索|没(?:有)?(?:经过)?(?:思考|考虑))|\b(?:not|never|cannot)\s+(?:automatic\w*|natural\w*|spontaneous\w*)/iu;
+const negatedNatural=/(?:并?不是|并非|谈不上|算不上|做不到|还不能|不能|不再|并不|没有|没|不)\s*(?:做到)?(?:那么|这么|很|太|够|怎么|真的|真正|完全)?\s*(?:不用|无需|自然|自发|自动|下意识|不假思索|没(?:有)?(?:经过)?(?:思考|考虑))|\b(?:not|never|cannot)\s+(?:automatic\w*|natural\w*|spontaneous\w*)/iu;
 
 function insideQuotation(text:string,offset:number){
   const endings:string[]=[];

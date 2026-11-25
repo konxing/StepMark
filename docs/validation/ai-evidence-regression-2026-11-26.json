@@ -3,7 +3,7 @@
   "reportDate": "2026-11-26",
   "evaluationType": "synthetic faulty-candidate replay; not an AI-versus-no-AI efficacy trial",
   "datasetSha256": "32259dcc8b484b917b79ec30005b1b10ff838c3d015614aecebe71250dd511f0",
-  "sourceFingerprintSha256": "19943521c180be5a6ad25e44b66da28b15cd92065b14973970bda9388b768d85",
+  "sourceFingerprintSha256": "5ba23a4a7d849614f51189088a98b386f411b0e32dc6c0158165f8e4f225330e",
   "habit": {
     "cases": 14,
     "negativeCases": 8,
@@ -137,7 +137,8 @@
     "successfulCalls": 0,
     "errors": [
       "AI_NETWORK_BLOCKED"
-    ]
+    ],
+    "sourceFingerprintSha256": "19943521c180be5a6ad25e44b66da28b15cd92065b14973970bda9388b768d85"
   },
   "limitations": [
     "Existing synthetic cases were used during development, not an independent holdout.",
