@@ -15,17 +15,25 @@ export function evidenceMetrics(examples:readonly Example[],outputs:readonly unk
   if(available&&available.length!==outputs.length)throw new Error("EVALUATION_LENGTH_MISMATCH");
   let expectedActions=0,savedActions=0,correctActions=0,expectedResults=0,savedResults=0,correctResults=0;
   const rows=examples.map((example,index)=>{
-    const found=candidates(outputs[index]),expected=example.expected;
-    const matching=expected?found.find(row=>row.domain===expected.domain&&
-      normalize(row.actionQuote)===normalize(expected.actionQuote)):undefined;
-    const actionCorrect=Boolean(matching);
-    const resultCorrect=Boolean(matching?.outcomeQuote&&expected?.outcomeQuote&&
-      normalize(matching.outcomeQuote)===normalize(expected.outcomeQuote));
+    const found=candidates(outputs[index]);
+    const expected=example.expected===null?[]:"domain" in example.expected?[example.expected]:example.expected;
+    const unmatched=[...found];
+    let actionCorrect=0,resultCorrect=0;
+    for(const wanted of expected){
+      const matchIndex=unmatched.findIndex(item=>item.domain===wanted.domain&&
+        normalize(item.actionQuote)===normalize(wanted.actionQuote));
+      if(matchIndex<0)continue;
+      const matching=unmatched.splice(matchIndex,1)[0]!;
+      actionCorrect++;
+      if(matching.outcomeQuote&&wanted.outcomeQuote&&
+        normalize(matching.outcomeQuote)===normalize(wanted.outcomeQuote))resultCorrect++;
+    }
     const resultCount=found.filter(row=>row.outcomeQuote!==null).length;
-    const exact=available?.[index]!==false&&found.length===Number(Boolean(expected))&&actionCorrect===Boolean(expected)&&
-      resultCount===Number(Boolean(expected?.outcomeQuote))&&resultCorrect===Boolean(expected?.outcomeQuote);
-    expectedActions+=Number(Boolean(expected));savedActions+=found.length;correctActions+=Number(actionCorrect);
-    expectedResults+=Number(Boolean(expected?.outcomeQuote));savedResults+=resultCount;correctResults+=Number(resultCorrect);
+    const resultsExpected=expected.filter(item=>item.outcomeQuote!==null).length;
+    const exact=available?.[index]!==false&&found.length===expected.length&&actionCorrect===expected.length&&
+      resultCount===resultsExpected&&resultCorrect===resultsExpected;
+    expectedActions+=expected.length;savedActions+=found.length;correctActions+=actionCorrect;
+    expectedResults+=resultsExpected;savedResults+=resultCount;correctResults+=resultCorrect;
     return {id:example.id,correct:exact};
   });
   return {cases:examples.length,expectedActions,savedActions,correctActions,

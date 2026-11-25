@@ -1,7 +1,7 @@
 import type {WorkDomain} from "../src/server/work-evidence";
 
 export type Candidate={domain:WorkDomain;actionQuote:string;outcomeQuote:string|null};
-export type Example={id:string;message:string;expected:Candidate|null;fixture:Candidate[]};
+export type Example={id:string;message:string;expected:Candidate|readonly Candidate[]|null;fixture:Candidate[]};
 const reasoning:Candidate={domain:"thinking",actionQuote:"我比较了两套故障解释",outcomeQuote:"结果发现刷新缓存后仍可复现"};
 const say=(candidate:Candidate)=>[candidate.actionQuote,candidate.outcomeQuote].filter(Boolean).join("。")+"。";
 const positive=(id:string,domain:WorkDomain,actionQuote:string,outcomeQuote:string|null):Example=>{

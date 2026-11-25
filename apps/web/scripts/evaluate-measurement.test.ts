@@ -1,8 +1,11 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
+import {createHash} from "node:crypto";
 import {evidenceMetrics,classificationMetrics,pairedCases,exactDecision,decision} from "./measurement-metrics";
 import {workExamples,commandExamples,habitExamples} from "./measurement-cases";
+import {challengeCases} from "./measurement-challenge-cases";
 import {authorizeAssistantCommand} from "../src/server/assistant-command";
+import {validateHabitAnnotation} from "../src/server/habit-ai";
 
 test("duplicate records lower precision, missing records lower recall, empty output is not a winning baseline",()=>{
   const example=workExamples[0]!;
@@ -43,4 +46,48 @@ test("a wrong habit, status or day is not a correct action even if its intent ma
   assert(!exactDecision(expected,{...expected,habitId:"two"}));
   assert(!exactDecision(expected,{...expected,when:"yesterday"}));
   assert(!exactDecision(expected,{...expected,status:"missed"}));
+});
+
+test("the 30 challenge cases leave the original 49-case dataset unchanged",()=>{
+  const original=JSON.stringify({workExamples,habitExamples,commandExamples});
+  assert.equal(createHash("sha256").update(original).digest("hex"),
+    "32259dcc8b484b917b79ec30005b1b10ff838c3d015614aecebe71250dd511f0");
+  for(const set of [challengeCases.workExamples,challengeCases.habitExamples,challengeCases.commandExamples]){
+    assert.equal(set.length,10);
+    assert.equal(new Set(set.map(example=>example.id)).size,set.length);
+  }
+});
+
+test("multiple actions must each match and receive their own result",()=>{
+  const example=challengeCases.workExamples.find(row=>row.id==="separate-actions")!;
+  const [first,second]=example.fixture;
+  assert(first&&second);
+  assert.equal(evidenceMetrics([example],[[second,first]]).exactCaseAccuracy,1);
+  const missing=evidenceMetrics([example],[[first]]);
+  assert.equal(missing.missedActions,1);
+  assert.equal(missing.missedResults,1);
+  const mixed=evidenceMetrics([example],[[{...first,outcomeQuote:second.outcomeQuote},
+    {...second,outcomeQuote:first.outcomeQuote}]]);
+  assert.equal(mixed.correctActions,2);
+  assert.equal(mixed.correctResults,0);
+  assert.equal(mixed.exactCaseAccuracy,0);
+});
+
+test("challenge diary fixtures preserve levels and reject evidence from completed or borrowed actions",()=>{
+  for(const example of challengeCases.habitExamples){
+    const proposal={initiationLevel:example.expected??4,confidence:0.95,quote:example.note};
+    assert.equal(validateHabitAnnotation(proposal,example.note,"fixture").level,example.expected,example.id);
+  }
+});
+
+test("challenge command fixtures preserve intended actions and reject ambiguous writes",()=>{
+  for(const example of challengeCases.commandExamples){
+    const {expected}=example;
+    const proposal={intent:expected.kind==="progress"?"check_progress":"record_opportunity",
+      habitId:expected.kind==="opportunity"||expected.kind==="progress"?expected.habitId:example.habits[0]!.id,
+      title:null,action:null,cue:null,status:expected.kind==="opportunity"?expected.status:"done",
+      when:expected.kind==="opportunity"?expected.when:"today",initiationLevel:null,confidence:0.95,
+      quote:null,reply:"Fixture"};
+    assert.deepEqual(decision(authorizeAssistantCommand(proposal,example.message,example.habits)),expected,example.id);
+  }
 });
