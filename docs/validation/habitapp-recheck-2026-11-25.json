@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "habitapp-recheck-v1",
+  "verifiedOn": "2026-11-25",
+  "result": {
+    "status": "descriptive_external_data_check",
+    "sourceCommit": "fa3166af37f9344be59c499480ada8c28c194ace",
+    "sourceBlobSha": "66f46ddb154b58c5115c4ef4d803fbce1b9bdb50",
+    "rowCount": 1056,
+    "participantCount": 133,
+    "pairedParticipantCount": 133,
+    "groups": [
+      {
+        "group": "long_training",
+        "pairedParticipants": 45,
+        "meanLog1pContrast": 1.760377,
+        "medianLog1pContrast": 1.791759,
+        "fractionValuedHigher": 0.955556
+      },
+      {
+        "group": "long_training_parallel_manipulations",
+        "pairedParticipants": 43,
+        "meanLog1pContrast": 1.162632,
+        "medianLog1pContrast": 1.006805,
+        "fractionValuedHigher": 0.790698
+      },
+      {
+        "group": "short_training",
+        "pairedParticipants": 45,
+        "meanLog1pContrast": 2.046319,
+        "medianLog1pContrast": 1.94591,
+        "fractionValuedHigher": 0.955556
+      }
+    ],
+    "scope": "Only pairs of experimental response counts under valued vs devalued conditions; does not validate a habit automaticity percentage, causal habit formation time, or ability score."
+  },
+  "aiComparison": {
+    "status": "not_applicable",
+    "reason": "The source has experimental response counts, not paired AI/no-AI annotations or StepMark skill outcomes."
+  }
+}
