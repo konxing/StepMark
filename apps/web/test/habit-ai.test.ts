@@ -6,7 +6,7 @@ test("AI annotation must quote exact diary evidence and be confident",()=>{
   const good=validateHabitAnnotation({initiationLevel:4,confidence:.9,quote:"自然而然打开了笔记"},
     note,"model-v1");
   assert.equal(good.level,4);
-  assert.equal(good.promptVersion,"habit-note-coding-v1");
+  assert.equal(good.promptVersion,"habit-note-coding-v2");
   assert.equal(validateHabitAnnotation({initiationLevel:4,confidence:.9,quote:"我从不拖延"},
     note,"model-v1").level,null);
   assert.equal(validateHabitAnnotation({initiationLevel:4,confidence:.1,quote:"自然而然打开了笔记"},
