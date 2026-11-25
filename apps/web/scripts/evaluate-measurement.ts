@@ -1,157 +1,191 @@
 import assert from "node:assert/strict";
-import {config as loadEnvironment} from "dotenv";
-import {calculateHabitProgress,describePublicReasoningEvidence,type InitiationEvidence,type ObservedForm} from "@stepmark/core";
-import {assistantProviderConfig,proposeAssistantCommand} from "../src/server/assistant-provider";
-import {groundedWorkEvidence,type WorkDomain} from "../src/server/work-evidence";
+import {createHash} from "node:crypto";
+import {mkdirSync,readFileSync,renameSync,writeFileSync} from "node:fs";
+import {resolve} from "node:path";
+import {fileURLToPath} from "node:url";
+import {loadEnvConfig} from "@next/env";
+import {resolveAiProvider} from "../src/server/ai-gateway";
+import {proposeAssistantCommand} from "../src/server/assistant-provider";
+import {judgeHabitNote} from "../src/server/habit-ai";
+import {authorizeAssistantCommand} from "../src/server/assistant-command";
+import {groundedWorkEvidence} from "../src/server/work-evidence";
+import {safeAiErrorCode} from "../src/server/ai-network";
+import {workExamples,habitExamples,commandExamples,type Decision} from "./measurement-cases";
+import {candidates,evidenceMetrics,ruleWorkEvidence,ruleHabitLevel,ruleCommand,
+  decision,exactDecision,classificationMetrics,pairedCases} from "./measurement-metrics";
+import {habitComparison} from "./measurement-invariants";
 
-type Candidate={domain:WorkDomain;actionQuote:string;outcomeQuote:string|null};
-type Example={id:string;message:string;expected:Candidate|null;fixture:Candidate[]};
-const reasoning:Candidate={domain:"thinking",actionQuote:"我比较了两套故障解释",outcomeQuote:"结果发现刷新缓存后仍可复现"};
-const say=(candidate:Candidate)=>[candidate.actionQuote,candidate.outcomeQuote].filter(Boolean).join("。")+"。";
-const positive=(id:string,domain:WorkDomain,actionQuote:string,outcomeQuote:string|null):Example=>{
-  const expected={domain,actionQuote,outcomeQuote};
-  return {id,message:say(expected),expected,fixture:[expected]};
-};
-const rejection=(id:string,message:string,fixture:Candidate=reasoning):Example=>({
-  id,message,expected:null,fixture:[fixture]
-});
-const planned="结果预计会减少两次返工";
-const examples:Example[]=[
-  positive("diagnosis","thinking",reasoning.actionQuote,reasoning.outcomeQuote),
-  positive("expression","expression","我写了一份给新同事看的排查说明","对方反馈用说明定位到了问题"),
-  positive("fact-check","observation","我测量了十二次接口延迟","实测中位数是四十毫秒"),
-  positive("check-forecast","prediction","我验证了昨天的延迟预测","结果偏差只有三毫秒"),
-  positive("transfer","learning","我用了二分法排查另一段日志","结果三轮就定位到问题"),
-  positive("delivery","creation","我交付了修订后的数据核对表",null),
-  positive("coordination","collaboration","我讨论了两个处理方案并和队友达成一致","收到反馈确认本轮分工可行"),
-  positive("direction","direction","我决定了先做恢复验证来降低发布风险",null),
-  positive("ai-reviewed","thinking","我检查了AI方案里的三条假设","结果发现第三条假设不符合实测数据"),
-  {id:"two-actions",message:`${reasoning.actionQuote}。我检查了另一个项目的脚本。${reasoning.outcomeQuote}。`,
-    expected:{...reasoning,outcomeQuote:null},fixture:[reasoning]},
-  {id:"projected-outcome",message:`${reasoning.actionQuote}。${planned}。`,
-    expected:{...reasoning,outcomeQuote:null},fixture:[{...reasoning,outcomeQuote:planned}]},
-  {id:"suggested-twice",message:say(reasoning),expected:reasoning,
-    fixture:[reasoning,{...reasoning,domain:"observation"}]},
-  rejection("conditional","假设"+say(reasoning)),
-  rejection("question",reasoning.actionQuote+"？"),
-  rejection("borrowed-quote",`转述同事的原文：“运行情况如下。${say(reasoning)}”`),
-  rejection("privacy-opt-out","这条别记录。"+say(reasoning)),
-  rejection("future","明天"+say(reasoning)),
-  rejection("assistant-delegation","我请AI写了完整的系统设计文档",{
-    domain:"creation",actionQuote:"我请AI写了完整的系统设计文档",outcomeQuote:null
-  }),
-  rejection("invented-quote","我想了解怎么排查间歇性故障。"),
-  rejection("demo","举个例子。"+say(reasoning))
-];
-
-const normalize=(value:string)=>value.normalize("NFKC").replace(/\s+/gu,"").replace(/[。.!！]+$/u,"");
-function proposals(value:unknown){
-  if(!Array.isArray(value))return [];
-  return value.filter((row):row is Candidate=>Boolean(row)&&typeof row==="object"&&
-    typeof row.domain==="string"&&typeof row.actionQuote==="string"&&
-    (row.outcomeQuote===null||typeof row.outcomeQuote==="string"));
+const webDirectory=fileURLToPath(new URL("..",import.meta.url));
+const projectDirectory=resolve(webDirectory,"../..");
+const outputDirectory=resolve(projectDirectory,"node_modules/.cache/stepmark-measurement");
+const benchmarkUser="synthetic-measurement-owner";
+type RunRow={suite:"work"|"habit"|"command";id:string;repeat:number;elapsedMs:number;ok:boolean;
+  raw?:unknown;guarded?:unknown;modelOutput?:unknown;error?:string};
+type Report={schemaVersion:"stepmark-ai-comparison-v2";source:"synthetic_regression_cases";
+  mode:"offline_fixtures"|"live_official_deepseek";status:"running"|"completed"|"completed_with_errors"|"blocked";
+  startedAt:string;finishedAt?:string;model:string|null;repeats:number;plannedCalls:number;
+  datasetSha256:string;sourceFingerprintSha256:string;casesPerRepeat:{work:number;habit:number;command:number};
+  limitations:string[];rows:RunRow[];offline:unknown;comparison?:ReturnType<typeof comparison>};
+function hash(value:string){return createHash("sha256").update(value).digest("hex");}
+function sourceFingerprint(){
+  return hash([
+    "apps/web/scripts/evaluate-measurement.ts","apps/web/scripts/measurement-cases.ts",
+    "apps/web/scripts/measurement-metrics.ts","apps/web/scripts/measurement-invariants.ts",
+    "apps/web/src/server/assistant-provider.ts","apps/web/src/server/assistant-command.ts",
+    "apps/web/src/server/habit-ai.ts","apps/web/src/server/work-evidence.ts",
+    "apps/web/src/server/ai-gateway.ts","apps/web/src/server/ai-network.ts",
+    "packages/core/src/habit-progress.ts","packages/core/src/measurement-evidence.ts"
+  ].map(path=>path+"\n"+hash(readFileSync(resolve(projectDirectory,path),"utf8").replace(/\r\n/g,"\n"))).join("\n"));
 }
-function evaluate(outputs:unknown[]){
-  const metrics={cases:examples.length,expectedActions:0,savedActions:0,correctActions:0,incorrectDomains:0,
-    expectedResults:0,savedResults:0,correctResults:0};
-  const discrepancies:string[]=[];
-  for(let index=0;index<examples.length;index++){
-    const example=examples[index]!;
-    const expected=example.expected;
-    const found=proposals(outputs[index]);
-    const matchingAction=expected?found.find(row=>normalize(row.actionQuote)===normalize(expected.actionQuote)):undefined;
-    const correctAction=Boolean(matchingAction&&expected&&matchingAction.domain===expected.domain);
-    const correctResult=Boolean(correctAction&&matchingAction?.outcomeQuote&&expected?.outcomeQuote&&
-      normalize(matchingAction.outcomeQuote)===normalize(expected.outcomeQuote));
-    metrics.expectedActions+=Number(Boolean(expected));
-    metrics.savedActions+=found.length;
-    metrics.correctActions+=Number(correctAction);
-    metrics.incorrectDomains+=Number(Boolean(matchingAction)&&!correctAction);
-    metrics.expectedResults+=Number(Boolean(expected?.outcomeQuote));
-    metrics.savedResults+=found.filter(row=>row.outcomeQuote!==null).length;
-    metrics.correctResults+=Number(correctResult);
-    if(found.length!==(expected?1:0)||Boolean(expected)!==correctAction||
-      Boolean(expected?.outcomeQuote)!==correctResult||found.filter(row=>row.outcomeQuote!==null).length!==(expected?.outcomeQuote?1:0)){
-      discrepancies.push(example.id);
-    }
+function storeReport(report:Report){
+  mkdirSync(outputDirectory,{recursive:true});
+  const content=JSON.stringify(report,null,2)+"\n";
+  const name=report.mode==="offline_fixtures"?"latest-offline.json":"latest-attempt.json";
+  const target=resolve(outputDirectory,name);
+  writeFileSync(target+".tmp",content);renameSync(target+".tmp",target);
+  if(report.mode==="live_official_deepseek"&&report.status.startsWith("completed")){
+    writeFileSync(resolve(outputDirectory,"latest-live.json"),content);
+    const stamp=report.startedAt.replace(/[:.]/g,"-");
+    writeFileSync(resolve(outputDirectory,"live-"+stamp+".json"),content);
+    writeFileSync(resolve(outputDirectory,"latest-live.md"),markdownReport(report));
   }
-  return {...metrics,falseActions:metrics.savedActions-metrics.correctActions,
-    falseResults:metrics.savedResults-metrics.correctResults,discrepancies};
 }
-
-function habitComparison(){
-  const day=86400000,nowMs=1800000000000;
-  const input={completedRepetitions:90,completedOpportunities:90,eligibleOpportunities:100,
-    nowMs,recentOpportunities:{completed:12,eligible:12}};
-  const selfRatings:InitiationEvidence[]=[1,13,25].map(days=>({
-    atMs:nowMs-days*day,level:4,confidence:1,source:"self_report"
-  }));
-  const aiRatings=selfRatings.map(rating=>({...rating,source:"ai_interpretation" as const}));
-  const control=calculateHabitProgress({...input,observations:[]});
-  const aiOnly=calculateHabitProgress({...input,observations:aiRatings});
-  const self=calculateHabitProgress({...input,observations:selfRatings});
-  const both=calculateHabitProgress({...input,observations:[...selfRatings,...aiRatings]});
-  const manyMisses=calculateHabitProgress({...input,observations:selfRatings,recentOpportunities:{completed:4,eligible:12}});
-  const noNewRecords=calculateHabitProgress({...input,observations:selfRatings,nowMs:nowMs+60*day});
-  const twenty=calculateHabitProgress({
-    completedRepetitions:20,completedOpportunities:20,eligibleOpportunities:20,nowMs,
-    observations:[{atMs:nowMs-day,level:2,source:"self_report",confidence:1}]
+const writable=(value:Decision)=>["create","opportunity","reflection"].includes(value.kind);
+function comparison(rows:readonly RunRow[],repeats:number){
+  const runs=Array.from({length:repeats},(_,index)=>{
+    const round=rows.filter(row=>row.repeat===index+1);
+    const work=workExamples.map(example=>round.find(row=>row.suite==="work"&&row.id===example.id));
+    const rules=workExamples.map(example=>groundedWorkEvidence(ruleWorkEvidence(example.message),example.message,benchmarkUser));
+    const baseline=evidenceMetrics(workExamples,rules);
+    const raw=evidenceMetrics(workExamples,work.map(row=>row?.raw),work.map(row=>row?.ok??false));
+    const guarded=evidenceMetrics(workExamples,work.map(row=>row?.guarded),work.map(row=>row?.ok??false));
+    const habitRows=habitExamples.map(example=>{
+      const row=round.find(row=>row.suite==="habit"&&row.id===example.id);
+      const level=(row?.raw as {level?:number|null}|undefined)?.level??null;
+      return {id:example.id,correct:Boolean(row?.ok)&&level===example.expected,
+        falsePositive:example.expected===null&&level!==null,falseNegative:example.expected!==null&&level===null};
+    });
+    const ruleHabitRows=habitExamples.map(example=>{
+      const level=ruleHabitLevel(example.note);
+      return {id:example.id,correct:level===example.expected,
+        falsePositive:example.expected===null&&level!==null,falseNegative:example.expected!==null&&level===null};
+    });
+    const commandRows=(guardedValue:boolean)=>commandExamples.map(example=>{
+      const row=round.find(item=>item.suite==="command"&&item.id===example.id);
+      const actual=((guardedValue?row?.guarded:row?.raw) as Decision|undefined)??{kind:"none"};
+      return {id:example.id,correct:Boolean(row?.ok)&&exactDecision(example.expected,actual),
+        falsePositive:!writable(example.expected)&&writable(actual),
+        falseNegative:writable(example.expected)&&!writable(actual)};
+    });
+    const ruleRows=commandExamples.map(example=>{
+      const actual=decision(authorizeAssistantCommand(ruleCommand(example),example.message,example.habits));
+      return {id:example.id,correct:exactDecision(example.expected,actual),
+        falsePositive:!writable(example.expected)&&writable(actual),falseNegative:writable(example.expected)&&!writable(actual)};
+    });
+    const rawCommands=commandRows(false),safeCommands=commandRows(true);
+    return {repeat:index+1,work:{ruleBaseline:baseline,aiRaw:raw,aiGuarded:guarded,paired:pairedCases(baseline.rows,guarded.rows)},
+      habit:{ruleBaseline:classificationMetrics(ruleHabitRows),ai:classificationMetrics(habitRows),paired:pairedCases(ruleHabitRows,habitRows)},
+      command:{ruleBaseline:classificationMetrics(ruleRows),aiRaw:classificationMetrics(rawCommands),
+        aiGuarded:classificationMetrics(safeCommands),paired:pairedCases(ruleRows,safeCommands)}};
   });
-  assert.equal(aiOnly.progress,control.progress);
-  assert.equal(both.progress,self.progress);
-  assert.equal(noNewRecords.progress,self.progress);
-  assert.ok(manyMisses.progress<80&&self.progress>=80);
-  const forms:ObservedForm[]=["logic-a-v1","logic-b-v1"].map((code,index)=>({
-    code,status:"completed",total:6,attempted:6,correct:index===0?3:5,
-    completedAt:new Date(nowMs+(index*7-10)*day).toISOString(),integrityStatus:"verified"
-  }));
-  const measurement=describePublicReasoningEvidence(forms);
-  assert.equal(measurement.rawComparison?.rawDifferencePoints,33);
-  assert.equal(measurement.ability.theta,null);
-  return {twentyMildHesitation:twenty.progress,ninetyNoRatings:control.progress,ninetyAiOnly:aiOnly.progress,
-    ninetyRepeatedNatural:self.progress,ninetyNaturalWithAi:both.progress,observedFourOfTwelve:manyMisses.progress,
-    noNewRecordsForSixtyDays:noNewRecords.progress,independentTaskDifferencePoints:measurement.rawComparison.rawDifferencePoints};
+  const timing=rows.filter(row=>row.ok).map(row=>row.elapsedMs).sort((a,b)=>a-b);
+  const quantile=(p:number)=>timing.length?timing[Math.ceil(p*timing.length)-1]!:null;
+  return {completedCalls:rows.length,successfulCalls:rows.filter(row=>row.ok).length,
+    failedCalls:rows.filter(row=>!row.ok).length,latencyMs:{median:quantile(0.5),p95:quantile(0.95)},runs,
+    stability:[...workExamples.map(row=>({suite:"work",id:row.id})),...habitExamples.map(row=>({suite:"habit",id:row.id})),
+      ...commandExamples.map(row=>({suite:"command",id:row.id}))].map(item=>{
+      const observed=rows.filter(row=>row.suite===item.suite&&row.id===item.id&&row.ok);
+      return {...item,successfulRepeats:observed.length,distinctOutputs:new Set(observed.map(row=>
+        JSON.stringify(item.suite==="habit"?(row.raw as {level?:unknown})?.level:row.guarded))).size};
+    })};
+}
+const percent=(value:number|null)=>value===null?"—":(100*value).toFixed(1)+"%";
+function markdownReport(report:Report){
+  const table=(report.comparison?.runs??[]).flatMap(run=>[
+    `| ${run.repeat} | 成长证据整条正确率 | ${percent(run.work.ruleBaseline.exactCaseAccuracy)} | ${percent(run.work.aiGuarded.exactCaseAccuracy)} |`,
+    `| ${run.repeat} | 成长行动提取 F1 | ${percent(run.work.ruleBaseline.actionF1)} | ${percent(run.work.aiGuarded.actionF1)} |`,
+    `| ${run.repeat} | 习惯自然启动识别 | ${percent(run.habit.ruleBaseline.accuracy)} | ${percent(run.habit.ai.accuracy)} |`,
+    `| ${run.repeat} | 习惯操作识别 | ${percent(run.command.ruleBaseline.accuracy)} | ${percent(run.command.aiGuarded.accuracy)} |`
+  ]).join("\n");
+  return `# StepMark 真实 DeepSeek 对照测试\n\n状态：${report.status}；模型：${report.model}；成功调用：${report.comparison?.successfulCalls}/${report.plannedCalls}。\n\n`+
+    `数据指纹：\`${report.datasetSha256}\`。代码指纹：\`${report.sourceFingerprintSha256}\`。\n\n`+
+    `| 轮次 | 指标 | 固定关键词规则（评测对照） | DeepSeek 与产品校验 |\n|---|---|---:|---:|\n${table}\n\n`+
+    "关键词规则是评测用比较器，不是产品已有的无 AI 模式。产品手动填写流程的用户准确率和操作耗时未在本次测量。\n\n"+
+    "测试只包含仓库合成回归样例，不包含真实参与者或独立抽样数据。结果可以比较这些功能用例的识别表现，不能证明人的能力或习惯真正提升，也不能校准 0–100 评分。逐条模型结果、错误和重复稳定性见同目录 JSON。\n";
 }
 
 async function main(){
   const args=process.argv.slice(2);
-  if(args.some(arg=>arg!=="--live")||args.length>1)throw new Error("INVALID_EVALUATION_ARGS");
-  const live=args.includes("--live");
-  if(live)loadEnvironment({path:[".env.local",".env"],quiet:true});
-  // The benchmark's digest is private to these synthetic samples.
+  let live=false,repeats=1;
+  for(let i=0;i<args.length;i++){
+    if(args[i]==="--live"&&!live)live=true;
+    else if(args[i]==="--repeats"&&/^[1-3]$/.test(args[i+1]??""))repeats=Number(args[++i]);
+    else throw new Error("INVALID_EVALUATION_ARGS");
+  }
+  if(!live&&repeats!==1)throw new Error("REPEATS_REQUIRE_LIVE_EVALUATION");
+  if(live)loadEnvConfig(webDirectory,false,{info(){},error(){}});
   process.env.AI_ASSISTANT_DIGEST_SECRET="stepmark-synthetic-measurement-benchmark-key";
-  const applyGuard=(rows:unknown[])=>examples.map((example,index)=>
-    groundedWorkEvidence(rows[index],example.message,"synthetic-measurement-owner"));
-  const fixtures=examples.map(example=>example.fixture);
-  const fixtureReport=evaluate(applyGuard(fixtures));
-  console.log(JSON.stringify({
-    source:"synthetic examples; raw proposals in this section are hand-built fixtures",
-    noAiChatExtraction:evaluate(examples.map(()=>[])),ungroundedFixtures:evaluate(fixtures),
-    guardedFixtures:fixtureReport,habitProgress:habitComparison()
-  },null,2));
-  assert.equal(fixtureReport.falseActions,0);
-  assert.equal(fixtureReport.falseResults,0);
-  assert.equal(fixtureReport.correctActions,fixtureReport.expectedActions);
-  assert.equal(fixtureReport.correctResults,fixtureReport.expectedResults);
-  if(!live)return;
-  const provider=assistantProviderConfig();
-  if(provider.url!=="https://api.deepseek.com/chat/completions"||provider.model!=="deepseek-flash"){
-    throw new Error("LIVE_EVALUATION_REQUIRES_OFFICIAL_DEEPSEEK_FLASH");
+  const fixture=evidenceMetrics(workExamples,workExamples.map(example=>
+    groundedWorkEvidence(example.fixture,example.message,benchmarkUser)));
+  assert.equal(fixture.falseActions,0);assert.equal(fixture.falseResults,0);
+  assert.equal(fixture.correctActions,fixture.expectedActions);assert.equal(fixture.correctResults,fixture.expectedResults);
+  const report:Report={schemaVersion:"stepmark-ai-comparison-v2",source:"synthetic_regression_cases",
+    mode:live?"live_official_deepseek":"offline_fixtures",status:"running",startedAt:new Date().toISOString(),
+    model:null,repeats,plannedCalls:live?repeats*(workExamples.length+habitExamples.length+commandExamples.length):0,
+    datasetSha256:hash(JSON.stringify({workExamples,habitExamples,commandExamples})),sourceFingerprintSha256:sourceFingerprint(),
+    casesPerRepeat:{work:workExamples.length,habit:habitExamples.length,command:commandExamples.length},
+    limitations:["Synthetic regression cases; no participant data or population accuracy claim.",
+      "Rule baseline is an evaluation-only comparator, not deployed non-AI user behavior.",
+      "AI annotations cannot directly increase habit progress or ability scores.",
+      "Public longitudinal research data have no paired AI/no-AI labels and are not uploaded."],
+    rows:[],offline:{fixture,ruleWorkBaseline:evidenceMetrics(workExamples,workExamples.map(example=>
+      groundedWorkEvidence(ruleWorkEvidence(example.message),example.message,benchmarkUser))),habitProgress:habitComparison()}};
+  if(!live){report.status="completed";report.finishedAt=new Date().toISOString();storeReport(report);console.log(JSON.stringify(report,null,2));return;}
+  for(const purpose of ["assistant","habit"] as const){
+    const config=resolveAiProvider(purpose);
+    if(config.url!=="https://api.deepseek.com/chat/completions"||config.model!=="deepseek-flash")
+      throw new Error("LIVE_EVALUATION_REQUIRES_OFFICIAL_DEEPSEEK_FLASH");
   }
-  const liveOutputs:unknown[]=[];
-  const started=performance.now();
-  for(const example of examples){
-    const result=await proposeAssistantCommand(example.message,[],true);
-    liveOutputs.push(result.growthEvidence);
+  report.model="deepseek-flash";storeReport(report);
+  const tasks=[...workExamples.map(example=>({suite:"work" as const,id:example.id,run:async()=>{
+    const output=await proposeAssistantCommand(example.message,[],true);
+    return {raw:candidates(output.growthEvidence),guarded:groundedWorkEvidence(output.growthEvidence,example.message,benchmarkUser),
+      modelOutput:{plan:output.plan,growthEvidence:output.growthEvidence}};
+  }})),...habitExamples.map(example=>({suite:"habit" as const,id:example.id,run:async()=>({raw:await judgeHabitNote(example.note)})})),
+    ...commandExamples.map(example=>({suite:"command" as const,id:example.id,run:async()=>{
+      const output=await proposeAssistantCommand(example.message,example.habits,false);
+      return {raw:decision(output.plan),guarded:decision(authorizeAssistantCommand(output.plan,example.message,example.habits)),modelOutput:output.plan};
+    }}))];
+  console.log(`即将真实调用 DeepSeek ${report.plannedCalls} 次，仅发送 ${tasks.length} 条合成用例，不访问业务数据库。`);
+  let failedInARow=0;
+  for(let repeat=1;repeat<=repeats;repeat++)for(const task of tasks){
+    const start=performance.now();
+    try{
+      const value=await task.run();
+      report.rows.push({suite:task.suite,id:task.id,repeat,elapsedMs:Math.round(performance.now()-start),ok:true,...value});
+      failedInARow=0;
+    }catch(error){
+      const code=safeAiErrorCode(error)??(error instanceof Error&&/^[A-Z0-9_]+$/.test(error.message)?error.message:"EVALUATION_FAILED");
+      report.rows.push({suite:task.suite,id:task.id,repeat,elapsedMs:Math.round(performance.now()-start),ok:false,error:code});
+      failedInARow++;
+      const fatal=["AI_NETWORK_BLOCKED","AI_DNS_FAILED","AI_CONNECTION_REFUSED","AI_AUTHENTICATION_FAILED",
+        "AI_INSUFFICIENT_BALANCE","AI_MODEL_UNAVAILABLE","AI_PROXY_INVALID","AI_PROXY_RUNTIME_UNSUPPORTED"].includes(code);
+      if(fatal||failedInARow>=3){
+        report.status="blocked";report.finishedAt=new Date().toISOString();storeReport(report);
+        console.error("真实评测未完成："+code+"。结果已保存至 "+outputDirectory);
+        process.exitCode=1;return;
+      }
+    }
+    storeReport(report);
+    console.log(`[${report.rows.length}/${report.plannedCalls}] ${task.suite}/${task.id}：${report.rows.at(-1)!.ok?"收到回复":report.rows.at(-1)!.error}`);
   }
-  console.log(JSON.stringify({source:"live DeepSeek Flash; only synthetic examples sent",
-    model:provider.model,elapsedMs:Math.round(performance.now()-started),
-    raw:evaluate(liveOutputs),guarded:evaluate(applyGuard(liveOutputs))},null,2));
+  report.status=report.rows.some(row=>!row.ok)?"completed_with_errors":"completed";
+  report.finishedAt=new Date().toISOString();report.comparison=comparison(report.rows,repeats);storeReport(report);
+  console.log(markdownReport(report));
+  console.log("完整结果已保存："+resolve(outputDirectory,"latest-live.json"));
+  if(report.status!=="completed")process.exitCode=1;
 }
-
 void main().catch(error=>{
-  const code=typeof error?.cause?.code==="string"&&/^[A-Z0-9_]+$/.test(error.cause.code)?error.cause.code:undefined;
-  const diagnostic=code??(error instanceof Error&&/^[A-Z0-9_]+$/.test(error.message)?error.message:"EVALUATION_FAILED");
-  console.error("Measurement evaluation incomplete: "+diagnostic);
-  process.exitCode=1;
+  const code=safeAiErrorCode(error)??(error instanceof Error&&/^[A-Z0-9_]+$/.test(error.message)?error.message:"EVALUATION_FAILED");
+  console.error("Measurement evaluation incomplete: "+code);process.exitCode=1;
 });

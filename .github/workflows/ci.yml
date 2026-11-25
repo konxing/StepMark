@@ -43,7 +43,9 @@ jobs:
       - name: Unit tests
         run: npm run test
       - name: Verify habit scoring and synthetic dialogue evidence
-        run: npm run evaluate:measurement --workspace @stepmark/web
+        run: |
+          node --import tsx --test apps/web/scripts/evaluate-measurement.test.ts
+          npm run evaluate:measurement --workspace @stepmark/web
       - name: Verify Windows and public production configuration
         run: node --test deploy/scripts/production-preflight.test.mjs
       - name: Typecheck
