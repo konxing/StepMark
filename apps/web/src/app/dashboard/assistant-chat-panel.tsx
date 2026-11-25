@@ -1,6 +1,7 @@
 "use client";
 import {useState} from "react";
 import WorkEvidencePanel from "./work-evidence-panel";
+import {aiErrorMessage} from "@/lib/ai-errors";
 
 type Reply={
   reply:string;
@@ -45,7 +46,7 @@ export default function AssistantChatPanel({
       const data=await res.json().catch(()=>null) as (Reply&{error?:{code:string}})|null;
       if(!res.ok){
         const code=data?.error?.code;
-        throw new Error(code==="ASSISTANT_NOT_CONFIGURED"?
+        throw new Error(aiErrorMessage(code)??(code==="ASSISTANT_NOT_CONFIGURED"?
           "服务器暂未配置对话 AI，仍可通过下方的手动管理记录。":
           code==="RATE_LIMITED"?(function(){
             const raw=res.headers.get("Retry-After")??"";
@@ -54,7 +55,7 @@ export default function AssistantChatPanel({
               "请求已达到限制，请在约 "+Math.ceil(seconds/60)+" 分钟后重试。":
               "请求已达到限制，请稍后再试。";
           })():
-          "本次请求未确认保存，请检查记录后重试，避免重复登记。");
+          "本次请求未确认保存，请检查记录后重试，避免重复登记。"));
       }
       if(!data||typeof data.reply!=="string")throw new Error("AI 返回的数据无效，请稍后重试。");
       setRetry(null);

@@ -15,7 +15,8 @@
     "db:seed": "tsx --tsconfig tsconfig.json prisma/seed.ts",
     "db:prune": "node scripts/prune-expired.mjs",
     "habits:analyze": "tsx --tsconfig tsconfig.json scripts/process-habit-reflections.ts",
-    "evaluate:measurement": "tsx --tsconfig tsconfig.json scripts/evaluate-measurement.ts"
+    "evaluate:measurement": "tsx --tsconfig tsconfig.json scripts/evaluate-measurement.ts",
+    "check:ai": "tsx --tsconfig tsconfig.json scripts/check-ai.ts"
   },
   "dependencies": {
     "@prisma/client": "7.10.1",

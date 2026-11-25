@@ -47,6 +47,7 @@ internal sealed class ServerManager : Form
     private readonly Button stop = ActionButton("停止");
     private readonly Button restart = ActionButton("重启");
     private readonly Button probe = ActionButton("检查公网");
+    private readonly Button testAi = ActionButton("测试 DeepSeek");
     private readonly Timer timer = new Timer { Interval = 4000 };
     private readonly HttpClient localClient = HealthClient(false);
     private readonly HttpClient publicClient = HealthClient(true);
@@ -54,6 +55,7 @@ internal sealed class ServerManager : Form
     private bool busy;
     private bool localCheck;
     private bool portOccupied;
+    private bool aiCheck;
 
     public ServerManager()
     {
@@ -92,7 +94,7 @@ internal sealed class ServerManager : Form
 
         var actions = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, WrapContents = true };
         var open = ActionButton("打开本机网页");
-        actions.Controls.AddRange(new Control[] { start, stop, restart, probe, open });
+        actions.Controls.AddRange(new Control[] { start, stop, restart, testAi, probe, open });
         layout.Controls.Add(actions, 0, 3);
         layout.SetColumnSpan(actions, 2);
         var logLabel = new Label { Text = "服务日志", AutoSize = true, Margin = new Padding(0, 10, 0, 6) };
@@ -109,6 +111,7 @@ internal sealed class ServerManager : Form
         restart.Click += async delegate {
             await RunAction(async () => { if (await StopSite()) await StartSite(); });
         };
+        testAi.Click += async delegate { await CheckAi(); };
         probe.Click += async delegate {
             probe.Enabled = false;
             try { publicStatus.Text = "公网 HTTPS\n" + await CheckHealth(publicClient, PublicHealth); }
@@ -121,7 +124,7 @@ internal sealed class ServerManager : Form
         timer.Tick += async delegate { await RefreshLocal(); };
         Shown += async delegate { timer.Start(); await RefreshLocal(); };
         FormClosing += delegate(object sender, FormClosingEventArgs args) {
-            if (args.CloseReason == CloseReason.UserClosing && (busy || OwnsSite())) {
+            if (args.CloseReason == CloseReason.UserClosing && (busy || aiCheck || OwnsSite())) {
                 args.Cancel = true;
                 WindowState = FormWindowState.Minimized;
                 Log("管理器已最小化。停止网站后可关闭窗口。");
@@ -212,7 +215,8 @@ internal sealed class ServerManager : Form
     private void UpdateControls()
     {
         bool owned = OwnsSite();
-        choose.Enabled = !busy && !owned;
+        choose.Enabled = !busy && !aiCheck && !owned;
+        testAi.Enabled = !busy && !aiCheck && IsProject(root.Text);
         start.Enabled = !busy && !owned && !portOccupied && IsProject(root.Text);
         stop.Enabled = restart.Enabled = !busy && owned;
         processStatus.Text = "网站进程\n" + (owned ? "正在运行 · PID " + site.Id : "未启动");
@@ -290,6 +294,44 @@ internal sealed class ServerManager : Form
         site.BeginErrorReadLine();
         Log("已请求启动，等待站点预检和本机回源检查。");
         return Task.FromResult(true);
+    }
+
+    private async Task CheckAi()
+    {
+        if (aiCheck) return;
+        string node = FindNode();
+        if (node == null) { Log("PATH 中没有 Node.js，请安装 Node.js 24.14 或更新版本。"); return; }
+        const string script = @"apps\web\scripts\check-ai.ts";
+        if (!File.Exists(Path.Combine(root.Text, script))) { Log("项目缺少 DeepSeek 测试脚本，请更新项目代码。"); return; }
+        aiCheck = true;
+        UpdateControls();
+        try {
+            using (var child = new Process {
+                StartInfo = new ProcessStartInfo(node, "--import tsx " + script) {
+                    WorkingDirectory = root.Text, UseShellExecute = false, CreateNoWindow = true,
+                    RedirectStandardOutput = true, RedirectStandardError = true,
+                    StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8
+                }
+            }) {
+                Log("正在用网页后台的密钥向 DeepSeek 发送最小测试请求。");
+                if (!child.Start()) throw new InvalidOperationException();
+                Task<string> stdout = child.StandardOutput.ReadToEndAsync();
+                Task<string> stderr = child.StandardError.ReadToEndAsync();
+                if (!await Task.Run(() => child.WaitForExit(30000))) {
+                    if (!child.HasExited) child.Kill();
+                    await Task.Run(() => child.WaitForExit(3000));
+                    Log("DeepSeek 测试超时，请检查网络和代理。");
+                    return;
+                }
+                // The script emits only fixed diagnostics, never keys or model content.
+                foreach (string line in ((await stdout) + "\n" + (await stderr)).Split('\n')) {
+                    string clean = line.Trim();
+                    if (clean.StartsWith("DeepSeek ") || clean.StartsWith("诊断代码：")) Log(clean);
+                }
+                if (child.ExitCode != 0) Log("DeepSeek 测试未通过，网站服务状态不受影响。");
+            }
+        } catch { Log("无法执行 DeepSeek 测试，请检查 Node.js、项目依赖和目录权限。"); }
+        finally { aiCheck = false; if (!IsDisposed) UpdateControls(); }
     }
 
     private async Task<bool> StopSite()

@@ -1,0 +1,48 @@
+name: Remove merged temporary branches
+on:
+  pull_request:
+    types: [closed]
+  push:
+    branches: [main]
+    paths: ['.github/workflows/cleanup-merged-branches.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cleanup-merged-branches
+  cancel-in-progress: false
+jobs:
+  cleanup:
+    if: github.event_name != 'pull_request' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      # No checkout or PR code executes with this token.
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const repository = (await github.rest.repos.get({owner, repo})).data;
+            const base = repository.default_branch;
+            const pulls = context.eventName === 'pull_request'
+              ? [context.payload.pull_request]
+              : (await github.rest.pulls.list({owner, repo, state: 'closed', base, sort: 'updated', direction: 'desc', per_page: 100})).data;
+            for (const pr of pulls) {
+              if (!pr.merged_at || pr.base.ref !== base || pr.head.repo?.full_name !== repository.full_name || pr.head.ref === base) continue;
+              let branch;
+              try {
+                branch = (await github.rest.git.getRef({owner, repo, ref: 'heads/' + pr.head.ref})).data;
+              } catch (error) {
+                if (error.status === 404) continue;
+                throw error;
+              }
+              // Preserve branches that received work after their PR was merged.
+              if (branch.object.sha !== pr.head.sha) continue;
+              const comparison = (await github.rest.repos.compareCommits({owner, repo, base: branch.object.sha, head: base})).data;
+              if (!['ahead', 'identical'].includes(comparison.status)) continue;
+              await github.rest.git.deleteRef({owner, repo, ref: 'heads/' + pr.head.ref});
+              core.info('Removed fully merged branch: ' + pr.head.ref);
+            }

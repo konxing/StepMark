@@ -126,3 +126,19 @@ test("habit note stays evidence-only through the common gateway",async()=>{
     }
   }
 });
+
+test("AI failures distinguish credentials, balance, model, throttling and network restrictions",async()=>{
+  const original=globalThis.fetch;
+  const cfg=resolveAiProvider("habit",env);
+  const args={messages:[{role:"user" as const,content:"Test"}],timeoutMs:1000,maxTokens:32,maxResponseBytes:1000};
+  try{
+    for(const [status,code] of [
+      [401,"AI_AUTHENTICATION_FAILED"],[402,"AI_INSUFFICIENT_BALANCE"],
+      [429,"AI_RATE_LIMITED"],[422,"AI_MODEL_UNAVAILABLE"],[503,"AI_UPSTREAM_FAILED"]] as const){
+      globalThis.fetch=async()=>new Response("private upstream error",{status});
+      await assert.rejects(()=>callAiJson(cfg,args),new RegExp("^Error: "+code+"$"));
+    }
+    globalThis.fetch=async()=>{throw new TypeError("fetch failed",{cause:Object.assign(new Error("hidden details"),{code:"EACCES"})});};
+    await assert.rejects(()=>callAiJson(cfg,args),/^Error: AI_NETWORK_BLOCKED$/);
+  }finally{globalThis.fetch=original;}
+});

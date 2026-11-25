@@ -7,6 +7,7 @@ import {assistantProviderConfig,proposeAssistantCommand} from "@/server/assistan
 import {authorizeAssistantCommand,validateClientLocalDate,assistantMessageDigest} from "@/server/assistant-command";
 import {executeAssistantCommand} from "@/server/assistant-execute";
 import {groundedWorkEvidence} from "@/server/work-evidence";
+import {safeAiErrorCode} from "@/server/ai-network";
 export const runtime="nodejs";
 const requestSchema=z.object({
   message:z.string().trim().min(2).max(600),
@@ -46,7 +47,8 @@ export async function POST(request:NextRequest){
           groundedWorkEvidence(proposal.growthEvidence,body.message,principal.userId):[]});
     }catch(error){
       if(error instanceof ApiError)throw error;
-      throw new ApiError(502,"ASSISTANT_UNAVAILABLE");
+      const code=safeAiErrorCode(error);
+      throw new ApiError(code==="AI_TIMEOUT"?504:502,code??"ASSISTANT_UNAVAILABLE");
     }
     return NextResponse.json(result,{headers:{"Cache-Control":"private, no-store"}});
   }catch(error){return errorResponse(error);}

@@ -4,6 +4,7 @@ import {useEffect,useRef,useState,type FormEvent} from "react";
 import Link from "next/link";
 import {growthDimensions,growthLimits,growthPrompts,hasGrowthReview} from "@/lib/growth-practice";
 import type {GrowthDimension,GrowthPlan,GrowthPractice,GrowthReview,GrowthReviewDraft} from "@/lib/growth-practice";
+import {aiErrorMessage} from "@/lib/ai-errors";
 import styles from "./growth.module.css";
 
 const endpoint="/api/v1/growth-practices";
@@ -24,6 +25,9 @@ async function requestJson<T>(url:string,init?:RequestInit):Promise<T>{
     throw new Error("登录已过期。");
   }
   if(!response.ok){
+    const data=await response.json().catch(()=>null) as {error?:{code?:string}}|null;
+    const aiMessage=aiErrorMessage(data?.error?.code);
+    if(aiMessage)throw new Error(aiMessage);
     if(response.status===409)throw new Error("记录已在别处更新。请先复制未保存内容，刷新列表后再编辑。");
     if(response.status===429)throw new Error("操作有点频繁，请稍后再试。");
     if(response.status===503)throw new Error("DeepSeek 暂未配置。你可以展开表单手动填写。");

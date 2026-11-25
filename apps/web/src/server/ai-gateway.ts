@@ -1,5 +1,6 @@
 import {isIP} from "node:net";
 import {z} from "zod";
+import {configureAiNetwork,safeAiErrorCode} from "./ai-network";
 
 /**
  * The server owns AI credentials and egress policy. Neither a client request nor
@@ -77,6 +78,7 @@ export async function callAiJson(config:AiProviderConfig,args:{
   timeoutMs:number;maxTokens:number;maxResponseBytes:number;
   disableThinking?:boolean;
 }):Promise<unknown>{
+  await configureAiNetwork();
   const isDeepSeekFlash=config.url===endpoints.deepseek &&
     ["deepseek-flash","deepseek-v4-flash","deepseek-v4-flash-vision-exp"].includes(config.model);
   const response=await fetch(config.url,{
@@ -86,8 +88,14 @@ export async function callAiJson(config:AiProviderConfig,args:{
     body:JSON.stringify({model:config.model,temperature:0,max_tokens:args.maxTokens,
       ...(args.disableThinking||isDeepSeekFlash?{thinking:{type:"disabled"}}:{}),
       response_format:{type:"json_object"},messages:args.messages})
-  });
-  if(!response.ok)throw new Error("AI_UPSTREAM_FAILED");
+  }).catch((error:unknown)=>{throw new Error(safeAiErrorCode(error)??"AI_CONNECTION_FAILED");});
+  if(!response.ok){
+    await response.body?.cancel();
+    const code=response.status===401||response.status===403?"AI_AUTHENTICATION_FAILED":
+      response.status===402?"AI_INSUFFICIENT_BALANCE":response.status===429?"AI_RATE_LIMITED":
+      [400,404,422].includes(response.status)?"AI_MODEL_UNAVAILABLE":"AI_UPSTREAM_FAILED";
+    throw new Error(code);
+  }
   const contentLength=response.headers.get("content-length");
   if(contentLength!==null && Number(contentLength)>args.maxResponseBytes)
     throw new Error("AI_RESPONSE_TOO_LARGE");
