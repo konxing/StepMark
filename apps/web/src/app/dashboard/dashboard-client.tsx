@@ -145,9 +145,12 @@ export default function DashboardClient({email}:{email:string}) {
     <header className="dashboard-header"><a className="wordmark" href="/">STEP<span>MARK</span><span className="brand-dot">.</span></a>
       <div><span className="account-email">{email}</span> <a href="/settings" className="text-button">账户与数据</a> <button className="text-button" onClick={logout}>退出</button></div></header>
     <section className="dash-welcome"><h1>习惯与能力记录</h1>
-      <p>记录今天的执行，查看习惯进度和相关能力复测。</p></section>
+      <p>和 AI 聊聊实际行动、思考过程与结果，查看习惯和成长证据。</p></section>
+    <div id="assistant-records">
+      <AssistantChatPanel onChanged={async id=>{await load();if(id)await detail(id);}}/>
+    </div>
     <nav className="dashboard-shortcuts" aria-label="记录与测评">
-      <a href="#habit-records">习惯进度</a><a href="#assistant-records">AI 对话</a><a href="/assess">能力测评</a>
+      <a href="#assistant-records">AI 对话</a><a href="#habit-records">习惯进度</a>
     </nav>
     <button type="button" className="assistant-advanced-toggle" onClick={()=>setShowManual(x=>!x)}
       aria-expanded={showManual}>{showManual?"收起手动管理":"展开手动管理与详细记录"}</button>
@@ -236,11 +239,8 @@ export default function DashboardClient({email}:{email:string}) {
         </div>}
       </div>)}
     </section>}
-    <div id="assistant-records">
-      <AssistantChatPanel onChanged={async id=>{await load();if(id)await detail(id);}}/>
-    </div>
-    <MeasurementEvidencePanel/>
-    <p className="assessment-link"><a href="/practice">推理专项训练</a></p>
+
+    {showManual&&<details className="dashboard-panel"><summary>可选练习与历史测评（不影响聊天成长记录）</summary><MeasurementEvidencePanel/><p className="assessment-link"><a href="/practice">推理专项训练</a></p></details>}
     <p className="notice" role="status" aria-live="polite">{message}</p>
   </main>;
 }

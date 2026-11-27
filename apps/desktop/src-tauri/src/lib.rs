@@ -351,9 +351,9 @@ async fn get_habit_training(habit_id: String) -> Result<Value, String> {
 
 #[tauri::command]
 fn open_assessments() -> Result<(), String> {
-    webbrowser::open(&format!("{}/assess", api_origin()?))
+    webbrowser::open(&format!("{}/dashboard", api_origin()?))
         .map(|_| ())
-        .map_err(|_| "无法打开测评网页".to_owned())
+        .map_err(|_| "无法打开成长控制台".to_owned())
 }
 
 #[derive(Serialize)]

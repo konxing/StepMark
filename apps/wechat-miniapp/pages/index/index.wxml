@@ -127,6 +127,7 @@
       <text wx:elif="{{progress.eligibleOpportunities === 0}}" class="meta">暂无已记录的执行机会。</text>
       <text wx:else class="meta">已执行 {{progress.completedRepetitions}} 次</text>
       <text class="meta">本人有效感受证据 {{progress.evidenceCount}} 条</text>
+      <text wx:if="{{progress.chatAutomaticity}}" class="meta">聊天启动感受：{{progress.chatAutomaticity.medianLow}}–{{progress.chatAutomaticity.medianHigh}} / 4（{{progress.chatAutomaticity.days}} 个执行日，{{progress.chatAutomaticity.stale ? '历史证据' : 'AI 暂定观察'}}，非正式自评）</text>
       <text wx:if="{{progress.aiAnnotationCount>0}}" class="small-note">历史仅 AI 暂定解读 {{progress.aiAnnotationCount}} 条，未参与进度或复查判断。</text>
       <view wx:if="{{progress.evidenceStale}}" class="review-note">
         最近 45 天没有新的有效感受评分。显示的是历史证据支持的进度，不代表当前状态；缺少记录不扣分。

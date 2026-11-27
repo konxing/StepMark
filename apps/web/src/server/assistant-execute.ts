@@ -4,6 +4,7 @@ import {getDb} from "./db";
 import {habitSelfRatingEvidence,MAX_ACTIVE_HABITS,readHabitOpportunityCounts,recentHabitSelfRatings} from "./habit-service";
 import {ApiError} from "./security";
 import {observationDay,type SafeAssistantCommand,validateClientLocalDate,verifiedInitiationEvidence,assistantMessageDigest} from "./assistant-command";
+import {readChatAutomaticity} from "./chat-automaticity";
 import {WORK_EVIDENCE_RUBRIC,type groundedWorkEvidence} from "./work-evidence";
 
 export type AssistantResult={
@@ -130,13 +131,14 @@ export async function executeAssistantCommand(args:{
         const target=await tx.habit.findFirst({where:{id:command.target.id,userId,archivedAt:null},
           select:{id:true,title:true,reviewEnabled:true}});
         if(!target)throw new ApiError(404,"HABIT_NOT_FOUND");
-        const [counts,notes]=await Promise.all([
+        const [counts,notes,chatAutomaticity]=await Promise.all([
           readHabitOpportunityCounts(tx,[target.id]),
           // Use exactly the same evidence definition as /progress and due reviews.
           // Filtering after take() would let many AI-only entries evict older
           // person-reported ratings from a conversational progress check.
           tx.habitReflection.findMany({...recentHabitSelfRatings,
-            where:{habitId:target.id,...recentHabitSelfRatings.where}})
+            where:{habitId:target.id,...recentHabitSelfRatings.where}}),
+          readChatAutomaticity(tx,target.id,Date.now())
         ]);
         const {completed,eligible,lastCompletedAtMs,recentOpportunities}=counts.get(target.id)!;
         const status=calculateHabitProgress({completedRepetitions:completed,
@@ -148,7 +150,8 @@ export async function executeAssistantCommand(args:{
         const feedback=status.evidenceCount===0?"自然启动程度暂无本人自评。":
           `自然启动程度有 ${status.evidenceCount} 天的本人自评。${status.evidenceStale?"最近的感受证据已过时，建议简短复查。":""}`;
         const consistency=status.recentExecution?.inconsistent?"近期多次有机会但未执行，先核对触发情境是否合适。":"";
-        result={reply:`「${target.title}」${execution}${feedback}${consistency}`,
+        const chatSignal=chatAutomaticity?`聊天感受的暂定等级为 ${chatAutomaticity.medianLow===chatAutomaticity.medianHigh?chatAutomaticity.medianLow:chatAutomaticity.medianLow+"–"+chatAutomaticity.medianHigh}/4，来自 ${chatAutomaticity.days} 个实际执行日。${chatAutomaticity.stale?"这是历史证据。":""}不是正式自评。`:"";
+        result={reply:`「${target.title}」${execution}${feedback}${chatSignal}${consistency}`,
           change:null,progress:{habitId:target.id,percent:status.progress,
             repetitions:completed,evidenceStale:status.evidenceStale}};
       }else if(command.intent==="clarify"){

@@ -1,7 +1,7 @@
 "use client";
 import {useCallback,useEffect,useState} from "react";
 import HabitTrainingPanel from "./habit-training-panel";
-type Progress={progress:number;repetitionSignal:number;automaticitySignal:number|null;
+type Progress={chatAutomaticity?:{days:number;medianLow:number;medianHigh:number;stale:boolean}|null;progress:number;repetitionSignal:number;automaticitySignal:number|null;
   eligibleOpportunities?:number;observedCompletionRate?:number|null;
   recentExecution?:{completed:number;eligible:number;inconsistent:boolean}|null;
   completedRepetitions:number;evidenceCount:number;aiAnnotationCount:number;reviewDue:boolean;nextReviewAt:string|null;
@@ -131,6 +131,7 @@ export default function HabitGrowthPanel({habitId,habitTitle,eventId,revision}:{
       </div>
       <p className="progress-caveat">进度用于查看这项习惯的变化。得分依据实际执行和本人自评，近期最多取 12 次有触发的已记录机会。</p>
       {result.recentExecution?.inconsistent&&<p className="review-prompt">近期多次有机会但未执行，当前分数低于稳定区间。可以先调整触发情境或把行动缩小。</p>}
+      {result.chatAutomaticity&&<p className="progress-caveat">聊天启动感受：{result.chatAutomaticity.medianLow===result.chatAutomaticity.medianHigh?result.chatAutomaticity.medianLow:result.chatAutomaticity.medianLow+"–"+result.chatAutomaticity.medianHigh} / 4（{result.chatAutomaticity.days} 个实际执行日；{result.chatAutomaticity.stale?"历史证据，待更新":"AI 暂定观察"}）。不是正式自评或习惯形成概率。</p>}
       {result.aiAnnotationCount>0&&<p className="progress-caveat">历史记录有 {result.aiAnnotationCount} 条仅 AI 暂定解读，未参与进度和复查判断。</p>}
       {result.evidenceStale&&<p className="review-prompt">
         过去的感受证据已超过 45 天。这是上次有证据支持的进度，并非当前状态的可靠判断；缺少记录不会自动扣分。
@@ -139,7 +140,7 @@ export default function HabitGrowthPanel({habitId,habitTitle,eventId,revision}:{
       {result.nextReviewAt&&<small>预计下次应用内复查：{new Date(result.nextReviewAt).toLocaleDateString("zh-CN")}</small>}
       <button type="button" className="text-button" disabled={busy} onClick={toggleReview}>{result.reviewEnabled?"关闭应用内复查":"开启应用内复查"}</button>
     </>:<p role="status">{message||"正在计算进度…"}</p>}
-    <HabitTrainingPanel habitId={habitId} revision={revision}/>
+    <details><summary>可选：历史训练与短卷记录</summary><HabitTrainingPanel habitId={habitId} revision={revision}/></details>
     <div className="growth-form">
       <strong>这一次开始行动时的感受（选填）</strong>
       <div className="feeling-options" role="group" aria-label="开始行动的自然程度">
