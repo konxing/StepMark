@@ -9,6 +9,17 @@
     <view class="chat-card">
       <view class="chat-title">和 AI 聊聊今天的成长</view>
       <view class="chat-description">说说你的做法和实际结果，AI 会帮你整理成长证据。</view>
+      <view class="chat-hint" aria-live="polite">
+        <text wx:if="{{chatAvailability == 'checking'}}">正在检查 AI 配置</text>
+        <text wx:elif="{{chatAvailability == 'ready'}}">AI 服务已配置</text>
+        <text wx:elif="{{chatAvailability == 'unconfigured'}}">AI 服务未配置，可以继续使用手动管理。</text>
+        <text wx:else>暂时无法读取 AI 配置，可以继续使用手动管理。</text>
+      </view>
+      <button
+        wx:if="{{chatAvailability == 'unconfigured' || chatAvailability == 'unavailable'}}"
+        class="progress-button"
+        bindtap="loadChatAvailability"
+      >重新检查 AI 配置</button>
       <scroll-view class="chat-feed" scroll-y="true" scroll-into-view="{{chatBottomId}}" enable-flex="true">
         <view wx:for="{{chatMessages}}" wx:key="id" id="{{item.id}}"
           class="chat-bubble {{item.role == 'user' ? 'chat-mine' : 'chat-ai'}}">
@@ -19,13 +30,23 @@
         <textarea value="{{chatInput}}" maxlength="600" auto-height="true"
           class="chat-textarea" bindinput="onChatInput"
           placeholder="说说你做了什么，或有什么实际结果…"/>
-        <button disabled="{{chatBusy || !chatInput}}" bindtap="sendChat" class="chat-send">
+        <button
+          disabled="{{chatBusy || !chatInput || !chatConsent || chatAvailability != 'ready'}}"
+          bindtap="sendChat"
+          class="chat-send"
+        >
           {{chatBusy ? '处理…' : '发送'}}
         </button>
       </view>
       <view class="chat-consent">
-        <switch checked="{{chatConsent}}" disabled="{{chatBusy}}" color="#317655" bindchange="onChatConsent"/>
-        <text>同意将本次消息与习惯名称发送给配置的 AI 服务商，关闭则不发送。</text>
+        <switch
+          checked="{{chatConsent}}"
+          disabled="{{chatBusy || !chatConsentUser}}"
+          color="#317655"
+          aria-label="允许发送消息给 AI"
+          bindchange="onChatConsent"
+        />
+        <text>允许向服务器配置的第三方 AI 服务商发送我主动提交的消息及相关习惯名称。本设备记住此账户的授权，可随时关闭。</text>
       </view>
       <text wx:if="{{chatStatus}}" class="chat-status">{{chatStatus}}</text>
       <view wx:if="{{chatConsent}}" class="chat-consent">
@@ -62,48 +83,48 @@
       </view>
     </view>
     <block wx:if="{{showAdvanced}}">
-    <view class="section-title">推理专项训练</view>
-    <text class="meta">原创训练题与正式 A/B 卷完全分开，练习不会提升能力分数。</text>
-    <button class="progress-button" bindtap="openPractice">
-      {{practiceOpen ? '收起训练' : '开始 / 继续训练'}}
-    </button>
-    <view wx:if="{{practiceOpen}}" class="practice-card">
-      <view class="practice-tabs">
-        <button wx:for="{{practiceDomains}}" wx:key="code" data-skill="{{item.code}}"
-          disabled="{{practiceBusy}}" bindtap="changePracticeSkill">
-          {{item.label}}{{practiceRecommended == item.code ? ' · 推荐' : ''}}
-        </button>
-      </view>
-      <text class="meta">{{practiceStatus}}</text>
-      <view wx:if="{{practiceItem}}">
-        <text class="practice-prompt">{{practiceItem.prompt}}</text>
-        <radio-group bindchange="choosePracticeAnswer">
-          <label wx:for="{{practiceItem.options}}" wx:for-item="choice" wx:key="key"
-            class="practice-choice">
-            <radio value="{{choice.key}}" checked="{{practiceSelected == choice.key}}"
-              disabled="{{practiceBusy || practiceFeedback != null}}"/>
-            <text>{{choice.key}}. {{choice.label}}</text>
-          </label>
-        </radio-group>
-        <button wx:if="{{!practiceHintUsed && !practiceFeedback}}" class="progress-button"
-          bindtap="showPracticeHint">需要提示</button>
-        <text wx:if="{{practiceHintUsed}}" class="small-note">提示：{{practiceItem.hint}}</text>
-        <text wx:if="{{practiceHintUsed}}" class="small-note">本次会标记为提示辅助练习。</text>
-        <button wx:if="{{!practiceFeedback}}" class="primary" bindtap="submitPractice"
-          disabled="{{practiceBusy || !practiceSelected}}">提交练习</button>
-        <view wx:else class="practice-feedback">
-          <text>{{practiceFeedback.correct ? '答对了' : '这次没有答对'}}</text>
-          <text>你的选择：{{practiceFeedback.selectedKey}}；正确选项：{{practiceFeedback.answerKey}}</text>
-          <text>{{practiceFeedback.explanation}}</text>
-          <text class="small-note">{{practiceFeedback.hintUsed == false ? '独立提取练习（未查看提示）' : '提示辅助或来源未知的练习'}}</text>
-          <button class="progress-button" disabled="{{practiceBusy}}" bindtap="nextPractice">下一道练习</button>
+      <view class="section-title">推理专项训练</view>
+      <text class="meta">原创训练题与正式 A/B 卷完全分开，练习不会提升能力分数。</text>
+      <button class="progress-button" bindtap="openPractice">
+        {{practiceOpen ? '收起训练' : '开始 / 继续训练'}}
+      </button>
+      <view wx:if="{{practiceOpen}}" class="practice-card">
+        <view class="practice-tabs">
+          <button wx:for="{{practiceDomains}}" wx:key="code" data-skill="{{item.code}}"
+            disabled="{{practiceBusy}}" bindtap="changePracticeSkill">
+            {{item.label}}{{practiceRecommended == item.code ? ' · 推荐' : ''}}
+          </button>
         </view>
+        <text class="meta">{{practiceStatus}}</text>
+        <view wx:if="{{practiceItem}}">
+          <text class="practice-prompt">{{practiceItem.prompt}}</text>
+          <radio-group bindchange="choosePracticeAnswer">
+            <label wx:for="{{practiceItem.options}}" wx:for-item="choice" wx:key="key"
+              class="practice-choice">
+              <radio value="{{choice.key}}" checked="{{practiceSelected == choice.key}}"
+                disabled="{{practiceBusy || practiceFeedback != null}}"/>
+              <text>{{choice.key}}. {{choice.label}}</text>
+            </label>
+          </radio-group>
+          <button wx:if="{{!practiceHintUsed && !practiceFeedback}}" class="progress-button"
+            bindtap="showPracticeHint">需要提示</button>
+          <text wx:if="{{practiceHintUsed}}" class="small-note">提示：{{practiceItem.hint}}</text>
+          <text wx:if="{{practiceHintUsed}}" class="small-note">本次会标记为提示辅助练习。</text>
+          <button wx:if="{{!practiceFeedback}}" class="primary" bindtap="submitPractice"
+            disabled="{{practiceBusy || !practiceSelected}}">提交练习</button>
+          <view wx:else class="practice-feedback">
+            <text>{{practiceFeedback.correct ? '答对了' : '这次没有答对'}}</text>
+            <text>你的选择：{{practiceFeedback.selectedKey}}；正确选项：{{practiceFeedback.answerKey}}</text>
+            <text>{{practiceFeedback.explanation}}</text>
+            <text class="small-note">{{practiceFeedback.hintUsed == false ? '独立提取练习（未查看提示）' : '提示辅助或来源未知的练习'}}</text>
+            <button class="progress-button" disabled="{{practiceBusy}}" bindtap="nextPractice">下一道练习</button>
+          </view>
+        </view>
+        <text wx:if="{{!practiceItem && practiceNextReviewUtc}}" class="small-note">
+          该类别下一次建议复习：{{practiceNextReviewUtc}}
+        </text>
+        <text class="small-note">复习间隔属于可调整的产品策略，不代表个人能力概率。</text>
       </view>
-      <text wx:if="{{!practiceItem && practiceNextReviewUtc}}" class="small-note">
-        该类别下一次建议复习：{{practiceNextReviewUtc}}
-      </text>
-      <text class="small-note">复习间隔属于可调整的产品策略，不代表个人能力概率。</text>
-    </view>
     </block>
     <view class="section-title">我的习惯</view>
     <view wx:if="{{modules.length===0}}" class="empty">还没有习惯，创建一个可观察的微型行动吧。</view>
@@ -133,42 +154,42 @@
       </view>
       <view wx:if="{{progress.reviewDue}}" class="review-note">该复查了：现在开始这个习惯仍然自然吗？</view>
       <block wx:if="{{showAdvanced}}">
-      <view class="small-note">实验性成长指标 {{progress.progress}}%。按执行次数和本人明确感受计算，供查看历史趋势。</view>
-      <view class="section-title">最近记录 · 更正</view>
-      <view wx:for="{{recentEvents}}" wx:key="id" class="reflection-item">
-        <text class="meta">{{item.opportunityKey}} · {{!item.eligible ? '没有触发机会' : (item.completed ? '已执行' : '有机会未执行')}} · 版本 {{item.revision}}</text>
-        <view class="opportunity-row">
-          <button data-id="{{item.id}}" data-kind="done" disabled="{{correcting}}" bindtap="correctOpportunity">改为已执行</button>
-          <button data-id="{{item.id}}" data-kind="missed" disabled="{{correcting}}" bindtap="correctOpportunity">改为未执行</button>
-          <button data-id="{{item.id}}" data-kind="no_cue" disabled="{{correcting}}" bindtap="correctOpportunity">改为无机会</button>
-        </view>
-        <button wx:if="{{item.revision > 0}}" class="progress-button"
-          data-id="{{item.id}}" disabled="{{auditLoading}}" bindtap="toggleAuditHistory">
-          {{auditEventId == item.id ? '收起更正历史' : '查看更正历史'}}
-        </button>
-        <view wx:if="{{auditEventId == item.id}}" class="recent-reflections">
-          <view wx:for="{{auditRows}}" wx:for-item="correction" wx:key="id" class="reflection-item">
-            <text class="meta">版本 {{correction.revision}} · {{correction.dateLabel}}</text>
-            <text class="meta">{{correction.beforeLabel}} → {{correction.afterLabel}}</text>
+        <view class="small-note">实验性成长指标 {{progress.progress}}%。按执行次数和本人明确感受计算，供查看历史趋势。</view>
+        <view class="section-title">最近记录 · 更正</view>
+        <view wx:for="{{recentEvents}}" wx:key="id" class="reflection-item">
+          <text class="meta">{{item.opportunityKey}} · {{!item.eligible ? '没有触发机会' : (item.completed ? '已执行' : '有机会未执行')}} · 版本 {{item.revision}}</text>
+          <view class="opportunity-row">
+            <button data-id="{{item.id}}" data-kind="done" disabled="{{correcting}}" bindtap="correctOpportunity">改为已执行</button>
+            <button data-id="{{item.id}}" data-kind="missed" disabled="{{correcting}}" bindtap="correctOpportunity">改为未执行</button>
+            <button data-id="{{item.id}}" data-kind="no_cue" disabled="{{correcting}}" bindtap="correctOpportunity">改为无机会</button>
           </view>
-          <button wx:if="{{auditNextOffset != null}}" class="progress-button"
-            disabled="{{auditLoading}}" bindtap="loadMoreAudit">加载更多历史</button>
+          <button wx:if="{{item.revision > 0}}" class="progress-button"
+            data-id="{{item.id}}" disabled="{{auditLoading}}" bindtap="toggleAuditHistory">
+            {{auditEventId == item.id ? '收起更正历史' : '查看更正历史'}}
+          </button>
+          <view wx:if="{{auditEventId == item.id}}" class="recent-reflections">
+            <view wx:for="{{auditRows}}" wx:for-item="correction" wx:key="id" class="reflection-item">
+              <text class="meta">版本 {{correction.revision}} · {{correction.dateLabel}}</text>
+              <text class="meta">{{correction.beforeLabel}} → {{correction.afterLabel}}</text>
+            </view>
+            <button wx:if="{{auditNextOffset != null}}" class="progress-button"
+              disabled="{{auditLoading}}" bindtap="loadMoreAudit">加载更多历史</button>
+          </view>
         </view>
-      </view>
-      <text class="meta">更正将留下历史；关联感受的执行记录需要先处理感受记录。</text>
+        <text class="meta">更正将留下历史；关联感受的执行记录需要先处理感受记录。</text>
       </block>
       <block wx:if="{{showAdvanced}}">
-      <view class="section-title">手动记录行动感受（备用）</view>
-      <picker range="{{feelingOptions}}" value="{{feelIndex == -1 ? 0 : feelIndex}}" bindchange="chooseFeeling">
-        <view class="picker-control">{{feelIndex == -1 ? '选择最接近的感受' : feelingOptions[feelIndex]}}</view>
-      </picker>
-      <textarea maxlength="600" class="feedback-note" value="{{feedbackNote}}" bindinput="updateFeelingNote"
-        placeholder="例如：这次看到提示就自然开始了，没有思考。"></textarea>
-      <view class="ai-consent-row">
-        <switch checked="{{aiConsent}}" disabled="{{!feedbackNote}}" bindchange="setAiConsent" color="#347856"/>
-        <text>同意将当前文字发送给 AI 服务商分析（默认关闭）</text>
-      </view>
-      <button class="primary" disabled="{{creating || (!feedbackNote && feelIndex == -1)}}" bindtap="saveReflection">保存感受</button>
+        <view class="section-title">手动记录行动感受（备用）</view>
+        <picker range="{{feelingOptions}}" value="{{feelIndex == -1 ? 0 : feelIndex}}" bindchange="chooseFeeling">
+          <view class="picker-control">{{feelIndex == -1 ? '选择最接近的感受' : feelingOptions[feelIndex]}}</view>
+        </picker>
+        <textarea maxlength="600" class="feedback-note" value="{{feedbackNote}}" bindinput="updateFeelingNote"
+          placeholder="例如：这次看到提示就自然开始了，没有思考。"></textarea>
+        <view class="ai-consent-row">
+          <switch checked="{{aiConsent}}" disabled="{{!feedbackNote}}" bindchange="setAiConsent" color="#347856"/>
+          <text>同意将当前文字发送给 AI 服务商分析（默认关闭）</text>
+        </view>
+        <button class="primary" disabled="{{creating || (!feedbackNote && feelIndex == -1)}}" bindtap="saveReflection">保存感受</button>
       </block>
       <button class="progress-button" data-id="{{selectedHabitId}}" bindtap="toggleReview">
         切换当前习惯复查提示
@@ -194,13 +215,13 @@
       </view>
     </view>
     <block wx:if="{{showAdvanced}}">
-    <view class="section-title">手动添加习惯（备用）</view>
-    <view class="form">
-      <input maxlength="180" value="{{title}}" bindinput="updateTitle" placeholder="习惯名称"/>
-      <textarea maxlength="500" value="{{action}}" bindinput="updateAction" placeholder="具体行动"/>
-      <input maxlength="250" value="{{cue}}" bindinput="updateCue" placeholder="触发情境（选填）"/>
-      <button class="primary" disabled="{{creating}}" bindtap="createHabit">保存习惯</button>
-    </view>
+      <view class="section-title">手动添加习惯（备用）</view>
+      <view class="form">
+        <input maxlength="180" value="{{title}}" bindinput="updateTitle" placeholder="习惯名称"/>
+        <textarea maxlength="500" value="{{action}}" bindinput="updateAction" placeholder="具体行动"/>
+        <input maxlength="250" value="{{cue}}" bindinput="updateCue" placeholder="触发情境（选填）"/>
+        <button class="primary" disabled="{{creating}}" bindtap="createHabit">保存习惯</button>
+      </view>
     </block>
     <button class="logout" bindtap="logout">退出登录</button>
   </block>

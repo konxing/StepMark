@@ -21,6 +21,7 @@ Windows Tauri 2 预览包括 DeepSeek Flash 工作台、系统浏览器 PKCE 授
 
 ## 已实现
 
+- 网页控制台把逻辑推理初测、AI 训练建议、习惯执行和独立复测串在一起。完成可核验的初测后，可选一个方向。已配置服务商时优先提供 AI 建议，保留内置练习方案。保存习惯前可编辑触发情境、动作和验收标准。[测量口径与验证](docs/validation/ability-coaching-2026-11-28.md)
 - 网页与微信小程序从已授权的对话提取用户完成行动的原话，检查后续片段是否报告了该行动的实际结果。近 30 天按本地报告日期和方向汇总，相同的行动原话保留首次归类，历史结果待核对时会在原记录旁提示。记录可删除及导出，能力测评以对应的测量任务为依据。
 - 网页和 Windows 客户端显示习惯养成分、累计和近期执行、本人启动感受。近期连续漏做会限制稳定性判断，未记录和未遇到触发情境的日子不计入近期机会。逻辑推理习惯可关联独立初测和复测，查看两次短卷表现及期间的执行记录。
 - 邮箱注册与验证、登录/注销、密码重置、有限速验证邮件重发。
@@ -52,6 +53,19 @@ docs/research/           论文、公式来源、模型局限
 docs/architecture/       设计边界、AI Chat Web 未来集成、安全与部署
 docs/agent/              后续实现计划与验收标准
 ```
+
+### 源码审查入口
+
+| 要审查的功能 | 从哪里开始 |
+| --- | --- |
+| 网页页面和 API | [页面与组件](apps/web/src/app)按路由组织，[API 路由](apps/web/src/app/api/v1)处理请求并调用[服务端逻辑](apps/web/src/server)。 |
+| 网页样式 | [globals.css](apps/web/src/app/globals.css)按层叠顺序引入[全局样式](apps/web/src/app/styles)。[自主实践页](apps/web/src/app/growth)使用同目录的 CSS 模块。 |
+| 控制台与自主实践 | [控制台](apps/web/src/app/dashboard)页面负责联动各面板，习惯洞察和机会更正各有组件。[自主实践](apps/web/src/app/growth)按页面流程、表单和 API 请求拆分。 |
+| 对话写入 | [assistant-execute.ts](apps/web/src/server/assistant-execute.ts)管理事务与重放回执，[assistant-habit-actions.ts](apps/web/src/server/assistant-habit-actions.ts)处理习惯操作，[work-evidence-store.ts](apps/web/src/server/work-evidence-store.ts)写入成长证据。 |
+| 习惯进度 | [habit-progress.ts](packages/core/src/habit-progress.ts)实现输入校验、自评证据整理、进度计算和复查时机。 |
+| Windows 与微信端 | [Windows 界面](apps/desktop/ui)的 `app.js` 管工作台，`account.js` 管账号和习惯。[微信首页](apps/wechat-miniapp/pages/index)从 `index.js` 注册页面，由同目录模块处理各功能。 |
+
+人工审查使用以上源码。Next.js 生成供浏览器加载的生产资源。
 
 ## 本机启动（PostgreSQL 需要先安装、启动并创建数据库）
 

@@ -69,6 +69,12 @@ test("local production startup, login and desktop PKCE stay on loopback",{timeou
     assert.match(setCookie,/HttpOnly/i);
     assert.doesNotMatch(setCookie,/; ?secure(?:;|$)/i);
     const cookie=setCookie.split(";")[0];
+    const dashboard=await fetch(origin+"/dashboard",{headers:{cookie},redirect:"manual"});
+    assert.equal(dashboard.status,200);
+    assert.match(await dashboard.text(),/逻辑推理训练与复测/);
+    const coaching=await fetch(origin+"/api/v1/ability-coaching",{headers:{cookie}});
+    assert.equal(coaching.status,200);
+    assert.equal((await coaching.json()).canCoach,false);
     const verifier=randomBytes(32).toString("base64url");
     const state=randomBytes(32).toString("base64url");
     const redirectUri="http://127.0.0.1:42991/callback";

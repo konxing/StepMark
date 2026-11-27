@@ -3,10 +3,11 @@ import {z} from "zod";
 import {getLogicFormOverview,RETEST_WAIT_DAYS} from "@/server/assessment-forms";
 import {getDb} from "@/server/db";
 import {findOwnHabit} from "@/server/habit-service";
+import {logicTrainingConstruct,readLogicTrainingCounts} from "@/server/habit-training-evidence";
 import {ApiError, boundedJson, enforceRateLimit, errorResponse, principalFromRequest, requireSameOrigin} from "@/server/security";
 
 export const runtime="nodejs";
-const constructCode="reasoning.logic";
+const constructCode=logicTrainingConstruct;
 const targetInput=z.object({target:z.literal(constructCode).nullable()}).strict();
 const headers={"Cache-Control":"private, no-store"};
 type Context={params:Promise<{id:string}>};
@@ -26,11 +27,8 @@ export async function GET(request:NextRequest,context:Context){
     const now=new Date();
     const overview=await getLogicFormOverview(userId,now);
     const [baseline,retest]=overview.forms;
-    const start=baseline?.completedAt?new Date(Math.max(Date.parse(baseline.completedAt),target.updatedAt.getTime())):null;
     const end=retest?.startedAt?new Date(retest.startedAt):now;
-    const observations=start&&start<end?await db.habitEvent.count({
-      where:{habitId:id,eligible:true,completed:true,occurredAt:{gt:start,lt:end}}
-    }):null;
+    const observations=(await readLogicTrainingCounts([id],baseline?.completedAt??null,end)).get(id)??null;
     const retestWait=RETEST_WAIT_DAYS*86400000;
     const comparison=(observations??0)>0&&baseline?.integrityStatus==="verified"&&retest?.integrityStatus==="verified"&&
       baseline.completedAt&&retest.startedAt&&Date.parse(retest.startedAt)-Date.parse(baseline.completedAt)>=retestWait?

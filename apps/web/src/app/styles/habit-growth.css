@@ -1,0 +1,204 @@
+/* Experimental habit growth indicator */
+
+.progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  color: #397658;
+}
+
+.progress-head strong {
+  font-size: 30px;
+}
+
+.growth-track {
+  background: #e6eee6;
+  border-radius: 24px;
+  height: 17px;
+  overflow: hidden;
+  margin: 18px 0;
+}
+
+.growth-fill {
+  background: #4e9e70;
+  border-radius: 24px;
+  height: 100%;
+  transition: width .35s ease;
+}
+
+.progress-caveat {
+  font-size: 12px;
+  color: #668077;
+  line-height: 1.7;
+}
+
+.review-prompt {
+  color: #2a7351;
+  font-weight: 700;
+}
+
+.growth-form {
+  border-top: 1px solid #e6eae5;
+  padding-top: 25px;
+  margin-top: 28px;
+}
+
+.growth-form textarea {
+  width: 100%;
+  border: 1px solid #cad7cc;
+  border-radius: 8px;
+  min-height: 90px;
+  padding: 12px;
+  font: inherit;
+  margin-top: 8px;
+}
+
+.growth-form > label {
+  display: block;
+  font-size: 13px;
+}
+
+.feeling-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.feeling-options button {
+  font: inherit;
+  border: 1px solid #b9d4c4;
+  background: white;
+  border-radius: 22px;
+  padding: 9px 13px;
+  cursor: pointer;
+  color: #395a45;
+}
+
+.feeling-options button.selected {
+  background: #20593d;
+  color: #fff;
+}
+
+.growth-form .ai-opt-in {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 18px 0;
+  color: #68796f;
+  font-size: 12px;
+}
+
+.ai-opt-in input {
+  margin-top: 3px;
+}
+
+.save-feeling {
+  border: 0;
+  border-radius: 8px;
+  padding: 12px 18px;
+  background: #173a2c;
+  color: white;
+  cursor: pointer;
+  font: inherit;
+}
+
+.save-feeling:disabled {
+  opacity: .5;
+  cursor: default;
+}
+
+.habit-opportunity-actions {
+  flex-wrap: wrap;
+}
+
+.habit-opportunity-actions button:not(.text-button) {
+  flex-shrink: 0;
+}
+
+.habit-opportunity-actions .text-button {
+  font-size: 12px;
+}
+
+.growth-history {
+  margin-top: 30px;
+  border-top: 1px solid #e3eae1;
+  padding-top: 20px;
+}
+
+.growth-history h3 {
+  font-size: 17px;
+}
+
+.growth-history-row {
+  border-top: 1px solid #edf1ec;
+  padding: 12px 0;
+}
+
+.growth-history-row p {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  font-size: 13px;
+}
+
+.growth-history-row small {
+  color: #6d8075;
+  font-size: 11px;
+}
+
+.due-review-panel {
+  border-left: 3px solid #699b70;
+}
+
+.due-review-panel > p {
+  font-size: 13px;
+  color: #647867;
+}
+
+.due-review-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.due-review-list button {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  padding: 12px 16px;
+  background: #f3f7f2;
+  border: 1px solid #d8e4d7;
+  color: #294c33;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.due-review-list small {
+  color: #708877;
+}
+
+.habit-measures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: .5rem 1rem;
+  margin: .9rem 0;
+}
+
+.habit-measures p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.habit-measures small,
+.habit-measures strong {
+  display: block;
+}
+
+.habit-training {
+  border-top: 1px solid rgba(96, 112, 103, .25);
+  margin-top: 1rem;
+  padding-top: .85rem;
+}

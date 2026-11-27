@@ -1,0 +1,166 @@
+.panel {
+  border-color: #bad2bf;
+  background: #f8fbf7;
+  scroll-margin-top: 1.5rem;
+  overflow-wrap: anywhere;
+}
+
+.panel h2 {
+  margin-bottom: 8px;
+}
+
+.intro,
+.sourceNote,
+.caveat {
+  color: #4c6455;
+  line-height: 1.65;
+}
+
+.evidenceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.evidenceCard,
+.result {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid #d9e6d8;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.evidenceCard h3,
+.result h3 {
+  margin: 0 0 8px;
+}
+
+.evidenceCard p,
+.sourceNote {
+  margin: 8px 0;
+}
+
+.evidenceCard ul,
+.result ul {
+  padding-inline-start: 1.25rem;
+  line-height: 1.7;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  margin-top: 14px;
+}
+
+.actions a {
+  text-underline-offset: 0.22em;
+}
+
+.primary {
+  padding: 10px 16px;
+  border: 1px solid #275c42;
+  border-radius: 8px;
+  color: #fff;
+  background: #275c42;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.result {
+  margin-top: 18px;
+}
+
+.result h4 {
+  margin: 18px 0 8px;
+}
+
+.result p {
+  line-height: 1.65;
+}
+
+.planDetails {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: 8px 14px;
+  margin: 8px 0 16px;
+}
+
+.planDetails dt {
+  font-weight: 600;
+}
+
+.planDetails dd {
+  margin: 0;
+}
+
+.focus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  font-weight: 600;
+}
+
+.focus select {
+  max-width: 100%;
+  padding: 7px 10px;
+  border: 1px solid #bacfc0;
+  border-radius: 8px;
+  color: inherit;
+  background: #fff;
+  font: inherit;
+}
+
+.habitDraft {
+  display: grid;
+  gap: 10px;
+  max-width: 680px;
+  margin: 12px 0;
+}
+
+.habitDraft label {
+  display: grid;
+  gap: 5px;
+  font-weight: 600;
+}
+
+.habitDraft input,
+.habitDraft textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid #bacfc0;
+  border-radius: 8px;
+  color: inherit;
+  background: #fff;
+  font: inherit;
+}
+
+.habitDraft textarea {
+  resize: vertical;
+}
+
+.status {
+  color: #4c6455;
+}
+
+.error {
+  color: #9a2c2c;
+}
+
+@media (max-width: 480px) {
+  .planDetails {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

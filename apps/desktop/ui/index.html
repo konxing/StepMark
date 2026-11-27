@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="light">
   <title>StepMark</title>
   <link rel="stylesheet" href="./style.css">
-  <script src="./app.js" defer></script>
+  <script type="module" src="./app.js"></script>
 </head>
 <body>
   <div class="app">
@@ -48,7 +48,14 @@
           <div id="conversation" class="conversation" aria-label="工作记录" hidden></div>
           <form id="composer" class="composer">
             <label for="question" id="composer-label">你的问题</label>
-            <textarea id="question" name="question" maxlength="4000" rows="3" placeholder="例如，遇到了什么现象？你希望产出什么？" required></textarea>
+            <textarea
+              id="question"
+              name="question"
+              maxlength="4000"
+              rows="3"
+              placeholder="例如，遇到了什么现象？你希望产出什么？"
+              required
+            ></textarea>
             <div class="composer-actions">
               <span id="composer-help">发送后，当前问题和最近对话会发给 DeepSeek。</span>
               <button id="send" type="submit" class="primary">交给 AI</button>
@@ -63,7 +70,10 @@
       </section>
 
       <section id="view-habits" class="secondary-view" aria-labelledby="habits-title" hidden>
-        <header class="topline"><h1 id="habits-title">习惯与复测</h1><button id="refresh" type="button" class="quiet" hidden>刷新</button></header>
+        <header class="topline">
+          <h1 id="habits-title">习惯与复测</h1>
+          <button id="refresh" type="button" class="quiet" hidden>刷新</button>
+        </header>
         <div class="panel">
           <p id="list-hint">连接 StepMark 账号后查看已记录的习惯。</p>
           <div id="habit-list" class="habit-list"></div>
@@ -74,14 +84,28 @@
       </section>
 
       <section id="view-connections" class="secondary-view" aria-labelledby="connections-title" hidden>
-        <header class="topline"><h1 id="connections-title">连接设置</h1></header>
+        <header class="topline">
+          <h1 id="connections-title">连接设置</h1>
+        </header>
         <div class="connection-panels">
           <section class="panel" aria-labelledby="ai-title">
-            <div class="panel-heading"><h2 id="ai-title">DeepSeek Flash</h2><span id="provider-label" class="subtle"></span></div>
+            <div class="panel-heading">
+              <h2 id="ai-title">DeepSeek Flash</h2>
+              <span id="provider-label" class="subtle"></span>
+            </div>
             <p>本机直接连接 DeepSeek。密钥经验证后保存在 Windows 凭据管理器。</p>
             <form id="key-form" autocomplete="off">
               <label for="api-key">DeepSeek API Key</label>
-              <input id="api-key" name="api-key" type="password" autocomplete="off" spellcheck="false" maxlength="180" placeholder="sk-…" required>
+              <input
+                id="api-key"
+                name="api-key"
+                type="password"
+                autocomplete="off"
+                spellcheck="false"
+                maxlength="180"
+                placeholder="sk-…"
+                required
+              >
               <div class="actions">
                 <button id="save-key" type="submit" class="primary">验证并保存</button>
                 <button id="test-key" type="button" class="quiet" hidden>测试连接</button>
@@ -91,7 +115,10 @@
             <p id="key-status" class="status-line" role="status" aria-live="polite"></p>
           </section>
           <section class="panel" aria-labelledby="account-title">
-            <div class="panel-heading"><h2 id="account-title">StepMark 账号</h2><span id="api-label" class="subtle"></span></div>
+            <div class="panel-heading">
+              <h2 id="account-title">StepMark 账号</h2>
+              <span id="api-label" class="subtle"></span>
+            </div>
             <p id="account-name">未连接。连接账号后可查看习惯记录。</p>
             <div class="actions">
               <button id="login" type="button" class="primary">在浏览器登录</button>

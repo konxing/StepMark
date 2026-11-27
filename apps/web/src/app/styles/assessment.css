@@ -1,0 +1,182 @@
+.assess-shell {
+  max-width: 800px;
+}
+
+.assess-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  margin: 35px 0;
+  color: #647f6e;
+  font-size: 13px;
+}
+
+.assess-top a {
+  color: #366b50;
+}
+
+.assess-question {
+  border: 1px solid #dde5df;
+  background: #f8faf7;
+  border-radius: 12px;
+  padding: 25px;
+  margin: 30px 0;
+}
+
+.assess-question h2 {
+  font-size: 21px;
+  line-height: 1.6;
+  margin: 0 0 25px;
+}
+
+.assess-options {
+  border: 0;
+  margin: 0 0 20px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.assess-option {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px;
+  border-radius: 8px;
+  background: white;
+  border: 1px solid #e2e8e0;
+  cursor: pointer;
+}
+
+.assess-option:has(input:checked) {
+  border-color: #347956;
+  background: #eaf3eb;
+}
+
+.assess-option input {
+  accent-color: #296849;
+  margin-top: 4px;
+}
+
+.assess-button {
+  padding: 12px 19px;
+  background: #173a2c;
+  border: 0;
+  border-radius: 8px;
+  color: white;
+  font: inherit;
+  cursor: pointer;
+}
+
+.assess-button:disabled {
+  opacity: .5;
+  cursor: default;
+}
+
+.assess-feedback {
+  background: #ecf4ed;
+  padding: 15px;
+  line-height: 1.8;
+  border-radius: 8px;
+}
+
+.assessment-link a {
+  color: #2c7350;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+/* Independent reasoning forms: visual hierarchy without implying calibrated ability. */
+
+.assessment-form-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 26px 0;
+}
+
+.assessment-form-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  text-align: left;
+  border: 1px solid #d5e2d6;
+  background: white;
+  border-radius: 10px;
+  padding: 16px;
+  font: inherit;
+  cursor: pointer;
+  color: #2a4d39;
+}
+
+.assessment-form-choice.active {
+  border: 2px solid #34845a;
+  background: #f1f8f0;
+}
+
+.assessment-form-choice span,
+.assessment-form-choice small {
+  font-size: 12px;
+  color: #627968;
+}
+
+.assessment-form-choice:disabled {
+  opacity: .65;
+  cursor: default;
+}
+
+.assessment-report {
+  border: 1px solid #dce7dc;
+  background: #fff;
+  border-radius: 12px;
+  padding: 22px;
+  margin: 25px 0;
+}
+
+.assessment-report h2 {
+  font-size: 21px;
+}
+
+.assessment-report h3 {
+  font-size: 17px;
+  margin-top: 26px;
+}
+
+.assessment-dimensions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.assessment-dimensions > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 125px;
+  border: 1px solid #e2e9e1;
+  padding: 14px;
+  border-radius: 8px;
+  background: #f8faf7;
+}
+
+.assessment-dimensions span {
+  font-variant-numeric: tabular-nums;
+  color: #65796c;
+}
+
+.assessment-review {
+  border-top: 1px solid #e4ece3;
+  padding: 16px 0;
+}
+
+.assessment-review p {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .assessment-form-list {
+    grid-template-columns: 1fr;
+  }
+}

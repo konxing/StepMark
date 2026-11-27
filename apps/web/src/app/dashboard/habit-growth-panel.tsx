@@ -15,8 +15,8 @@ const options=[
 const stages:Record<string,string>={collecting_evidence:"收集证据",developing:"形成中",
   maintaining:"维护观察",review_due:"建议复查",needs_fresh_evidence:"等待更新自评"};
 
-export default function HabitGrowthPanel({habitId,habitTitle,eventId,revision}:{
-  habitId:string;habitTitle:string;eventId?:string|null;revision:number
+export default function HabitGrowthPanel({habitId,habitTitle,eventId,revision,onEvidenceChanged}:{
+  habitId:string;habitTitle:string;eventId?:string|null;revision:number;onEvidenceChanged:()=>void
 }) {
   const [result,setResult]=useState<Progress|null>(null);
   const [history,setHistory]=useState<Reflection[]>([]);
@@ -66,6 +66,7 @@ export default function HabitGrowthPanel({habitId,habitTitle,eventId,revision}:{
       if(!res.ok)throw new Error(res.status===409?"这次感受已经保存。":"感受保存失败。");
       const response=await res.json() as {reflection:{aiStatus:string}};
       setLevel("");setNote("");setConsent(false);setLinkedEventId(null);
+      onEvidenceChanged();
       await load();
       setMessage(response.reflection.aiStatus==="PENDING"?
         "已保存感受。AI 将由服务端任务异步分析；自评立即参与进度计算。":
@@ -88,6 +89,7 @@ export default function HabitGrowthPanel({habitId,habitTitle,eventId,revision}:{
         return;
       }
       const data=await response.json() as {mayHaveBeenSentToProvider:boolean};
+      onEvidenceChanged();
       await load();
       setMessage(data.mayHaveBeenSentToProvider?
         "已更新 StepMark 内的数据和后续授权，但以前发送给服务商的文字不能被撤回。":
@@ -108,6 +110,7 @@ export default function HabitGrowthPanel({habitId,habitTitle,eventId,revision}:{
       }
       if(!response.ok)throw new Error();
       setHistory(rows=>rows.map(row=>row.id===reflectionId?{...row,initiationLevel}:row));
+      onEvidenceChanged();
       setMessage("本人启动感受已保存。");
       await load().catch(()=>setMessage("本人启动感受已保存，进度暂时无法刷新。"));
     }catch{setMessage("无法确认是否保存，稍后可重试同一选项。");}
@@ -139,7 +142,7 @@ export default function HabitGrowthPanel({habitId,habitTitle,eventId,revision}:{
       {result.nextReviewAt&&<small>预计下次应用内复查：{new Date(result.nextReviewAt).toLocaleDateString("zh-CN")}</small>}
       <button type="button" className="text-button" disabled={busy} onClick={toggleReview}>{result.reviewEnabled?"关闭应用内复查":"开启应用内复查"}</button>
     </>:<p role="status">{message||"正在计算进度…"}</p>}
-    <HabitTrainingPanel habitId={habitId} revision={revision}/>
+    <HabitTrainingPanel habitId={habitId} revision={revision} onChanged={onEvidenceChanged}/>
     <div className="growth-form">
       <strong>这一次开始行动时的感受（选填）</strong>
       <div className="feeling-options" role="group" aria-label="开始行动的自然程度">

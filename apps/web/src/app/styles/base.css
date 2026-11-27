@@ -1,0 +1,63 @@
+:root {
+  font-family: Arial, "Noto Sans SC", "Microsoft YaHei", sans-serif;
+  color: #1c2724;
+  background: #f5f6f2;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+.wordmark {
+  font-size: 25px;
+  font-weight: 900;
+  letter-spacing: -1.4px;
+}
+
+.wordmark span:first-child {
+  font-weight: 400;
+}
+
+.brand-dot {
+  color: #519476;
+}
+
+.eyebrow,
+.kicker {
+  font-size: 11px;
+  letter-spacing: 2.2px;
+  color: #59856b;
+  font-weight: 700;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

@@ -1,0 +1,106 @@
+.account-shell {
+  max-width: 510px;
+  margin: 7vh auto;
+  padding: 35px 26px;
+  background: #fff;
+  border: 1px solid #e2e7df;
+  border-radius: 16px;
+}
+
+.account-shell h1 {
+  font-size: 32px;
+  margin: 46px 0 13px;
+}
+
+.account-shell p {
+  line-height: 1.7;
+  color: #677d6f;
+}
+
+.account-shell a:not(.wordmark) {
+  color: #397759;
+  text-decoration: underline;
+}
+
+.account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.account-form label {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.account-form input,
+.account-form textarea {
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 13px;
+  border: 1px solid #bdcbbf;
+  border-radius: 8px;
+  background: white;
+  color: #183a2d;
+  font: inherit;
+}
+
+.account-form textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.account-form input:focus,
+.account-form textarea:focus {
+  outline: 2px solid #2f7856;
+  outline-offset: 2px;
+}
+
+/* Shared controls for account forms and habit actions. */
+.account-form button,
+.account-button,
+.habit-actions button:not(.text-button) {
+  border: 0;
+  border-radius: 7px;
+  background: #173a2c;
+  color: #fff;
+  padding: 13px 16px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.account-form button:disabled,
+.habit-actions button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.account-form small,
+.habit-row small {
+  color: #70887b;
+  font-size: 12px;
+}
+
+.settings-divider {
+  border: 0;
+  border-top: 1px solid #e2e8df;
+  margin: 42px 0;
+}
+
+.account-form button.danger-action {
+  background: #a22b2b;
+}
+
+.account-form button.danger-action:disabled {
+  background: #b9bcb7;
+  color: #fff;
+}
+
+@media (max-width: 700px) {
+  .account-shell {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    min-height: 100vh;
+  }
+}
