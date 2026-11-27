@@ -8,23 +8,12 @@ const habitStages = {
   needs_fresh_evidence: "等待更新自评"
 };
 
-function formResult(form) {
-  if (!form || form.status === "unavailable") return "暂不可用";
-  if (Number.isInteger(form.correct))
-    return (
-      `${form.correct} / ${form.total} 道` +
-      (form.integrity === "verified" ? "" : " · 历史记录待核验")
-    );
-  if (form.availableAt) return new Date(form.availableAt).toLocaleDateString("zh-CN") + "开放";
-  return form.status === "in_progress" ? "答题中" : "待完成";
-}
-
 function habitDetails(invoke, habitId) {
   const details = document.createElement("details");
   details.className = "habit-detail";
   const body = document.createElement("div");
   body.setAttribute("role", "status");
-  details.append(textElement("summary", "查看养成进度与复测"), body);
+  details.append(textElement("summary", "查看养成进度"), body);
   let loading = false;
   let loaded = false;
   details.addEventListener("toggle", async () => {
@@ -32,15 +21,11 @@ function habitDetails(invoke, habitId) {
     loading = true;
     body.replaceChildren(textElement("p", "正在读取养成进度…"));
     try {
-      const [progress, training] = await Promise.allSettled([
-        invoke("get_habit_progress", { habitId }),
-        invoke("get_habit_training", { habitId })
-      ]);
-      if (progress.status !== "fulfilled" || !Number.isFinite(progress.value.progress)) {
+      const score = await invoke("get_habit_progress", { habitId });
+      if (!Number.isFinite(score.progress)) {
         body.replaceChildren(textElement("p", "暂时无法读取。可收起后重试，或在网页查看记录。"));
         return;
       }
-      const score = progress.value;
       const detailsRows = [
         textElement(
           "p",
@@ -62,27 +47,20 @@ function habitDetails(invoke, habitId) {
           )
         );
       }
-      if (training.status === "fulfilled" && training.value.target === "reasoning.logic") {
-        const plan = training.value;
+      if (score.chatAutomaticity) {
+        const { medianLow, medianHigh, days, stale } = score.chatAutomaticity;
+        const level = medianLow === medianHigh ? medianLow : `${medianLow}–${medianHigh}`;
         detailsRows.push(
           textElement(
             "p",
-            `逻辑推理 · 初测 ${formResult(plan.baseline)} · 复测 ${formResult(plan.retest)}`
+            `聊天启动感受 ${level}/4 · ${days} 个执行日 · ${stale ? "历史证据" : "AI 暂定观察"}（非正式自评）`
           )
         );
-        if (Number.isInteger(plan.rawDifferencePoints)) {
-          detailsRows.push(
-            textElement(
-              "p",
-              `两份短卷正确率相差 ${plan.rawDifferencePoints > 0 ? "+" : ""}${plan.rawDifferencePoints} 个百分点`
-            )
-          );
-        }
       }
       body.replaceChildren(...detailsRows);
-      loaded = training.status === "fulfilled";
+      loaded = true;
     } catch {
-      body.replaceChildren(textElement("p", "暂时无法读取养成进度。"));
+      body.replaceChildren(textElement("p", "暂时无法读取。可收起后重试，或在网页查看记录。"));
     } finally {
       loading = false;
     }

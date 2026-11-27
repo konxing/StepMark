@@ -238,7 +238,7 @@ export default function CapabilityCoachPanel({
       )}
       <div className={styles.actions}>
         <a href="/assess">{overview?.canCoach ? "打开独立初测与复测" : "打开逻辑推理初测"}</a>
-        {overview?.canCoach && <a href="/practice">练习独立题库</a>}
+        <a href="/practice">练习独立题库</a>
         {overview?.canCoach && <a href="#habit-records">在已有习惯的成长进度中关联训练</a>}
       </div>
     </section>

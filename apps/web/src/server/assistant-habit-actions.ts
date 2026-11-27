@@ -5,6 +5,7 @@ import {
   verifiedInitiationEvidence,
   type SafeAssistantCommand
 } from "./assistant-command";
+import { readChatAutomaticity } from "./chat-automaticity";
 import {
   habitSelfRatingEvidence,
   MAX_ACTIVE_HABITS,
@@ -224,13 +225,15 @@ async function checkProgress({ tx, userId }: HabitAction, habitId: string): Prom
   });
   if (!habit) throw new ApiError(404, "HABIT_NOT_FOUND");
 
-  const [counts, notes] = await Promise.all([
+  const nowMs = Date.now();
+  const [counts, notes, chatAutomaticity] = await Promise.all([
     readHabitOpportunityCounts(tx, [habit.id]),
     // Filter before applying the limit so AI-only entries cannot evict self-ratings.
     tx.habitReflection.findMany({
       ...recentHabitSelfRatings,
       where: { habitId: habit.id, ...recentHabitSelfRatings.where }
-    })
+    }),
+    readChatAutomaticity(tx, habit.id, nowMs)
   ]);
   const { completed, eligible, lastCompletedAtMs, recentOpportunities } = counts.get(habit.id)!;
   const status = calculateHabitProgress({
@@ -238,7 +241,7 @@ async function checkProgress({ tx, userId }: HabitAction, habitId: string): Prom
     eligibleOpportunities: eligible,
     completedOpportunities: completed,
     observations: habitSelfRatingEvidence(notes),
-    nowMs: Date.now(),
+    nowMs,
     lastCompletedAtMs,
     recentOpportunities,
     seed: habit.id,
@@ -256,9 +259,14 @@ async function checkProgress({ tx, userId }: HabitAction, habitId: string): Prom
   const consistency = status.recentExecution?.inconsistent
     ? "近期多次有机会但未执行，先核对触发情境是否合适。"
     : "";
+  const chatSignal = chatAutomaticity
+    ? `聊天启动感受暂定为 ${chatAutomaticity.medianLow === chatAutomaticity.medianHigh
+      ? chatAutomaticity.medianLow
+      : `${chatAutomaticity.medianLow}–${chatAutomaticity.medianHigh}`}/4，来自 ${chatAutomaticity.days} 个实际执行日。${chatAutomaticity.stale ? "这是历史证据。" : ""}`
+    : "";
 
   return {
-    reply: `「${habit.title}」${execution}${feedback}${freshness}${consistency}`,
+    reply: `「${habit.title}」${execution}${feedback}${freshness}${chatSignal}${consistency}`,
     change: null,
     progress: {
       habitId: habit.id,

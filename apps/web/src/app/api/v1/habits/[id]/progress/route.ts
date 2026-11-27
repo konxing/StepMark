@@ -3,6 +3,7 @@ import {z} from "zod";
 import {calculateHabitProgress} from "@stepmark/core";
 import {getDb} from "@/server/db";
 import {habitSelfRatingEvidence,readHabitOpportunityCounts,recentHabitSelfRatings} from "@/server/habit-service";
+import {readChatAutomaticity} from "@/server/chat-automaticity";
 import {ApiError,errorResponse,principalFromRequest} from "@/server/security";
 export const runtime="nodejs";
 /**
@@ -18,7 +19,7 @@ export async function GET(request:NextRequest,ctx:{params:Promise<{id:string}>})
     const habit=await db.habit.findFirst({where:{id,userId:p.userId,archivedAt:null},
       select:{id:true,reviewEnabled:true}});
     if(!habit)throw new ApiError(404,"NOT_FOUND");
-    const [counts,reflections,aiAnnotationCount]=await Promise.all([
+    const [counts,reflections,aiAnnotationCount,chatAutomaticity]=await Promise.all([
       readHabitOpportunityCounts(db,[id]),
       // Fetch DIRECT user-rated evidence independently. A large number of
       // recent AI-only notes must never push historical self-ratings out of
@@ -26,7 +27,8 @@ export async function GET(request:NextRequest,ctx:{params:Promise<{id:string}>})
       db.habitReflection.findMany({...recentHabitSelfRatings,where:{habitId:id,...recentHabitSelfRatings.where}}),
       // AI annotations are descriptive counts only, not rating inputs.
       db.habitReflection.count({where:{habitId:id,initiationLevel:null,
-        aiStatus:"COMPLETED",aiLevel:{not:null}}})
+        aiStatus:"COMPLETED",aiLevel:{not:null}}}),
+      readChatAutomaticity(db,id,Date.now())
     ]);
     const {completed,eligible,lastCompletedAtMs,recentOpportunities}=counts.get(id)!;
     const progress=calculateHabitProgress({completedRepetitions:completed,
@@ -34,7 +36,7 @@ export async function GET(request:NextRequest,ctx:{params:Promise<{id:string}>})
       nowMs:Date.now(),lastCompletedAtMs,recentOpportunities,
       seed:habit.id,reviewEnabled:habit.reviewEnabled});
     return NextResponse.json({habitId:id,reviewEnabled:habit.reviewEnabled,...progress,
-      aiAnnotationCount,aiAnnotationCountScope:"historical_unconfirmed_ai_only"},
+      chatAutomaticity,aiAnnotationCount,aiAnnotationCountScope:"historical_unconfirmed_ai_only"},
       {headers:{"Cache-Control":"private, no-store"}});
   }catch(error){return errorResponse(error);}
 }

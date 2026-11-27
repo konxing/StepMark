@@ -9,7 +9,7 @@ type EvidencePage={
 const endpoint="/api/v1/assistant/evidence";
 
 export default function WorkEvidencePanel({revision}:{revision:number}){
-  const [opened,setOpened]=useState(false);
+  const [opened,setOpened]=useState(true);
   const [data,setData]=useState<EvidencePage|null>(null);
   const [busy,setBusy]=useState(false);
   const [notice,setNotice]=useState("");
@@ -44,8 +44,8 @@ export default function WorkEvidencePanel({revision}:{revision:number}){
     finally{setBusy(false);}
   }
 
-  return <details onToggle={event=>setOpened(event.currentTarget.open)}>
-    <summary>查看成长证据</summary>
+  return <details open={opened} onToggle={event=>setOpened(event.currentTarget.open)}>
+    <summary>能力成长证据 · 来自日常对话</summary>
     <p>近 30 天按你的本地报告日期计数。同一天、同一方向只计一天。相同的行动原话保留首次归类。</p>
     {data&&<>
       <ul>{data.summary.map(row=><li key={row.domain}>{row.label}：{row.reportedDays?
@@ -59,7 +59,7 @@ export default function WorkEvidencePanel({revision}:{revision:number}){
       {data.nextOffset!==null&&<button type="button" className="text-button" disabled={busy}
         onClick={()=>void load(data.nextOffset!)}>加载更早的证据</button>}
     </>}
-    {data&&<p>以上根据你提供的原话整理。要判断能力变化，可继续完成独立测评。<a href="/assess">查看测评</a></p>}
+    {data&&<p>以上为对话中的行动与结果证据，不是能力百分位。无需答卷；可以继续谈真实任务的思路、验证及结果。</p>}
     {busy&&<p role="status">正在处理…</p>}
     {notice&&<p role="status">{notice} <button type="button" className="text-button" disabled={busy}
       onClick={()=>void load()}>重试</button></p>}

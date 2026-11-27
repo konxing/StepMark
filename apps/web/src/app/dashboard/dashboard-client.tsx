@@ -251,22 +251,33 @@ export default function DashboardClient({ email }: { email: string }) {
       </header>
       <section className="dash-welcome">
         <h1>习惯与能力记录</h1>
-        <p>记录今天的执行，查看习惯进度和相关能力复测。</p>
+        <p>和 AI 聊聊实际行动、思考过程与结果，查看习惯和成长证据。</p>
       </section>
+      <div id="assistant-records">
+        <AssistantChatPanel
+          onChanged={async (id) => {
+            await load();
+            if (id) await detail(id);
+          }}
+        />
+      </div>
       <nav className="dashboard-shortcuts" aria-label="记录与测评">
-        <a href="#capability-coach">训练与复测</a>
-        <a href="#habit-records">习惯进度</a>
         <a href="#assistant-records">AI 对话</a>
-        <a href="/assess">能力测评</a>
+        <a href="#habit-records">习惯进度</a>
+        <a href="#assessment-records">可选训练与复测</a>
       </nav>
-      <CapabilityCoachPanel
-        revision={detailRevision + trainingRevision}
-        onHabitCreated={async (id) => {
-          await load();
-          await detail(id);
-        }}
-        onViewHabit={(id) => void detail(id)}
-      />
+      <details id="assessment-records" className="dashboard-panel">
+        <summary>可选练习、初测与复测</summary>
+        <CapabilityCoachPanel
+          revision={detailRevision + trainingRevision}
+          onHabitCreated={async (id) => {
+            await load();
+            await detail(id);
+          }}
+          onViewHabit={(id) => void detail(id)}
+        />
+        <MeasurementEvidencePanel />
+      </details>
       <button
         type="button"
         className="assistant-advanced-toggle"
@@ -403,18 +414,6 @@ export default function DashboardClient({ email }: { email: string }) {
           onCloseHistory={() => setCorrectionHistory(null)}
         />
       )}
-      <div id="assistant-records">
-        <AssistantChatPanel
-          onChanged={async (id) => {
-            await load();
-            if (id) await detail(id);
-          }}
-        />
-      </div>
-      <MeasurementEvidencePanel />
-      <p className="assessment-link">
-        <a href="/practice">推理专项训练</a>
-      </p>
       <p className="notice" role="status" aria-live="polite">
         {message}
       </p>
