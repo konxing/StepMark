@@ -14,3 +14,6 @@ Everyday actions and outcomes are the default evidence view; they are not latent
 - Shiffman et al. (2008), ecological momentary assessment, https://doi.org/10.1146/annurev.clinpsy.3.022806.091415
 
 No psychometric validation or deployment is claimed for this incremental change. Desktop workbench's direct provider chat still needs an authenticated consented bridge to the server evidence endpoint; the desktop button opens the existing growth dashboard as a fallback.
+
+## External validation handoff
+See [public data guide](OPEN_DATASET_TEST_GUIDE_2026-11-28.md) and [source manifest](datasets/open-dataset-catalog-2026-11-28.json). Real laboratory aggregates are only data-integrity fixtures; they do not validate the conversational habit score. Natural-language automaticity still needs paired independently rated diary/self-report evidence.

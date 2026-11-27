@@ -2,6 +2,8 @@
 
 Date: 2026-11-11. **No external participant-level data is bundled into StepMark.** All model validity claims below are provisional.
 
+**Current handoff (2026-11-28):** [Open dataset test guide](OPEN_DATASET_TEST_GUIDE_2026-11-28.md), [machine-readable catalog](datasets/open-dataset-catalog-2026-11-28.json), and [real CC0 aggregate fixture](datasets/openneuro-learning-habits-aggregate.csv). Historical statuses below reflect their dated studies unless explicitly updated.
+
 ## 1. Directly executed public-data benchmark
 
 **Gera, R., Barak, S., & Schonberg, T.** (2024). *A novel free-operant framework enables experimental habit induction in humans*. Behavior Research Methods, 56, 3937–3958.
@@ -158,7 +160,7 @@ For each scale, only complete cases for that scale enter the variance calculatio
 ### Highest-priority cognitive dataset identified separately
 
 **Condon & Revelle / ICAR, Harvard Dataverse v3:** https://doi.org/10.7910/DVN/AD9RVY
-Dataverse lists **CC0 1.0 response data** (about 97,000 respondents administered subsets of 60 cognitive items: 9 letter/number, 11 matrices, 16 verbal reasoning, 24 spatial rotation). The sample was collected online and is not nationally representative; responses are not longitudinal StepMark training results. Source **metadata and license have been reviewed**, but the 19.7MB archive has **not yet been imported, mapped or benchmarked** in this repository.
+Dataverse lists **CC0 1.0 response data** (about 97,000 respondents administered subsets of 60 cognitive items: 9 letter/number, 11 matrices, 16 verbal reasoning, 24 spatial rotation). The sample was collected online and is not nationally representative; responses are not longitudinal StepMark training results. Source metadata and response-data license have been reviewed. **Updated 2026-11-28:** the original 18,796,756-byte scored-response CSV was subsequently retrieved, SHA-256 verified and benchmarked in isolated research CI on 2026-11-13; see [ICAR validation results](ICAR_VALIDATION_RESULTS_2026-11-13.md). No participant-level data were committed, and no StepMark item calibration is implied.
 
 **Critically: cognitive ITEM MATERIALS are governed by separate official Scientific Use License, not the Dataverse response-data CC0 label.** The ICAR team states that deploying ICAR test items on a commercial or ordinary noncommercial website is not permitted without an academic research context. https://sms.statistik.tu-dortmund.de/en/research/projects/completed-research-projects/international-cognitive-ability-resource-icar/ . Do not bundle test item text, scoring keys or generated questions in StepMark. Use response data only after validating their specific files, codebook and permissible analysis. The ICAR data **cannot** calibrate StepMark's original unrelated A/B items.
 

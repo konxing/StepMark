@@ -1,0 +1,200 @@
+{
+  "schemaVersion": 1,
+  "reviewed": "2026-11-28",
+  "defaultPolicy": "offline research only; do not put raw participants, protected stimuli, or unknown-license data in the application or public git history; source-specific license is not Apache-2.0",
+  "datasets": [
+    {
+      "id": "openneuro-learning-habits",
+      "title": "Learning Habits (Fluhr, Timokhov, Nebe)",
+      "source": "https://openneuro.org/datasets/ds008039",
+      "doi": "10.18112/openneuro.ds008039.v1.0.0",
+      "license": "CC0-1.0",
+      "licenseEvidence": "https://github.com/OpenNeuroDatasets/ds008039/blob/916b60cec1e5230d8fe5ae23d702efed30d45471/dataset_description.json",
+      "repository": "OpenNeuroDatasets/ds008039",
+      "commit": "916b60cec1e5230d8fe5ae23d702efed30d45471",
+      "status": "aggregate_committed_source_files_read",
+      "scope": "70 participants upstream; fixed convenience subset first five source IDs, all three runs; no individual records stored",
+      "files": [
+        {
+          "run": 1,
+          "path": "sub-01/ses-1/func/sub-01_ses-1_task-learning_run-1_events.tsv",
+          "gitBlobSha1": "d34360a80da77b59a48ed8d223672e9ceb4af41d"
+        },
+        {
+          "run": 2,
+          "path": "sub-01/ses-1/func/sub-01_ses-1_task-learning_run-2_events.tsv",
+          "gitBlobSha1": "34c38e364c2bb685dff418402024cf93ce1d9012"
+        },
+        {
+          "run": 3,
+          "path": "sub-01/ses-1/func/sub-01_ses-1_task-test_run-3_events.tsv",
+          "gitBlobSha1": "f8d56c1ba6fcf43841c099f4845db5e169c96f4e"
+        },
+        {
+          "run": 1,
+          "path": "sub-02/ses-1/func/sub-02_ses-1_task-learning_run-1_events.tsv",
+          "gitBlobSha1": "fb2c0db63cc6a8b301ad404ceff7a8f3ebf1c21f"
+        },
+        {
+          "run": 2,
+          "path": "sub-02/ses-1/func/sub-02_ses-1_task-learning_run-2_events.tsv",
+          "gitBlobSha1": "5602cdcf80f9a79cfd07bacb71445f65518e6005"
+        },
+        {
+          "run": 3,
+          "path": "sub-02/ses-1/func/sub-02_ses-1_task-test_run-3_events.tsv",
+          "gitBlobSha1": "0fa728b524a24c138f57d3ebd40707a561bd3dae"
+        },
+        {
+          "run": 1,
+          "path": "sub-03/ses-1/func/sub-03_ses-1_task-learning_run-1_events.tsv",
+          "gitBlobSha1": "374bfca4aba271571cd7aa4bab5131a9152f739a"
+        },
+        {
+          "run": 2,
+          "path": "sub-03/ses-1/func/sub-03_ses-1_task-learning_run-2_events.tsv",
+          "gitBlobSha1": "a42e5ff3bdc65e828f36bb7d822ed2f515ba60d8"
+        },
+        {
+          "run": 3,
+          "path": "sub-03/ses-1/func/sub-03_ses-1_task-test_run-3_events.tsv",
+          "gitBlobSha1": "0d809a11a0665eab11333d0a5f4a2377003c2cea"
+        },
+        {
+          "run": 1,
+          "path": "sub-04/ses-1/func/sub-04_ses-1_task-learning_run-1_events.tsv",
+          "gitBlobSha1": "568e500b51a9e180bfe84ccad8bc58b51fe20811"
+        },
+        {
+          "run": 2,
+          "path": "sub-04/ses-1/func/sub-04_ses-1_task-learning_run-2_events.tsv",
+          "gitBlobSha1": "3b71bc2421154a4206cd50ef44573cd0ed3ec03f"
+        },
+        {
+          "run": 3,
+          "path": "sub-04/ses-1/func/sub-04_ses-1_task-test_run-3_events.tsv",
+          "gitBlobSha1": "3e76a50dddb1699c34eadb958e0c967b5e275bef"
+        },
+        {
+          "run": 1,
+          "path": "sub-05/ses-1/func/sub-05_ses-1_task-learning_run-1_events.tsv",
+          "gitBlobSha1": "94a3dd11de9f867896e13ec800256bb946b043c5"
+        },
+        {
+          "run": 2,
+          "path": "sub-05/ses-1/func/sub-05_ses-1_task-learning_run-2_events.tsv",
+          "gitBlobSha1": "e523c30f919526b2c54849ffca70c6a3e2e9ea16"
+        },
+        {
+          "run": 3,
+          "path": "sub-05/ses-1/func/sub-05_ses-1_task-test_run-3_events.tsv",
+          "gitBlobSha1": "bfd8577cc7cd6cc9c23b02341c1b2bac076191dc"
+        }
+      ],
+      "fixture": "openneuro-learning-habits-aggregate.csv"
+    },
+    {
+      "id": "forecastbench-human",
+      "title": "ForecastBench human forecast round 2024-07-21",
+      "source": "https://www.forecastbench.org/datasets/",
+      "license": "CC-BY-SA-4.0",
+      "licenseEvidence": "https://github.com/forecastingresearch/forecastbench-datasets/blob/5b415c0fb3dc7c5c24cba804c2f8bf3732bbacc9/README.md",
+      "repository": "forecastingresearch/forecastbench-datasets",
+      "commit": "5b415c0fb3dc7c5c24cba804c2f8bf3732bbacc9",
+      "status": "pinned_metadata_only",
+      "files": [
+        {
+          "path": "datasets/forecast_sets/2024-07-21/2024-07-21.ForecastBench.human_super_individual.json",
+          "gitBlobSha1": "583085efe4c752d4b9f6ab2c98ec8642fbc01bca",
+          "bytes": 4595808
+        },
+        {
+          "path": "datasets/question_sets/2024-07-21-human.json",
+          "gitBlobSha1": "ae7014c0e2bc0b2117b3b20efcb59c401e24976a",
+          "bytes": 553367
+        },
+        {
+          "path": "datasets/resolution_sets/2024-07-21_resolution_set.json",
+          "gitBlobSha1": "e0dee2a54905d7c0725804f4a441ed0a9813517f",
+          "bytes": 2685331
+        }
+      ],
+      "scope": "Public round file is a 133-byte blob; do not assume it contains full public forecasts. Inspect pointer and fetch documented upstream if needed."
+    },
+    {
+      "id": "harc",
+      "title": "Human Abstraction and Reasoning Corpus",
+      "source": "https://osf.io/bh8yq/",
+      "doi": "10.17605/OSF.IO/BH8YQ",
+      "license": "CC0-1.0",
+      "licenseEvidence": "https://www.nature.com/articles/s41597-025-05687-1",
+      "code": "https://github.com/Le-Gris/h-arc/blob/463f88cd6522b73197b010bfd7e2373f6bc25bc5/README.md",
+      "status": "license_reported_by_data_paper_not_downloaded",
+      "scope": "1729 people; task attempts, action traces and natural-language descriptions; separate task materials; do not distribute demographics or free text without review"
+    },
+    {
+      "id": "gjp",
+      "title": "Good Judgment Project (2016), GJP Data V1",
+      "source": "https://doi.org/10.7910/DVN/BPCDH5",
+      "license": "CC0-1.0",
+      "licenseEvidence": "https://doi.org/10.7910/DVN/BPCDH5",
+      "status": "license_verified_metadata_not_downloaded",
+      "scope": "human forecasts, question resolutions, time-aware calibration; avoid personal IDs and team leakage"
+    },
+    {
+      "id": "routine-formation",
+      "title": "VandeVijverBrinkhofdeWit_ALLDATA v4",
+      "source": "https://doi.org/10.6084/m9.figshare.23309678.v4",
+      "license": "CC-BY-4.0 reported in institutional search metadata; direct file rights pending",
+      "licenseEvidence": "https://www.dare.uva.nl/id/c141bf7b-5447-4090-a88f-70725f4c5297",
+      "status": "candidate_direct_license_and_bytes_pending",
+      "scope": "pill-taking adherence, SRBAI/SRHI, executive functions; health-related individual data must not be committed"
+    },
+    {
+      "id": "coh",
+      "title": "From Traits to Tendencies: personality architecture and habitual behavior",
+      "source": "https://data.mendeley.com/datasets/t8fs63pgrf/1",
+      "license": "CC-BY-4.0 reported in index; direct file review pending",
+      "licenseEvidence": "https://data.mendeley.com/datasets/t8fs63pgrf/1",
+      "status": "candidate_direct_license_and_bytes_pending",
+      "scope": "cross-sectional Creature of Habit 27 items, routine and automaticity; no habit growth inference"
+    },
+    {
+      "id": "oulad",
+      "title": "Open University Learning Analytics Dataset",
+      "source": "https://archive.ics.uci.edu/dataset/349/open+university+learning+analytics+dataset",
+      "license": "CC-BY-4.0",
+      "licenseEvidence": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5704676/",
+      "status": "license_verified_metadata_not_downloaded",
+      "scope": "course assessments and time-indexed VLE clicks; activity is not automaticity and grade is not general ability"
+    },
+    {
+      "id": "webis-argquality20",
+      "title": "Webis Argument Quality Corpus 2020",
+      "source": "https://doi.org/10.5281/zenodo.3780049",
+      "license": "unverified at primary dataset record",
+      "licenseEvidence": "https://zenodo.org/records/3780049",
+      "documentation": "https://webis.de/data/webis-argument-quality-20.html",
+      "status": "candidate_license_and_bytes_pending",
+      "scope": "1271 arguments / 20 topics / ~42k paired judgments; logical, rhetorical, dialectical, relevance; check source args.me rights"
+    },
+    {
+      "id": "habit-bench",
+      "title": "HABIT-Bench synthetic user histories",
+      "source": "https://huggingface.co/datasets/hollyming/HABIT-Bench",
+      "license": "domain-specific MIT / CDLA-Permissive-1.0 / CC-BY-4.0",
+      "licenseEvidence": "https://huggingface.co/datasets/hollyming/HABIT-Bench/blob/main/THIRD_PARTY_NOTICES.md",
+      "status": "synthetic_candidate_not_downloaded",
+      "scope": "synthetic longitudinal weak evidence and contextual habit induction; dialogue extraction regression only, never human validation"
+    },
+    {
+      "id": "motor-skill-habit",
+      "title": "Control becomes habitual early on when learning a novel motor skill, V1",
+      "source": "https://doi.org/10.7281/T1/FWDYPW",
+      "license": "CC-BY-4.0",
+      "licenseEvidence": "https://archive.data.jhu.edu/dataset.xhtml?persistentId=doi%3A10.7281%2FT1%2FFWDYPW",
+      "status": "license_verified_metadata_not_downloaded",
+      "scope": "motor skill control / statistical archive; not daily subjective automaticity"
+    }
+  ]
+}

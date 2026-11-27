@@ -146,6 +146,10 @@ License: Apache-2.0. 引入任何第三方认知测验或量表前另行确认�
 - 微信 `wx.request` 不支持标准 `PATCH`；复查设置和 AI 授权撤回在小程序使用 `PUT`，网页仍可使用 `PATCH`。两个方法都使用相同的多用户所有权检查。
 - 新增相应 PostgreSQL 集成测试：三态分母统计、跨用户复查列表、感受权限与撤回、处理中不可取消、微信 PUT 兼容。请以最新 GitHub Actions 结果判断当前分支是否通过。
 
+## 公开研究数据与 AI 测试交接（2026-11-28）
+
+后续 AI 请先读取 [数据获取与测试指南](docs/research/OPEN_DATASET_TEST_GUIDE_2026-11-28.md)、[机器可读清单](docs/research/datasets/open-dataset-catalog-2026-11-28.json) 与 [实际收集的 CC0 行为汇总 CSV](docs/research/datasets/openneuro-learning-habits-aggregate.csv)。明确区分已取得数据、许可核实但未下载、许可待核实、合成样本与已经独立验证的模型。真实用户/研究被试的原始记录不提交到公开仓库；第三方数据适用各自许可，不自动适用 Apache-2.0。AB 卷已移出默认对话成长流程，但旧答题记录、可选练习和研究门槛保留。
+
 ## 研究数据集验证（2026-11-11）
 
 已新增**可复现的真实公开研究数据基准**，与正式用户数据库完全隔离。
@@ -177,7 +181,7 @@ License: Apache-2.0. 引入任何第三方认知测验或量表前另行确认�
 
 ## 独立思维测验与跨时间证据 v1（2026-11-11）
 
-- 新增两套**原创、题目不重复**的逻辑推理短卷，每卷 6 题；覆盖条件推理、论证与证据、数量与比例三个类别，每类 2 题。原有 4 道演示题仍在后端保留；新页面默认使用独立 A/B 卷。
+- 新增两套**原创、题目不重复**的逻辑推理短卷，每卷 6 题；覆盖条件推理、论证与证据、数量与比例三个类别，每类 2 题。原有 4 道演示题仍在后端保留；可选测评页面使用独立 A/B 卷，2026-11-28 起不作为默认对话成长流程。
 - 新增 `Task.formCode`、`skillCode`、`formOrder` 与正式 Prisma SQL 迁移。种子脚本幂等创建 12 道新题，历史作答保留。必须执行 `npm run db:deploy --workspace @stepmark/web`、`npm run db:seed --workspace @stepmark/web` 后使用。
 - `GET /api/v1/assessment-forms`：返回仅属于当前用户的批次完成情况、分类证据、复测开放时间和（双卷完成后）原始正确率差异；只有整卷完成才返回逐题答案和解析，所有响应禁止缓存。
 - `GET /api/v1/tasks?construct=reasoning.logic&form=logic-a-v1`：仅返回当前用户未完成的本卷题目，题目答案在测验结束前不可通过此接口读取。B 卷使用 `logic-b-v1`。

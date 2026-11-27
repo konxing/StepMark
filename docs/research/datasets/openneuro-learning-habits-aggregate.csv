@@ -1,0 +1,4 @@
+run,participants,event_rows,response_rows,correct,incorrect,unknown_correctness,positive_rt_count,mean_positive_rt_seconds
+1,5,2858,469,416,53,0,469,0.553595
+2,5,2852,466,448,18,0,466,0.502961
+3,5,3397,677,493,6,178,677,0.521954

@@ -10,17 +10,17 @@
 
 示例：两次已知行为（完成 1、未完成 1）和另外两次已知合格但结果未知，原先可观察完成率是 50%；新范围为 [25%, 75%]，不是 50% 的精确估计。再加一次合格性未知的已记录事件，保守范围变为 [20%, 80%]。这些是基于**记录集合**的算术限制，不是关于未来的预测。
 
-## 本轮新增的公开数据集候选（2026-11-14 检索，尚未执行数据导入）
+## 公开数据集候选及后续状态（2026-11-28 更正）
 
 | 来源 | 可验证的研究问题 | 使用权/适配边界 | 当前状态 |
 | --- | --- | --- | --- |
 | [openESM Hasselhorn Study 1](https://openesmdata.org/datasets/0024_hasselhorn/), [Zenodo 17347856](https://doi.org/10.5281/zenodo.17347856) | 评估追踪频率、主观负担与数据缺报，含 `compliance`, `treatment`, `burden_high` | **CC BY-NC 4.0**，仅限许可的非商业研究；来源页面不同缓存版本显示人数有差异，必须在导入前复核记录版本、变量与样本数；不包含 StepMark 自动启动效标 | 候选，未下载、未验证哈希 |
-| [openESM Hasselhorn Study 2](https://openesmdata.org/datasets/0025_hasselhorn/), [Zenodo 17347567](https://doi.org/10.5281/zenodo.17347567) | 问卷长度、体验负担与观察缺失；应按参与者聚类计算，不把空白当不配合 | **CC BY-NC 4.0**，非商业研究限定；部分变量编码不清，需逐项确认字典 | 候选，未下载 |
+| [openESM Hasselhorn Study 2](https://openesmdata.org/datasets/0025_hasselhorn/), [实际执行版 Zenodo v2.0.0](https://zenodo.org/records/22953033) | 问卷长度、体验负担与观察缺失；应按参与者聚类计算，不把空白当不配合 | **CC BY-NC 4.0**，非商业研究限定；部分变量编码不清，需逐项确认字典 | 已在独立研究 CI 下载、校验并汇总；[实际结果](OPENESM_BURDEN_BENCHMARK_2026-11-14.md) |
 | [openESM Beck](https://openesmdata.org/datasets/0060_beck/), [Zenodo 17361673](https://doi.org/10.5281/zenodo.17361673) | 个体内行为波动、情境与拖延；可启发 StepMark 个体模型外推策略 | **CC BY-NC 4.0**；研究不是习惯自动化的量表校准，不能迁移成“习惯进度权重” | 候选，未下载 |
 | [Aschenbrenner et al. 2026 HFCA](https://doi.org/10.3758/s13428-026-03128-4), [OSF 数据](https://osf.io/tev9z/) | 注意控制的日常重复测量、测试重测与时间变化 | 开放数据 ≠ 允许任意商用或再发布；需审查每个文件授权、任务材料和原始量表版本；不能直接校准 StepMark 自建推理卷 | 候选，未下载 |
 | [Gardner, Lally & Rebar 2024](https://doi.org/10.1111/aphw.12600), [OSF 元数据/分析代码](https://osf.io/98g6j/) | 单题自动化代理指标与四题 SRBAI 的关系、对测量负担的影响 | 仅作者许可共享的部分数据可访问；不是全部 16 个样本都可用于训练或商业目的 | 研究依据，非可自由打包的数据集 |
 
-以上候选与仓库中 **已经实际执行** 的 Fiorella、Edgren、HABIRUPT、ICAR、ASAP、PERSUADE 数据流程不同，不能将“找到数据链接”写成“外部验证通过”。
+除上表 Study 2 已实际执行外，其余候选与仓库中 **已经实际执行** 的 Fiorella、Edgren、HABIRUPT、ICAR、ASAP、PERSUADE 数据流程不同，不能将“找到数据链接”写成“外部验证通过”。
 
 ## 下一阶段真实数据准入步骤
 
@@ -30,3 +30,5 @@
 4. 对认知 HFCA 数据必须先核对重测分量表的测量等价及是否存在学习效应，确认样本、任务、时间的对照条件，之后再讨论向 StepMark 的思维、注意、反应能力模块迁移。
 
 原则：**无确切来源、许可或可重复指标时，结论必须是证据不足。** 这次升级没有引入第三方参与者数据、数据库迁移或新的 AI 外传权限。
+
+最新来源、状态与测试说明见 [2026-11-28 数据指南](OPEN_DATASET_TEST_GUIDE_2026-11-28.md)。
