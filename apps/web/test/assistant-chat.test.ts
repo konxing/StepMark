@@ -290,6 +290,19 @@ test("conversational check_progress agrees with dashboard even after AI-only not
       aiConsent:true,aiStatus:"COMPLETED" as const,aiLevel:0,aiConfidence:1,
       aiModelId:"test",aiPromptVersion:"v1"
     }))});
+    const recentEvent = await db.habitEvent.create({
+      data: {
+        habitId: habit.id, opportunityKey: "daily:" + localDate(), eligible: true,
+        completed: true, occurredAt: new Date(), source: "assistant"
+      }
+    });
+    await db.habitReflection.create({
+      data: {
+        habitId: habit.id, eventId: recentEvent.id, note: "我开始时完全不用思考",
+        aiConsent: true, aiStatus: "COMPLETED", aiLevel: 4, aiQuote: "完全不用思考",
+        aiPromptVersion: "conversation-intent-v1"
+      }
+    });
     await db.habitReflection.create({data:{habitId:privateHabit.id,
       initiationLevel:0,aiConsent:false}});
     const command=authorizeAssistantCommand(template("check_progress",{habitId:habit.id}),
@@ -300,6 +313,7 @@ test("conversational check_progress agrees with dashboard even after AI-only not
       command,localDate:localDate(),model:"test-only"
     });
     assert.ok(result.progress);
+    assert.match(result.reply, /聊天启动感受暂定为 4\/4，来自 1 个实际执行日/);
     const token=(await issueSession(a.id,"WECHAT")).token;
     const route=await (await import("../src/app/api/v1/habits/[id]/progress/route")).GET(
       new NextRequest("http://localhost:3000/api/v1/habits/"+habit.id+"/progress",{
@@ -307,9 +321,11 @@ test("conversational check_progress agrees with dashboard even after AI-only not
     );
     assert.equal(route.status,200);
     const dashboard=await route.json() as {progress:number;evidenceCount:number;
-      evidenceStale:boolean;aiAnnotationCount:number};
+      evidenceStale:boolean;aiAnnotationCount:number;chatAutomaticity:{days:number;medianLow:number}|null};
     assert.equal(dashboard.evidenceCount,1);
-    assert.equal(dashboard.aiAnnotationCount,95);
+    assert.equal(dashboard.aiAnnotationCount,96);
+    assert.equal(dashboard.chatAutomaticity?.days,1);
+    assert.equal(dashboard.chatAutomaticity?.medianLow,4);
     assert.ok(dashboard.progress>40);
     assert.equal(result.progress!.percent,dashboard.progress);
     assert.equal(result.progress!.evidenceStale,dashboard.evidenceStale);

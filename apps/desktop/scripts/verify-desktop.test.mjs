@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {readFileSync} from "node:fs";
-import {runInNewContext} from "node:vm";
+import {readdirSync, readFileSync} from "node:fs";
 const root=new URL("../",import.meta.url);
 const read=path=>readFileSync(new URL(path,root),"utf8");
 test("desktop uses bundled local assets with no remote scripts or network-capable webview",()=>{
@@ -10,10 +9,13 @@ test("desktop uses bundled local assets with no remote scripts or network-capabl
   assert.equal(config.app.security.csp.includes("connect-src 'none'"),true);
   assert.equal(config.bundle.targets.includes("nsis"),true);
   const html=read("ui/index.html");
-  assert.match(html,/src="\.\/app\.js"/);
+  assert.match(html,/<script type="module" src="\.\/app\.js"/);
   assert.match(html,/href="\.\/style\.css"/);
   assert.doesNotMatch(html,/https?:\/\/|<iframe|<webview/i);
-  const js=read("ui/app.js");
+  const js=readdirSync(new URL("ui/",root))
+    .filter(name=>name.endsWith(".js"))
+    .map(name=>read(`ui/${name}`))
+    .join("\n");
   for(const banned of [/localStorage/,/sessionStorage/,/document\.cookie/,/innerHTML/,/\bfetch\s*\(/,/\beval\s*\(/,/Authorization\s*:/]){
     assert.doesNotMatch(js,banned);
   }
@@ -29,7 +31,7 @@ test("native commands do not expose a session token to the webview",()=>{
   assert.doesNotMatch(rust,/tauri_plugin_shell|tauri_plugin_http|window\.eval/);
 });
 
-test("workbench starters guide the user's own task and preserve drafts and follow-up context",async()=>{
+test("workbench starters guide the user's own task and preserve drafts and follow-up context",async(t)=>{
   class Element {
     constructor(){
       this.children=[];this.dataset={};this.events={};this.value="";this.textContent="";
@@ -63,7 +65,16 @@ test("workbench starters guide the user's own task and preserve drafts and follo
   };
   const document={getElementById:id=>nodes.get(id),querySelectorAll:selector=>selector==="[data-starter]"?starters:[],createElement:()=>new Element()};
   const navigator={clipboard:{writeText:async value=>{copied=value;}}};
-  runInNewContext(read("ui/app.js"),{document,navigator,window:{__TAURI__:{core:{invoke}}}});
+  const globals = {document, navigator, window: {__TAURI__: {core: {invoke}}}};
+  for (const [name, value] of Object.entries(globals)) {
+    const original = Object.getOwnPropertyDescriptor(globalThis, name);
+    Object.defineProperty(globalThis, name, { configurable: true, value });
+    t.after(() => {
+      if (original) Object.defineProperty(globalThis, name, original);
+      else delete globalThis[name];
+    });
+  }
+  await import(new URL("ui/app.js", root));
   await new Promise(resolve=>setImmediate(resolve));
   const input=nodes.get("question");
   const submit=()=>nodes.get("composer").events.submit({preventDefault(){}});

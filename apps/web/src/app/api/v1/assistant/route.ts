@@ -14,13 +14,36 @@ const requestSchema=z.object({
   requestId:z.uuid(),
   localDate:z.iso.date(),
   consentToAI:z.literal(true),
+  consentUserId:z.uuid().optional(),
   recordGrowthEvidence:z.boolean().optional()
 }).strict();
+
+export async function GET(request: NextRequest) {
+  try {
+    const { userId } = await principalFromRequest(request);
+    let configured = false;
+    try {
+      assistantProviderConfig();
+      configured = true;
+    } catch {
+      // Manual recording remains available when the server has no AI provider.
+    }
+    return NextResponse.json({ configured, userId }, {
+      headers: { "Cache-Control": "private, no-store" }
+    });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
 export async function POST(request:NextRequest){
   try{
     const principal=await principalFromRequest(request);
     if(principal.kind==="WEB")requireSameOrigin(request);
     const body=await boundedJson(request,requestSchema,4096);
+    if (body.consentUserId !== undefined && body.consentUserId !== principal.userId) {
+      throw new ApiError(409, "ASSISTANT_CONSENT_ACCOUNT_CHANGED");
+    }
     try{validateClientLocalDate(body.localDate);}catch{throw new ApiError(400,"INVALID_LOCAL_DATE");}
     // Return an identical completed request without paying for a second model call.
     const digest=assistantMessageDigest(body.message);

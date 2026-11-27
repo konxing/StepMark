@@ -18,7 +18,9 @@ function describeForm(form:Form|null,fallback:string){
   return fallback;
 }
 
-export default function HabitTrainingPanel({habitId,revision}:{habitId:string;revision:number}){
+export default function HabitTrainingPanel({habitId,revision,onChanged}:{
+  habitId:string;revision:number;onChanged:()=>void
+}){
   const endpoint=`/api/v1/habits/${encodeURIComponent(habitId)}/training`;
   const [training,setTraining]=useState<Training|null>(null);
   const [busy,setBusy]=useState(false);
@@ -43,6 +45,7 @@ export default function HabitTrainingPanel({habitId,revision}:{habitId:string;re
       const response=await fetch(endpoint,{method:"PUT",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({target})});
       if(!response.ok)throw new Error("TRAINING_SAVE_FAILED");
+      onChanged();
       await load();
     }catch{setMessage("无法确认训练关联，请刷新后重试。");}
     finally{setBusy(false);}

@@ -1,208 +1,104 @@
-import {Prisma} from "@/generated/prisma/client";
-import {calculateHabitProgress} from "@stepmark/core";
-import {getDb} from "./db";
-import {habitSelfRatingEvidence,MAX_ACTIVE_HABITS,readHabitOpportunityCounts,recentHabitSelfRatings} from "./habit-service";
-import {ApiError} from "./security";
-import {observationDay,type SafeAssistantCommand,validateClientLocalDate,verifiedInitiationEvidence,assistantMessageDigest} from "./assistant-command";
-import {readChatAutomaticity} from "./chat-automaticity";
-import {WORK_EVIDENCE_RUBRIC,type groundedWorkEvidence} from "./work-evidence";
+import type { Prisma } from "@/generated/prisma/client";
+import {
+  assistantMessageDigest,
+  validateClientLocalDate,
+  type SafeAssistantCommand
+} from "./assistant-command";
+import { executeAssistantHabitAction, type AssistantHabitResult } from "./assistant-habit-actions";
+import { getDb } from "./db";
+import { ApiError } from "./security";
+import type { groundedWorkEvidence } from "./work-evidence";
+import { saveAssistantWorkEvidence } from "./work-evidence-store";
 
-export type AssistantResult={
-  reply:string;
-  change:null|{kind:"habit_created"|"opportunity_recorded"|"reflection_recorded";habitId:string;habitTitle:string};
-  progress:null|{habitId:string;percent:number;repetitions:number;evidenceStale:boolean};
-  workEvidenceAdded?:number;
+export type AssistantResult = AssistantHabitResult & {
+  workEvidenceAdded?: number;
 };
-const limitText=(value:string,length=500)=>value.slice(0,length);
 
-export async function executeAssistantCommand(args:{
-  userId:string;requestId:string;message:string;localDate:string;
-  command:SafeAssistantCommand;model:string;workEvidence?:ReturnType<typeof groundedWorkEvidence>
-}):Promise<AssistantResult>{
-  const {userId,requestId,message,command,model,workEvidence=[]}=args;
-  const localDate=validateClientLocalDate(args.localDate);
-  // Do not persist ordinary conversational replies or private free-text chat.
-  // Only explicit mutations require durable replay receipts.
-  if((command.intent==="chat"||command.intent==="clarify")&&!workEvidence.length)
-    return {reply:limitText(command.reply||"我没有改动任何记录。"),
-      change:null,progress:null};
-  const digest=assistantMessageDigest(message);
-  const db=getDb();
-  const key={userId_requestId:{userId,requestId}};
-  const old=await db.assistantAction.findUnique({where:key,select:{messageDigest:true,result:true}});
-  if(old){
-    if(old.messageDigest!==digest)throw new ApiError(409,"ASSISTANT_REQUEST_ID_REUSED");
-    return old.result as AssistantResult;
+type AssistantExecution = {
+  userId: string;
+  requestId: string;
+  message: string;
+  localDate: string;
+  command: SafeAssistantCommand;
+  model: string;
+  workEvidence?: ReturnType<typeof groundedWorkEvidence>;
+};
+
+async function readReceipt(
+  db: Pick<Prisma.TransactionClient, "assistantAction">,
+  where: Prisma.AssistantActionWhereUniqueInput,
+  messageDigest: string
+): Promise<AssistantResult | undefined> {
+  const receipt = await db.assistantAction.findUnique({
+    where,
+    select: { messageDigest: true, result: true }
+  });
+  if (!receipt) return undefined;
+  if (receipt.messageDigest !== messageDigest) throw new ApiError(409, "ASSISTANT_REQUEST_ID_REUSED");
+  return receipt.result as AssistantResult;
+}
+
+export async function executeAssistantCommand(args: AssistantExecution): Promise<AssistantResult> {
+  const { userId, requestId, message, command, model, workEvidence = [] } = args;
+  const localDate = validateClientLocalDate(args.localDate);
+  const hasWorkEvidence = workEvidence.length > 0;
+
+  // Ordinary replies have no durable receipt unless the message records work evidence.
+  if ((command.intent === "chat" || command.intent === "clarify") && !hasWorkEvidence) {
+    return {
+      reply: (command.reply || "我没有改动任何记录。").slice(0, 500),
+      change: null,
+      progress: null
+    };
   }
-  // Transactional one-use action receipt protects writes against same-key
-  // concurrent retries and lets the user see what was changed.
-  try{
-    return await db.$transaction(async tx=>{
-      const previous=await tx.assistantAction.findUnique({where:key,select:{messageDigest:true,result:true}});
-      if(previous){
-        if(previous.messageDigest!==digest)throw new ApiError(409,"ASSISTANT_REQUEST_ID_REUSED");
-        return previous.result as AssistantResult;
+
+  const messageDigest = assistantMessageDigest(message);
+  const db = getDb();
+  const where = { userId_requestId: { userId, requestId } };
+  const old = await readReceipt(db, where, messageDigest);
+  if (old !== undefined) return old;
+
+  // The mutation and its replay receipt commit together.
+  try {
+    return await db.$transaction(async (tx) => {
+      const previous = await readReceipt(tx, where, messageDigest);
+      if (previous !== undefined) return previous;
+
+      const fallback = command.intent === "clarify"
+        ? "请再说具体一点，我不会在不确定时修改记录。"
+        : "我理解了。";
+      const result: AssistantResult = (await executeAssistantHabitAction({
+        tx,
+        userId,
+        localDate,
+        command,
+        message,
+        model
+      })) ?? { reply: (command.reply || fallback).slice(0, 500), change: null, progress: null };
+
+      if (hasWorkEvidence) {
+        result.workEvidenceAdded = await saveAssistantWorkEvidence(tx, userId, localDate, model, workEvidence);
       }
-      let result:AssistantResult={reply:limitText(command.reply||"我理解了。"),
-        change:null,progress:null};
-      if(command.intent==="create_habit"){
-        const count=await tx.habit.count({where:{userId,archivedAt:null}});
-        if(count>=MAX_ACTIVE_HABITS)throw new ApiError(409,"HABIT_QUOTA_EXCEEDED");
-        const existing=await tx.habit.findFirst({
-          where:{userId,archivedAt:null,title:command.title!,action:command.action!,
-            createdAt:{gte:new Date(Date.now()-10*60*1000)}},select:{id:true,title:true}
-        });
-        const created=existing??await tx.habit.create({
-          data:{userId,title:command.title!,action:command.action!,cue:command.cue},
-          select:{id:true,title:true}
-        });
-        result={reply:existing?"相同的习惯近期已经建立，没有重复创建。":
-          `已为你建立「${created.title}」。以后直接和我说执行情况，我会记录到你的账户中。`,
-          change:{kind:"habit_created",habitId:created.id,habitTitle:created.title},progress:null};
-      }else if(command.intent==="record_opportunity" && command.target){
-        const target=await tx.habit.findFirst({where:{id:command.target.id,userId,archivedAt:null},
-          select:{id:true,title:true}});
-        if(!target)throw new ApiError(404,"HABIT_NOT_FOUND");
-        const day=observationDay(localDate,command.when);
-        const eligible=command.status!=="no_cue",completed=command.status==="done";
-        const key2={habitId_opportunityKey:{habitId:target.id,opportunityKey:"daily:"+day}};
-        const existing=await tx.habitEvent.findUnique({where:key2});
-        if(existing && (existing.completed!==completed||existing.eligible!==eligible)){
-          result={reply:`${day} 的「${target.title}」已有不同状态。为了避免覆盖记录，请在习惯详情中使用“更正”并查看审计历史。`,
-            change:null,progress:null};
-        }else{
-          if(!existing){
-            await tx.habitEvent.create({data:{
-              habitId:target.id,opportunityKey:"daily:"+day,
-              eligible,completed,occurredAt:day===localDate?new Date():new Date(day+"T12:00:00.000Z"),
-              source:"assistant"
-            }});
+      if (command.intent !== "check_progress" || hasWorkEvidence) {
+        const receipt = hasWorkEvidence && !result.change && !result.progress
+          ? { ...result, reply: "这条消息已处理。" }
+          : result;
+        await tx.assistantAction.create({
+          data: {
+            userId,
+            requestId,
+            messageDigest,
+            intent: command.intent,
+            result: JSON.parse(JSON.stringify(receipt)) as Prisma.InputJsonValue
           }
-          const evidence=completed?verifiedInitiationEvidence(command,message):null;
-          let recordedFeeling=false;
-          if(evidence&&(!existing || !(await tx.habitReflection.findUnique({
-            where:{eventId:existing.id},select:{id:true}})))){
-            const eventId=existing?.id||(await tx.habitEvent.findUniqueOrThrow({where:key2,select:{id:true}})).id;
-            await tx.habitReflection.create({data:{habitId:target.id,eventId,
-              note:message.slice(0,600),initiationLevel:null,aiConsent:true,
-              aiStatus:"COMPLETED",aiLevel:evidence.level,aiConfidence:evidence.confidence,
-              aiQuote:evidence.quote,aiModelId:model.slice(0,100),
-              aiPromptVersion:"conversation-intent-v1",reviewedAt:new Date()}});
-            recordedFeeling=true;
-          }
-          const state=completed?"已执行":eligible?"有机会但未执行":"没有出现触发情境";
-          result={reply:`已记录「${target.title}」在 ${day} 的状态：${state}。这是行为记录，不会直接改变能力分数。`,
-            change:recordedFeeling?{kind:"reflection_recorded",habitId:target.id,habitTitle:target.title}:
-              existing?null:{kind:"opportunity_recorded",habitId:target.id,habitTitle:target.title},
-            progress:null};
-        }
-      }else if(command.intent==="record_reflection" && command.target){
-        const target=await tx.habit.findFirst({where:{id:command.target.id,userId,archivedAt:null},
-          select:{id:true,title:true}});
-        if(!target)throw new ApiError(404,"HABIT_NOT_FOUND");
-        const start=new Date();start.setUTCHours(0,0,0,0);
-        const count=await tx.habitReflection.count({where:{habitId:target.id,createdAt:{gte:start}}});
-        if(count>=2)throw new ApiError(429,"REFLECTION_DAILY_LIMIT");
-        // A generic reflection has no known occurrence day. Do not attach it
-        // to an unrelated completed event just because it was sent today.
-        const day=command.when?observationDay(localDate,command.when):null;
-        const event=day?await tx.habitEvent.findUnique({where:{
-          habitId_opportunityKey:{habitId:target.id,opportunityKey:"daily:"+day}
-        },select:{id:true,completed:true}}):null;
-        const freeEvent=event?.completed ? await tx.habitReflection.findUnique({
-          where:{eventId:event.id},select:{id:true}}):null;
-        const evidence=verifiedInitiationEvidence(command,message);
-        await tx.habitReflection.create({data:{
-          habitId:target.id,eventId:event?.completed&&!freeEvent?event.id:null,
-          note:message.slice(0,600),initiationLevel:null,aiConsent:true,
-          aiStatus:"COMPLETED",aiLevel:evidence?.level??null,
-          aiConfidence:evidence?.confidence??null,aiQuote:evidence?.quote??null,
-          aiModelId:model.slice(0,100),aiPromptVersion:"conversation-intent-v1",
-          reviewedAt:new Date()
-        }});
-        const linkage=day? (event?.completed?"已核对对应日期的完成记录。":"该日期没有对应的完成记录，感受没有强行关联事件。"):
-          "没有明确日期，感受不会自动绑定今天的完成记录。";
-        result={reply:(evidence?
-          `已记录「${target.title}」的感受。AI 根据你的原话暂定自然启动等级 ${evidence.level}/4；这只是待校验的解释，不是你亲自选择的评分。`:
-          `已保存「${target.title}」的原话感受。由于缺少明确依据，AI 没有擅自给出自然启动评分。`)+linkage,
-          change:{kind:"reflection_recorded",habitId:target.id,habitTitle:target.title},
-          progress:null};
-      }else if(command.intent==="check_progress" && command.target){
-        const target=await tx.habit.findFirst({where:{id:command.target.id,userId,archivedAt:null},
-          select:{id:true,title:true,reviewEnabled:true}});
-        if(!target)throw new ApiError(404,"HABIT_NOT_FOUND");
-        const [counts,notes,chatAutomaticity]=await Promise.all([
-          readHabitOpportunityCounts(tx,[target.id]),
-          // Use exactly the same evidence definition as /progress and due reviews.
-          // Filtering after take() would let many AI-only entries evict older
-          // person-reported ratings from a conversational progress check.
-          tx.habitReflection.findMany({...recentHabitSelfRatings,
-            where:{habitId:target.id,...recentHabitSelfRatings.where}}),
-          readChatAutomaticity(tx,target.id,Date.now())
-        ]);
-        const {completed,eligible,lastCompletedAtMs,recentOpportunities}=counts.get(target.id)!;
-        const status=calculateHabitProgress({completedRepetitions:completed,
-          eligibleOpportunities:eligible,completedOpportunities:completed,
-          observations:habitSelfRatingEvidence(notes),nowMs:Date.now(),lastCompletedAtMs,recentOpportunities,
-          seed:target.id,reviewEnabled:target.reviewEnabled});
-        const execution=status.observedCompletionRate===null?"暂无已记录的执行机会。":
-          `已记录 ${status.eligibleOpportunities} 次执行机会，完成 ${completed} 次（${Math.round(status.observedCompletionRate*100)}%）。`;
-        const feedback=status.evidenceCount===0?"自然启动程度暂无本人自评。":
-          `自然启动程度有 ${status.evidenceCount} 天的本人自评。${status.evidenceStale?"最近的感受证据已过时，建议简短复查。":""}`;
-        const consistency=status.recentExecution?.inconsistent?"近期多次有机会但未执行，先核对触发情境是否合适。":"";
-        const chatSignal=chatAutomaticity?`聊天感受的暂定等级为 ${chatAutomaticity.medianLow===chatAutomaticity.medianHigh?chatAutomaticity.medianLow:chatAutomaticity.medianLow+"–"+chatAutomaticity.medianHigh}/4，来自 ${chatAutomaticity.days} 个实际执行日。${chatAutomaticity.stale?"这是历史证据。":""}不是正式自评。`:"";
-        result={reply:`「${target.title}」${execution}${feedback}${chatSignal}${consistency}`,
-          change:null,progress:{habitId:target.id,percent:status.progress,
-            repetitions:completed,evidenceStale:status.evidenceStale}};
-      }else if(command.intent==="clarify"){
-        result.reply=limitText(command.reply||"请再说具体一点，我不会在不确定时修改记录。");
-      }
-      if(workEvidence.length){
-        // Serialize evidence writes for this owner so a second request cannot
-        // insert the same action under a different suggested domain.
-        await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId}::uuid FOR NO KEY UPDATE`;
-        const existing=await tx.workEvidence.findMany({
-          where:{userId,digest:{in:workEvidence.map(row=>row.digest)}},
-          orderBy:[{createdAt:"asc"},{id:"asc"}],
-          select:{id:true,digest:true,stage:true,rubric:true}
         });
-        let changed=0;
-        for(const row of workEvidence){
-          const match=existing.find(item=>item.digest===row.digest);
-          if(!match){
-            await tx.workEvidence.create({data:{
-              ...row,userId,reportDay:localDate,modelId:model.slice(0,100),rubric:WORK_EVIDENCE_RUBRIC
-            }});
-            changed++;
-            continue;
-          }
-          if(!row.outcomeQuote||(match.stage===2&&match.rubric===WORK_EVIDENCE_RUBRIC))continue;
-          const enriched=await tx.workEvidence.updateMany({
-            where:{id:match.id,userId},
-            data:{stage:2,outcomeQuote:row.outcomeQuote,modelId:model.slice(0,100),rubric:WORK_EVIDENCE_RUBRIC}
-          });
-          changed+=enriched.count;
-        }
-        result.workEvidenceAdded=changed;
-      }
-      if(command.intent!=="check_progress"||workEvidence.length){
-        const receipt=workEvidence.length&&!result.change&&!result.progress?{
-          ...result,reply:"这条消息已处理。"
-        }:result;
-        await tx.assistantAction.create({data:{userId,requestId,messageDigest:digest,intent:command.intent,
-          result:JSON.parse(JSON.stringify(receipt)) as Prisma.InputJsonValue}});
       }
       return result;
     });
-  }catch(e){
-    // A competing identical request can win the unique receipt insert while
-    // this transaction rolls back, even after performing local (rolled-back) writes.
-    const recorded=await db.assistantAction.findUnique({where:key,
-      select:{messageDigest:true,result:true}});
-    if(recorded){
-      if(recorded.messageDigest!==digest)throw new ApiError(409,"ASSISTANT_REQUEST_ID_REUSED");
-      return recorded.result as AssistantResult;
-    }
-    throw e;
+  } catch (error) {
+    // A competing request may commit its receipt while this transaction rolls back.
+    const recorded = await readReceipt(db, where, messageDigest);
+    if (recorded !== undefined) return recorded;
+    throw error;
   }
 }
