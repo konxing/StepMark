@@ -71,7 +71,9 @@ test("local production startup, login and desktop PKCE stay on loopback",{timeou
     const cookie=setCookie.split(";")[0];
     const dashboard=await fetch(origin+"/dashboard",{headers:{cookie},redirect:"manual"});
     assert.equal(dashboard.status,200);
-    assert.match(await dashboard.text(),/逻辑推理训练与复测/);
+    const dashboardHtml=await dashboard.text();
+    assert.match(dashboardHtml,/可选练习、初测与复测/);
+    assert.doesNotMatch(dashboardHtml,/逻辑推理训练与复测/);
     const coaching=await fetch(origin+"/api/v1/ability-coaching",{headers:{cookie}});
     assert.equal(coaching.status,200);
     assert.equal((await coaching.json()).canCoach,false);

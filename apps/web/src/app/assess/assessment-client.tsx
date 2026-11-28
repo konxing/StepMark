@@ -181,6 +181,9 @@ export default function AssessmentClient(){
       {current.legacyAttemptCount>0&&<p className="progress-caveat">
         本卷有 {current.legacyAttemptCount} 条较早的答题记录没有题目内容指纹；成绩仍保留，但无法追溯核验题目是否曾被同版本修改。
       </p>}
+      {current.phase === "baseline" && current.integrityStatus === "verified" && (
+        <p><a className="primary-link" href="/dashboard#assessment-records">根据初测制定训练习惯</a></p>
+      )}
       <h3>逐题证据与解析</h3>
       {current.reviews.map((r,i)=><article className="assessment-review" key={r.taskId}>
         <strong>第 {i+1} 题 · {skills[r.skillCode??""]??"推理"} · {r.correct?"答对":"未答对"}</strong>

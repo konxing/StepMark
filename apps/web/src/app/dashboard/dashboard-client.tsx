@@ -42,6 +42,8 @@ export default function DashboardClient({ email }: { email: string }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [detailRevision, setDetailRevision] = useState(0);
   const [trainingRevision, setTrainingRevision] = useState(0);
+  const [assessmentVisited, setAssessmentVisited] = useState(false);
+  const assessmentPanel = useRef<HTMLDetailsElement>(null);
   const detailRequest = useRef(0);
   const [reflectionEventId, setReflectionEventId] = useState<string | null>(null);
   const [events, setEvents] = useState<OpportunityEvent[]>([]);
@@ -71,6 +73,22 @@ export default function DashboardClient({ email }: { email: string }) {
   useEffect(() => {
     void load().catch(() => setMessage("读取失败，请检查数据库连接。"));
   }, [load]);
+
+  const openAssessmentPanel = useCallback(() => {
+    const panel = assessmentPanel.current;
+    if (!panel) return;
+    panel.open = true;
+    setAssessmentVisited(true);
+  }, []);
+
+  useEffect(() => {
+    function followAssessmentLink() {
+      if (location.hash === "#assessment-records") openAssessmentPanel();
+    }
+    followAssessmentLink();
+    window.addEventListener("hashchange", followAssessmentLink);
+    return () => window.removeEventListener("hashchange", followAssessmentLink);
+  }, [openAssessmentPanel]);
 
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -264,19 +282,30 @@ export default function DashboardClient({ email }: { email: string }) {
       <nav className="dashboard-shortcuts" aria-label="记录与测评">
         <a href="#assistant-records">AI 对话</a>
         <a href="#habit-records">习惯进度</a>
-        <a href="#assessment-records">可选训练与复测</a>
+        <a href="#assessment-records" onClick={openAssessmentPanel}>可选训练与复测</a>
       </nav>
-      <details id="assessment-records" className="dashboard-panel">
+      <details
+        id="assessment-records"
+        className="dashboard-panel"
+        ref={assessmentPanel}
+        onToggle={(event) => {
+          if (event.currentTarget.open) setAssessmentVisited(true);
+        }}
+      >
         <summary>可选练习、初测与复测</summary>
-        <CapabilityCoachPanel
-          revision={detailRevision + trainingRevision}
-          onHabitCreated={async (id) => {
-            await load();
-            await detail(id);
-          }}
-          onViewHabit={(id) => void detail(id)}
-        />
-        <MeasurementEvidencePanel />
+        {assessmentVisited && (
+          <>
+            <CapabilityCoachPanel
+              revision={detailRevision + trainingRevision}
+              onHabitCreated={async (id) => {
+                await load();
+                await detail(id);
+              }}
+              onViewHabit={(id) => void detail(id)}
+            />
+            <MeasurementEvidencePanel />
+          </>
+        )}
       </details>
       <button
         type="button"
