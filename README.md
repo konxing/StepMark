@@ -1,5 +1,9 @@
 # StepMark / 个人能力与习惯成长平台
 
+## 习惯养成与能力关系：公开研究数据（AI 测试入口）
+
+后续 AI 优先阅读 [习惯—能力数据说明](docs/research/datasets/habit-ability/README.md) 与 [机器可读数据源](docs/research/datasets/habit-ability/sources.json)。本目录有实际论文数值（四周习惯+工作记忆、前瞻记忆、任务切换）及实际 306 条实验记录的非识别汇总 CSV；还提供 Figshare v4 原数据获取脚本和已有 Fiorella/Edgren 纵向验证入口。运行 `python packages/core/scripts/check-habit-ability-fixtures.py` 检查文件，`python packages/core/scripts/fetch-routine-formation.py` 检查原始数据的许可和文件元数据。原始数据尚未全部获取；只在许可范围内使用，禁止把习惯次数直接计为能力分。数据来源、独立验证状态、量表边界详见说明。
+
 ## 产品目标
 
 StepMark 帮用户在 AI 能承担大量任务的时代，仍有能力、有机会、有自主性地参与自己愿意做的劳动和创造。培养的能力包括独立发现问题、系统理解和验证、学习与迁移、使用工具与 AI、完成创造和交付、与人沟通协作，以及依据价值和证据自主选择方向。

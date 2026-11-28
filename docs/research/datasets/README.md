@@ -1,5 +1,7 @@
 # Research datasets — entry point for humans and AI agents
 
+**Priority for habit and capability validation:** [habit-ability/README.md](habit-ability/README.md), [source manifest](habit-ability/sources.json), three additional real aggregate/statistics CSVs and source fetch/check scripts. These are not raw paired longitudinal records.
+
 - [2026-11-28 curated catalog and testing instructions](../OPEN_DATASET_TEST_GUIDE_2026-11-28.md)
 - [Machine-readable source manifest](open-dataset-catalog-2026-11-28.json)
 - [CC0 real-data aggregate fixture](openneuro-learning-habits-aggregate.csv)

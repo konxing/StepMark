@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-28",
+  "sources": [
+    {
+      "id": "routine-cognition-2023",
+      "priority": "P0",
+      "kind": "paired_habit_and_cognition",
+      "status": "published_numeric_results_committed_raw_not_downloaded",
+      "paper": "https://doi.org/10.3389/fpsyg.2023.1140366",
+      "dataset": "https://doi.org/10.6084/m9.figshare.23309678.v4",
+      "licenseEvidence": "https://www.dare.uva.nl/id/c141bf7b-5447-4090-a88f-70725f4c5297",
+      "license": "CC-BY-4.0 according to university data record; verify actual file grant via Figshare API",
+      "api": "https://api.figshare.com/v2/articles/23309678/versions/4",
+      "sample": "131 adults; 28-day placebo routine; SRBAI days 1,7,14,21,28; objective working memory, prospective memory, task switching, matrix reasoning",
+      "fixtures": [
+        "routine-formation-published-groups.csv",
+        "routine-formation-published-effects.csv"
+      ]
+    },
+    {
+      "id": "fiorella-2026",
+      "priority": "P0",
+      "kind": "daily_formation",
+      "status": "previously_executed_pinned_research_only",
+      "paper": "https://doi.org/10.1007/s10648-026-10235-3",
+      "dataset": "https://osf.io/zty5s/",
+      "license": "dataset-specific downstream reuse unverified",
+      "sourceFile": "OSF_review_package.zip",
+      "sha256": "4eb4b87fd50390fe095f4119add927ec7fe8195b5e05b091a30123058cbe4e09",
+      "sample": "175 people, 9416 daily observations; different automaticity forms",
+      "runner": "packages/core/scripts/validate-fiorella.mjs"
+    },
+    {
+      "id": "edgren-decay",
+      "priority": "P0",
+      "kind": "daily_decay",
+      "status": "previously_executed_pinned_research_only",
+      "paper": "https://doi.org/10.1111/aphw.12612",
+      "dataset": "https://osf.io/sngu4/",
+      "license": "downstream data rights unverified",
+      "sourceFile": "SRBAI_TS_141223.csv",
+      "sha256": "a18c12c2d4208e6d5aa43f0e7f32617bfe92efffdb3016b1cbfa3f091fb36808",
+      "runner": "packages/core/scripts/validate-edgren.mjs"
+    },
+    {
+      "id": "habitwalk",
+      "priority": "P0",
+      "kind": "daily_formation",
+      "status": "public_data_link_verified_files_and_license_pending",
+      "paper": "https://doi.org/10.1111/aphw.12605",
+      "dataset": "https://osf.io/58pbr/",
+      "license": "unverified",
+      "sample": "daily cue-behavior repetition, steps and habit strength; missingness, nonwear, repeated recordings"
+    },
+    {
+      "id": "self-control-habit-2024",
+      "priority": "P0",
+      "kind": "habit_and_self_regulation",
+      "status": "public_data_link_verified_files_and_license_pending",
+      "paper": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11664030/",
+      "dataset": "https://osf.io/v79bf/",
+      "license": "unverified",
+      "sample": "SRBAI and inhibitory/initiatory self-control, behavioral outcomes; self-control is self-report not independent cognitive skill"
+    },
+    {
+      "id": "context-response-associations",
+      "priority": "P1",
+      "kind": "habit_and_task_performance",
+      "status": "public_data_link_verified_files_and_license_pending",
+      "paper": "https://doi.org/10.1002/jeab.893",
+      "dataset": "https://osf.io/jpbf7/",
+      "license": "unverified",
+      "sample": "context-response association strength, repetition, subjective automaticity and task performance"
+    },
+    {
+      "id": "characterizing-human-habits",
+      "priority": "P1",
+      "kind": "habit_and_lab_performance",
+      "status": "public_data_link_verified_files_and_license_pending",
+      "paper": "https://doi.org/10.1525/collabra.92949",
+      "dataset": "https://osf.io/qjwht/",
+      "license": "article CC BY 4.0; dataset license unverified",
+      "sample": "laboratory habit measures and SRHI, COHS, HTQ questionnaires"
+    },
+    {
+      "id": "single-item-2024",
+      "priority": "P0",
+      "kind": "measurement_burden",
+      "status": "metadata_and_selected_data_links_only",
+      "paper": "https://doi.org/10.1111/aphw.12600",
+      "dataset": "https://osf.io/98g6j/",
+      "license": "individual datasets require permission; not all 16 shared",
+      "sample": "16838 participants, 16 datasets, 43 scale applications; cross-sectional rather than formation trajectories"
+    },
+    {
+      "id": "motor-habit-gd3",
+      "priority": "P1",
+      "kind": "habit_and_motor_performance",
+      "status": "real_source_file_read_aggregate_committed",
+      "paper": "https://doi.org/10.31234/osf.io/xatzp",
+      "dataset": "https://zenodo.org/records/18568645",
+      "repository": "ranigera/Habit_and_Automaticity",
+      "revision": "5a0b7450d1e188c3165206434a99ceb6324bc81d",
+      "path": "ANALYSIS/Generalization_Dataset_3/DATABASES/DV_ALL_SITES.csv",
+      "gitBlobSha1": "504fda84a4030ae5eddbb92141b189506baac0e4",
+      "license": "repository MIT software license; no separate downstream raw participant data grant verified",
+      "sample": "306 source rows, unique newID, 149/157 by group; only numerical group means retained",
+      "fixture": "motor-habit-gd3-aggregate.csv"
+    },
+    {
+      "id": "keller-2021",
+      "priority": "P1",
+      "kind": "daily_formation",
+      "status": "code_link_only_data_rights_pending",
+      "paper": "https://doi.org/10.1111/bjhp.12504",
+      "dataset": "https://osf.io/qbk26/",
+      "license": "unverified",
+      "sample": "84-day routine/time cue RCT; OSF R code confirmed, do not assume raw data"
+    },
+    {
+      "id": "stojanovic-2022",
+      "priority": "P1",
+      "kind": "daily_formation",
+      "status": "author_request_only",
+      "paper": "https://doi.org/10.3389/fpsyg.2022.883795",
+      "license": "article CC BY; raw data from authors, not verified open download",
+      "sample": "study 1 2482 repetitions/95 people; study 2 2368 repetitions/218 users/308 habits; context stability, automaticity and goal attainment"
+    },
+    {
+      "id": "van-der-weiden-2020",
+      "priority": "P1",
+      "kind": "habit_and_self_control",
+      "status": "author_request_only",
+      "paper": "https://doi.org/10.3389/fpsyg.2020.00560",
+      "license": "article CC BY; raw data upon request",
+      "sample": "daily actions, biweekly SRHI and trait self-control; no evidence of self-control contributing to habit growth in study"
+    },
+    {
+      "id": "buyalskaya-2023",
+      "priority": "P1",
+      "kind": "behavioral_predictability",
+      "status": "public_data_link_verified_downstream_license_pending",
+      "paper": "https://doi.org/10.1073/pnas.2216115120",
+      "dataset": "https://osf.io/m8gdp/",
+      "license": "authors authorized deidentified sharing; separate downstream grant unverified",
+      "sample": "12M+ gym and 40M+ handwashing observations; predictability not direct automaticity"
+    }
+  ]
+}

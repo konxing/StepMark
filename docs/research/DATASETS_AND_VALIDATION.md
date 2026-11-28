@@ -377,3 +377,6 @@ The independently executed Fiorella research CI https://github.com/konxing/StepM
 ## 17. Item-quality diagnostics, MaRs-IB 2023 and new public adult-skill data (2026-11-15)
 
 The [new item quality / source admission report](./ITEM_QUALITY_AND_NEW_PUBLIC_DATASETS_2026-11-15.md) documents empirical item-rest, missingness and observed p-correct diagnostics, plus MaRs-IB, OMIB, OECD PIAAC, OECD PISA, COSMIN and IRW source restrictions. Its live impact is intentionally **zero**: StepMark A/B forms remain uncalibrated and no third-party individual responses are stored.
+
+## 2026-11-28 targeted habit and capability follow-up
+See [habit-ability data guide](datasets/habit-ability/README.md) and [machine-readable manifest](datasets/habit-ability/sources.json): published paired habit/cognition effect statistics, 306-row source motor-task aggregate, additional longitudinal sources, and guarded acquisition. No new latent score or causal inference is supported. Raw Figshare/OSF access remains pending.

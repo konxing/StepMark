@@ -1,0 +1,16 @@
+study,section,group,predictor,outcome,statistic,estimate,p_operator,p_value,notes
+van_de_vijver_2023,3.6.3,all,working_memory_ospan,day28_srbai,r,-0.25,=,0.007,reported correlation coefficient
+van_de_vijver_2023,3.6.3,younger,working_memory_ospan,day28_srbai,r,-0.07,=,0.576,reported correlation coefficient
+van_de_vijver_2023,3.6.3,older,working_memory_ospan,day28_srbai,r,-0.29,=,0.025,reported correlation coefficient
+van_de_vijver_2023,3.6.3,all,working_memory_ospan,pill_intake_group,chi_square,0.054,=,0.817,df=1
+van_de_vijver_2023,3.6.3,younger,working_memory_ospan,pill_intake_group,chi_square,0.023,=,0.881,df=1
+van_de_vijver_2023,3.6.3,older,working_memory_ospan,pill_intake_group,chi_square,0.28,=,0.599,df=1
+van_de_vijver_2023,3.6.2,younger,prospective_memory,pill_intake_group,t,-0.64,=,0.525,df=61
+van_de_vijver_2023,3.6.2,older,prospective_memory,pill_intake_group,t,-0.32,=,0.752,df=57
+van_de_vijver_2023,3.6.3,all,age_group_x_switch_cost,pill_intake_group,chi_square,9.33,=,0.002,df=1 interaction
+van_de_vijver_2023,3.6.3,younger,switch_cost,pill_intake_group,chi_square,8.07,=,0.005,df=1
+van_de_vijver_2023,3.6.3,older,switch_cost,pill_intake_group,chi_square,1.27,=,0.261,df=1
+van_de_vijver_2023,3.4,all,conscientiousness,day28_srbai,r,0.32,<,0.001,personality not cognitive ability
+van_de_vijver_2023,3.4,all,pill_intake_time_sd,day28_srbai,B,-99.58,=,0.012,source regression units
+van_de_vijver_2023,3.4,all,week,reported_automaticity,partial_eta_squared,0.23,<,0.001,repeated measures ANOVA
+van_de_vijver_2023,3.4,all,intake_group,day28_srbai,cohen_d,0.68,<,0.001,higher intake group higher automaticity

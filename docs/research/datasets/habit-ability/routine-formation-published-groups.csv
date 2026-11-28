@@ -1,0 +1,7 @@
+study,group,n,measure,mean,sd,scale_min,scale_max,source_section
+van_de_vijver_2023,high_intake,68,day28_srbai,65.2,23.4,0,100,3.4
+van_de_vijver_2023,low_intake,63,day28_srbai,48.9,24.7,0,100,3.4
+van_de_vijver_2023,younger,,whole_period_srhi,45.4,18.0,0,100,3.4
+van_de_vijver_2023,older,,whole_period_srhi,55.7,20.2,0,100,3.4
+van_de_vijver_2023,younger,,whole_period_srbai_subset,58.1,20.1,0,100,3.4
+van_de_vijver_2023,older,,whole_period_srbai_subset,68.7,17.9,0,100,3.4
